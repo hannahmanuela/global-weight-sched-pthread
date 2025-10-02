@@ -1,7 +1,12 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <math.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <sys/time.h>
+#include <unistd.h>
+#include <sched.h>
+#include <assert.h>
 
 #define NUM_CORES 56
 
@@ -12,7 +17,7 @@
 // global data structures
 struct process {
     int process_id;
-    int group_id;
+    struct group *group;
     struct process *next;
 };
 
@@ -33,7 +38,7 @@ struct global_state {
 
 // local data structures
 struct local_group {
-    int group_id;
+    struct group *group;
     double virt_time_gotten;
     double local_weight;
     struct local_group *next;
@@ -49,10 +54,15 @@ struct core_state {
 struct global_state* gs;
 pthread_mutex_t global_lock;
 
-struct process *create_process(int id, int group_id) {
+
+// ================
+// CREATION FUNCTIONS
+// ================
+
+struct process *create_process(int id, struct group *group) {
     struct process *p = malloc(sizeof(struct process));
     p->process_id = id;
-    p->group_id = group_id;
+    p->group = group;
     p->next = NULL;
     return p;
 }
@@ -68,19 +78,24 @@ struct group *create_group(int id, int weight) {
     return g;
 }
 
-struct local_group *create_local_group(int group_id, double local_weight) {
+struct local_group *create_local_group(struct group *group, double local_weight) {
     struct local_group *g = malloc(sizeof(struct local_group));
-    g->group_id = group_id;
+    g->group = group;
     g->local_weight = local_weight;
     g->next = NULL;
     return g;
 }
 
+
+// ================
+// HELPER FUNCTIONS
+// ================
+
 int compare_groups_by_weight_p_thread(const void *pa, const void *pb) {
     const struct group *a = *(const struct group **)pa;
     const struct group *b = *(const struct group **)pb;
-    double a_weight_p_thread = (double)a->weight / (double)a->num_threads;
-    double b_weight_p_thread = (double)b->weight / (double)b->num_threads;
+    double a_weight_p_thread = a->num_threads == 0 ? 0.0 : (double)a->weight / (double)a->num_threads;
+    double b_weight_p_thread = b->num_threads == 0 ? 0.0 : (double)b->weight / (double)b->num_threads;
     if (a_weight_p_thread > b_weight_p_thread) return -1;
     if (a_weight_p_thread < b_weight_p_thread) return 1;
     return 0;
@@ -96,8 +111,6 @@ void sort_groups_by_weight_p_thread() {
         num_groups++;
         curr_group = curr_group->next;
     }
-
-    printf("num groups %d\n", num_groups);
 
     struct group* groups_arr[num_groups];
     curr_group = gs->group_head;
@@ -121,6 +134,120 @@ void sort_groups_by_weight_p_thread() {
 
 }
 
+void free_all_local_groups() {
+    for (int i = 0; i < NUM_CORES; i++) {
+        struct local_group *curr_local_group = gs->cores[i]->local_group_head;
+        while (curr_local_group) {
+            struct local_group *next_local_group = curr_local_group->next;
+            free(curr_local_group);
+            curr_local_group = next_local_group;
+        }
+        gs->cores[i]->local_group_head = NULL;
+        gs->cores[i]->remaining_capacity = 1;
+    }
+}
+
+int p_in_rq(struct process *p) {
+    struct process *curr_head = p->group->runqueue_head;
+    while (curr_head) {
+        if (curr_head->process_id == p->process_id) {
+            return 1;
+        }
+        curr_head = curr_head->next;
+    }
+    return 0;
+}
+
+int group_in_gs(struct group *g) {
+    struct group *curr_group = gs->group_head;
+    while (curr_group) {
+        if (curr_group == g) {
+            return 1;
+        }
+        curr_group = curr_group->next;
+    }
+    return 0;
+}
+
+
+void re_enq_running_processes() {
+
+    for (int i = 0; i < NUM_CORES; i++) {
+        struct process *curr_process = gs->cores[i]->current_process;
+        if (curr_process) {
+            assert(!p_in_rq(curr_process));
+            // add it to the end of the runqueue
+            struct process *curr_head = curr_process->group->runqueue_head;
+            if (!curr_head) {
+                curr_process->group->runqueue_head = curr_process;
+                curr_process->next = NULL;
+                gs->cores[i]->current_process = NULL;
+                continue;
+            }
+            while (curr_head->next) {
+                curr_head = curr_head->next;
+            }
+            curr_head->next = curr_process;
+            curr_process->next = NULL;
+            gs->cores[i]->current_process = NULL;
+        }
+    }
+    
+}
+
+
+void print_global_state() {
+    printf("global state:\n");
+    printf("total weight: %d\n", gs->total_weight);
+    struct group *curr_group = gs->group_head;
+    while (curr_group) {
+        printf("group %d, weight %d, num threads %d\n", curr_group->group_id, curr_group->weight, curr_group->num_threads);
+        curr_group = curr_group->next;
+    }
+
+    printf("cores:\n");
+    for (int i = 0; i < NUM_CORES; i++) {
+        printf("core %d:\n", i);
+        struct local_group *curr_local_group = gs->cores[i]->local_group_head;
+        while (curr_local_group) {
+            printf("  local group %d, weight %f\n", curr_local_group->group->group_id, curr_local_group->local_weight);
+            curr_local_group = curr_local_group->next;
+        }
+    }
+
+}
+
+void write_global_state(FILE *f) {
+    fprintf(f, "global state:\n");
+    fprintf(f, "total weight: %d\n", gs->total_weight);
+    struct group *curr_group = gs->group_head;
+    while (curr_group) {
+        fprintf(f, "group %d, weight %d, num threads %d\n", curr_group->group_id, curr_group->weight, curr_group->num_threads);
+        struct process *curr_process = curr_group->runqueue_head;
+        while (curr_process) {
+            fprintf(f, "  process %d\n", curr_process->process_id);
+            curr_process = curr_process->next;
+        }
+        curr_group = curr_group->next;
+    }
+
+    fprintf(f, "cores:\n");
+    for (int i = 0; i < NUM_CORES; i++) {
+        fprintf(f, "core %d:\n", i);
+        struct local_group *curr_local_group = gs->cores[i]->local_group_head;
+        while (curr_local_group) {
+            fprintf(f, "  local group %d, weight %f\n", curr_local_group->group->group_id, curr_local_group->local_weight);
+            curr_local_group = curr_local_group->next;
+        }
+    }
+
+}
+
+// ================
+// MAIN FUNCTIONS
+// ================
+
+
 void distribute_weight() {
 
     int weight_left = gs->total_weight;
@@ -140,24 +267,23 @@ void distribute_weight() {
             curr_w_p_thread = (double)curr_group->weight / (double)curr_group->num_threads;
     
             if (curr_w_p_thread <= curr_w_p_core) {
-                printf("breaking, curr group %d\n", curr_group->group_id);
                 break;
             }
 
             int cores_group_should_get = curr_group->num_threads;
-            printf("group %d, curr w p thread %f, curr w p core %f, should get %d cores\n", curr_group->group_id, curr_w_p_thread, curr_w_p_core, cores_group_should_get);
 
             // actually assign to a core
             int cores_to_assign = cores_group_should_get;
+            // printf("group %d, cores to assign %d\n", curr_group->group->group_id, cores_to_assign);
             for (int i=curr_core_assigning; i < NUM_CORES; i++) {
                 struct core_state *curr_core = gs->cores[i];
+                if (cores_to_assign == 0) break;
                 if (curr_core->remaining_capacity == 1) {
-                    curr_core->remaining_capacity == 0;
-                        struct local_group *new_local_grp = create_local_group(curr_group->group_id, 1);
+                    curr_core->remaining_capacity = 0;
+                    struct local_group *new_local_grp = create_local_group(curr_group, 1);
                     curr_core->local_group_head = new_local_grp;
                     curr_core_assigning +=1;
                     cores_to_assign -= 1;
-                    if (cores_to_assign == 0) break;
                 }
             }
 
@@ -175,10 +301,11 @@ void distribute_weight() {
     while (curr_group) {
 
         double cores_group_should_get = (double)(curr_group->weight) / curr_w_p_core;
-        printf("group %d, curr w p core %f, should get %f cores\n", curr_group->group_id, curr_w_p_core, cores_group_should_get);
         double points_to_assign = cores_group_should_get;
+        // printf("group %d, points to assign %f\n", curr_group->group->group_id, points_to_assign);
         for (int i=curr_core_assigning; i < NUM_CORES; i++) {
             struct core_state *curr_core = gs->cores[i];
+            if (points_to_assign == 0) break;
             if (curr_core->remaining_capacity > 0) {
                 double local_points_to_assign;
                 if (points_to_assign < curr_core->remaining_capacity) {
@@ -189,78 +316,31 @@ void distribute_weight() {
 
                 curr_core->remaining_capacity = curr_core->remaining_capacity - local_points_to_assign;
 
-                struct local_group *new_local_grp = create_local_group(curr_group->group_id, local_points_to_assign);
+                struct local_group *new_local_grp = create_local_group(curr_group, local_points_to_assign);
                 struct local_group *curr_head = curr_core->local_group_head;
                 curr_core->local_group_head = new_local_grp;
                 new_local_grp->next = curr_head;
 
-
                 points_to_assign -= local_points_to_assign;
-                if (points_to_assign == 0) {
-                    break;
-                }
             }
         }
 
-        printf("getting next\n");
         curr_group = curr_group->next;
     }
 
-    printf("\n");
-
-}
-
-
-struct group *get_group(int group_id) {
-    struct group *curr_group = gs->group_head;
-    while (curr_group) {
-        if (curr_group->group_id == group_id) {
-            return curr_group;
-        }
-        curr_group = curr_group->next;
-    }
-    return NULL;
-}
-
-void free_all_local_groups() {
-    for (int i = 0; i < NUM_CORES; i++) {
-        struct local_group *curr_local_group = gs->cores[i]->local_group_head;
-        while (curr_local_group) {
-            struct local_group *next_local_group = curr_local_group->next;
-            free(curr_local_group);
-            curr_local_group = next_local_group;
-        }
-        gs->cores[i]->local_group_head = NULL;
-    }
-}
-
-void re_enq_running_processes() {
-
-    for (int i = 0; i < NUM_CORES; i++) {
-        struct process *curr_process = gs->cores[i]->current_process;
-        if (curr_process) {
-            struct group *curr_group = get_group(curr_process->group_id);
-            // add it to the end of the runqueue
-            struct process *curr_head = curr_group->runqueue_head;
-            while (curr_head->next) {
-                curr_head = curr_head->next;
-            }
-            curr_head->next = curr_process;
-            curr_process->next = NULL;
-        }
-    }
-    
 }
 
 
 void schedule(int core_id, int time_passed) {
+
+    // printf("scheduling core %d\n", core_id);
 
     // update timing
     struct process *running_process = gs->cores[core_id]->current_process;
     if (running_process) {
         struct local_group *curr_group = gs->cores[core_id]->local_group_head;
         while (curr_group) {
-            if (curr_group->group_id == running_process->group_id) {
+            if (curr_group->group == running_process->group) {
                 curr_group->virt_time_gotten += (double)time_passed / curr_group->local_weight;
                 break;
             }
@@ -268,17 +348,20 @@ void schedule(int core_id, int time_passed) {
         }
     }
 
-    pthread_mutex_lock(&global_lock);
     // re-enq the running process
     if (running_process) {
-        struct group *curr_group = get_group(running_process->group_id);
         // add it to the end of the runqueue
-        struct process *curr_head = curr_group->runqueue_head;
-        while (curr_head->next) {
-            curr_head = curr_head->next;
+        struct process *curr_head = running_process->group->runqueue_head;
+        if (!curr_head) {
+            running_process->group->runqueue_head = running_process;
+            running_process->next = NULL;
+        } else {
+            while (curr_head->next) {
+                curr_head = curr_head->next;
+            }
+            curr_head->next = running_process;
+            running_process->next = NULL;
         }
-        curr_head->next = running_process;
-        running_process->next = NULL;
     }
 
     // choose the local group with min virt time gotten
@@ -291,14 +374,21 @@ void schedule(int core_id, int time_passed) {
         curr_local_group = curr_local_group->next;
     }
 
-    struct group *global_group_to_run = get_group(min_local_group->group_id);
-    struct process *next_p = global_group_to_run->runqueue_head;
-    global_group_to_run->runqueue_head = next_p->next;
+    if (!min_local_group) {
+        assert(gs->cores[core_id]->current_process == NULL);
+        // printf("done scheduling core %d\n", core_id);
+        return;
+    }
+
+    struct process *next_p = min_local_group->group->runqueue_head;
+    assert(next_p); // the algorithm should only assign groups that have threads left
+    min_local_group->group->runqueue_head = next_p->next;
     next_p->next = NULL;
 
     gs->cores[core_id]->current_process = next_p;
+    assert(!p_in_rq(next_p));
 
-    pthread_mutex_unlock(&global_lock);
+    // printf("done scheduling core %d\n", core_id);
 
 }
 
@@ -307,74 +397,185 @@ void schedule(int core_id, int time_passed) {
 // add to group
 void enqueue(struct process *p) {
 
+    // printf("enqueuing p %d\n", p->process_id);
 
-    pthread_mutex_lock(&global_lock);
-    
+    if (!group_in_gs(p->group)) {
+        assert(p->group->num_threads == 0);
+        struct group *curr_group = gs->group_head;
+        while (curr_group->next) {
+            curr_group = curr_group->next;
+        }
+        curr_group->next = p->group;
+        p->group->next = NULL;
+    }
+
+
+    assert(group_in_gs(p->group));
+
+    assert(!p_in_rq(p));
+
     free_all_local_groups();
     re_enq_running_processes();
 
     // add the new process to its group
-    struct group *p_group = get_group(p->group_id);
-    struct process *curr_head = p_group->runqueue_head;
-    p_group->runqueue_head = p;
+    struct process *curr_head = p->group->runqueue_head;
+    p->group->runqueue_head = p;
     p->next = curr_head;
-    p_group->num_threads += 1;
+    p->group->num_threads += 1;
 
     distribute_weight();
-
-    pthread_mutex_unlock(&global_lock);
 
 }
 
 void dequeue(struct process *p) {
 
-    pthread_mutex_lock(&global_lock);
+    // printf("dequeuing p %d\n", p->process_id);
     
     free_all_local_groups();
     re_enq_running_processes();
 
+    assert(p_in_rq(p));
+
     // remove the process from its group
-    struct group *p_group = get_group(p->group_id);
-    struct process *curr_p = p_group->runqueue_head;
-    while (curr_p->next) {
-        if (curr_p->next->process_id == p->process_id) {
-            curr_p->next = curr_p->next->next;
-            break;
-        }
+    struct process *curr_p = p->group->runqueue_head;
+
+    assert(curr_p);
+    int done = 0;
+    if (curr_p->process_id == p->process_id) {
+        done = 1;
+        p->group->runqueue_head = curr_p->next;
+    } else {
+        struct process *prev = curr_p;
         curr_p = curr_p->next;
+        while (curr_p) {
+            if (curr_p->process_id == p->process_id) {
+                prev->next = curr_p->next;
+                done = 1;
+                break;
+            }
+            prev = curr_p;
+            curr_p = curr_p->next;
+        }
     }
-    curr_p->next = NULL; // it's the last one
-    p_group->num_threads -= 1;
+    assert(done);
+    
+    p->next = NULL;
+    p->group->num_threads -= 1;
+
+    assert(p->group->num_threads >= 0);
+
+    assert(!p_in_rq(p));
+
+    if (p->group->num_threads == 0) {
+        // remove the group from the global rq
+        struct group *curr_group = gs->group_head;
+        if (curr_group == p->group) {
+            gs->group_head = curr_group->next;
+        } else {
+            while (curr_group) {
+                if (curr_group->next == p->group) {
+                    curr_group->next = curr_group->next->next;
+                }
+                curr_group = curr_group->next;
+            }
+        }
+    }
+
+    if (p->group->num_threads == 0) {
+        assert(!group_in_gs(p->group));
+    }
 
     distribute_weight();
 
-    pthread_mutex_unlock(&global_lock);
-
 }
 
-void print_global_state() {
-    printf("global state:\n");
-    printf("total weight: %d\n", gs->total_weight);
-    struct group *curr_group = gs->group_head;
-    while (curr_group) {
-        printf("group %d, weight %d, num threads %d\n", curr_group->group_id, curr_group->weight, curr_group->num_threads);
-        curr_group = curr_group->next;
+void run_core(void* core_num_ptr) {
+
+    int core_id = (int)core_num_ptr;
+
+    struct process *pool = NULL;
+
+    // pin to an actual core
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+
+    while (1) {
+
+        // time how long it takes to schedule, write to file
+        struct timeval start, end;
+        gettimeofday(&start, NULL);
+
+        pthread_mutex_lock(&global_lock);
+        schedule(core_id, 4000);
+        gettimeofday(&end, NULL);
+        long long us_elapsed = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+
+        FILE *f = fopen("schedule_time.txt", "a");
+        fprintf(f, "%lld\n", us_elapsed);
+        fclose(f);
+
+        f = fopen("schedule_log.txt", "a");
+        fprintf(f, "scheduled core %d\n", core_id);
+        write_global_state(f);
+        fprintf(f, "\n");
+        fclose(f);
+        pthread_mutex_unlock(&global_lock);
+
+        // randomly choose to: "run" for the full tick, "enq" a new process, or "deq" something
+        int choice = rand() % 3;
+        if (choice == 0) {
+            usleep(4000); // just run
+        } else if (choice == 1) {
+            // pick an exisitng process from the pool?
+            struct process *p = pool;
+            if (!p) {
+                continue;
+            }
+            pool = p->next;
+            p->next = NULL;
+            pthread_mutex_lock(&global_lock);
+            enqueue(p);
+            FILE *f = fopen("schedule_log.txt", "a");
+            fprintf(f, "enqueued p %d on core %d\n", p->process_id, core_id);
+            write_global_state(f);
+            fprintf(f, "\n");
+            fclose(f);
+            pthread_mutex_unlock(&global_lock);
+        } else {
+            pthread_mutex_lock(&global_lock);
+            struct process *p = gs->cores[core_id]->current_process;
+            if (!p) {
+                pthread_mutex_unlock(&global_lock);
+                continue;
+            }
+            dequeue(p);
+            
+            FILE *f = fopen("schedule_log.txt", "a");
+            fprintf(f, "dequeued p %d on core %d\n", p->process_id, core_id);
+            write_global_state(f);
+            fprintf(f, "\n");
+            fclose(f);
+            pthread_mutex_unlock(&global_lock);
+            p->next = pool;
+            pool = p;
+        }
+        
     }
 
-    printf("cores:\n");
-    for (int i = 0; i < NUM_CORES; i++) {
-        printf("core %d:\n", i);
-        struct local_group *curr_local_group = gs->cores[i]->local_group_head;
-        while (curr_local_group) {
-            printf("  local group %d, weight %f\n", curr_local_group->group_id, curr_local_group->local_weight);
-            curr_local_group = curr_local_group->next;
-        }
-    }
 
 }
 
 
 void main() {
+    pthread_mutex_init(&global_lock, NULL);
+
+    FILE *f = fopen("schedule_time.txt", "w");
+    fclose(f);
+
+    f = fopen("schedule_log.txt", "w");
+    fclose(f);
 
     int num_groups = 10;
     int num_threads_p_group = 20;
@@ -397,14 +598,23 @@ void main() {
         g->next = curr_head;
         gs->total_weight += g->weight;
         for (int j = 0; j < num_threads_p_group; j++) {
-            struct process *p = create_process(i*num_threads_p_group+j, i);
+            struct process *p = create_process(i*num_threads_p_group+j, g);
             enqueue(p);
         }
     }
 
+    // print_global_state();
 
-    // schedule();
-    print_global_state();
+
+    pthread_t threads[NUM_CORES]; 
+
+    for (int i = 0; i < NUM_CORES; i ++) {
+        pthread_create(&threads[i], NULL, run_core, (void*)i);
+    }
+
+    for (int i = 0; i < NUM_CORES; i++) {
+        pthread_join(threads[i], NULL);
+    }
 
 }
 

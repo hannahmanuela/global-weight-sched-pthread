@@ -158,51 +158,10 @@ void schedule() {
 
 }
 
-
+// assumes that p was running somewhere 
 void dequeue(struct process *p) {
 
     // printf("deqing process %d from core %d\n", p->id, p->core_running_on);
-
-    if (p->core_running_on == -1) {
-        // printf("process %d is not running\n", p->id);
-
-        // struct process *curr_p = p->group->runqueue_head;
-        // if (curr_p->id == p->id) {
-        //     if (!curr_p->next) {
-        //         // last process in the groups q, need to check if the group is running anywhere (otherwise we are  removing last thread)
-        //         int found = 0;
-        //         for (int i = 0; i < NUM_CORES; i++) {
-        //             if (gs->cores[i]->current_process && gs->cores[i]->current_process->group == p->group) {
-        //                 found = 1;
-        //                 break;
-        //             }
-        //         }
-        //         if (!found) {
-        //             goto last_thread;
-        //         } else {
-        //             p->group->runqueue_head = NULL;
-        //             goto done;
-        //         }
-        //     } else {
-        //         p->group->runqueue_head = curr_p->next;
-        //         curr_p->next = NULL;
-        //         curr_p->core_running_on = -1;
-        //         goto done;
-        //     }
-        // }
-        // while (curr_p->next) {
-        //     if (curr_p->next->id == p->id) {
-        //         curr_p->next = curr_p->next->next;
-        //         break;
-        //     }
-        //     curr_p = curr_p->next;
-        // }
-
-        
-    //    goto done;
-    }
-
-    // if here, p was running somewhere
 
     struct process *next_p = p->group->runqueue_head;
     if (next_p) {

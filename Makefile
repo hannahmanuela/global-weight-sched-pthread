@@ -1,10 +1,7 @@
 all:
-	gcc -o main main.c -pthread
+	gcc -o strict-weight strict-weight.c -pthread
 
 clean:
-	rm main
-
-run:
-	./main 4
+	rm strict-weight
 
 

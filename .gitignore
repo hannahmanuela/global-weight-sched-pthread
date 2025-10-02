@@ -1,5 +1,4 @@
-main
+*
 
-schedule_time.txt
-
-strict-weight
+# Unignore all with extensions
+!*.c

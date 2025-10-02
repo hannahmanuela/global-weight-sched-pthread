@@ -1,7 +1,7 @@
 all:
-	gcc -o strict-weight strict-weight.c -pthread
+	gcc -o strict-weight/distr-weight strict-weight/distr-weight.c -pthread
 
 clean:
-	rm strict-weight
+	rm strict-weight/distr-weight
 
 

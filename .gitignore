@@ -2,3 +2,4 @@
 
 # Unignore all with extensions
 !*.c
+!Makefile

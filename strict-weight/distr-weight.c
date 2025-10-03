@@ -407,6 +407,7 @@ void enqueue(struct process *p) {
         }
         curr_group->next = p->group;
         p->group->next = NULL;
+        gs->total_weight += p->group->weight;
     }
 
 
@@ -479,6 +480,7 @@ void dequeue(struct process *p) {
                 curr_group = curr_group->next;
             }
         }
+        gs->total_weight -= p->group->weight;
     }
 
     if (p->group->num_threads == 0) {
@@ -543,6 +545,7 @@ void run_core(void* core_num_ptr) {
             fprintf(f, "\n");
             fclose(f);
             pthread_mutex_unlock(&global_lock);
+            usleep(2000);
         } else {
             pthread_mutex_lock(&global_lock);
             struct process *p = gs->cores[core_id]->current_process;
@@ -560,6 +563,7 @@ void run_core(void* core_num_ptr) {
             pthread_mutex_unlock(&global_lock);
             p->next = pool;
             pool = p;
+            usleep(2000);
         }
         
     }

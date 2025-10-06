@@ -11,6 +11,7 @@
 
 #define NUM_CORES 56
 #define TICK_LENGTH 40000
+#define GROUP_BONUS 1000
 
 // there are only global datastructures here
 
@@ -150,10 +151,10 @@ void write_global_state(FILE *f) {
     }
 }
 
-void trace_schedule(int process_id, int group_id, int core_id) {
+void trace_schedule(int process_id, int group_id, int group_changed, int core_id) {
     pthread_mutex_lock(&log_lock);
     FILE *f = fopen("event_log.txt", "a");
-    fprintf(f, "scheduled process %d of group %d on core %d\n", process_id, group_id, core_id);
+    fprintf(f, "scheduled process %d of group %d on core %d, group changed %d\n", process_id, group_id, core_id, group_changed);
     fclose(f);
     pthread_mutex_unlock(&log_lock);
 }
@@ -218,17 +219,20 @@ void enqueue(struct process *p, int is_new) {
 void schedule(int core_id, int time_passed, int should_re_enq) {
     // printf("scheduling core %d\n", core_id);
 
-    // if there was a process running, update spec time (collapse spec time)
     struct process *running_process = gs->cores[core_id]->current_process;
+    struct group *prev_running_group = NULL;
+
+    // if there was a process running, update spec time (collapse spec time)
     if (running_process) {
-        int beg_cores_spec = num_cores_speculating(running_process->group);
-        struct spec_time *curr_spec_node = running_process->group->spec_time_head;
+        prev_running_group = running_process->group;
+
+        struct spec_time *curr_spec_node = prev_running_group->spec_time_head;
         assert(curr_spec_node);
         // remove spec time struct and free memory, remember time had expected
         int time_had_expected = -1;
         if (curr_spec_node->core_running == core_id) {
             time_had_expected = curr_spec_node->time_expecting;
-            running_process->group->spec_time_head = curr_spec_node->next;
+            prev_running_group->spec_time_head = curr_spec_node->next;
             free(curr_spec_node);
         } else {
             struct spec_time *prev = curr_spec_node;
@@ -244,16 +248,14 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
                 curr_spec_node = curr_spec_node->next;
             }
         }
-        int end_cores_spec = num_cores_speculating(running_process->group);
-        assert(beg_cores_spec - 1 == end_cores_spec);
         
         // update spec virt time if time gotten was not what this core expected
         assert(time_had_expected != -1); // we picked it, so must have expected time
-        double virt_time_gotten = time_passed / running_process->group->weight;
+        double virt_time_gotten = time_passed / prev_running_group->weight;
         if (time_had_expected  != virt_time_gotten) {
             // need to edit the spec time to use time actually got
             double diff = time_had_expected - virt_time_gotten;
-            running_process->group->spec_virt_time -= diff;
+            prev_running_group->spec_virt_time -= diff;
         }
 
     }
@@ -267,13 +269,17 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
 
     // pick the group with the min spec virt time
     struct group *min_group = NULL;
-    int min_spec_virt_time = INT_MAX;
+    double min_spec_virt_time = INT_MAX;
     struct group *curr_group = gs->group_head;
     while (curr_group) {
         int threads_queued = curr_group->num_threads - num_cores_running(curr_group);
-        if (threads_queued > 0 && curr_group->spec_virt_time < min_spec_virt_time) {
-            min_spec_virt_time = curr_group->spec_virt_time;
-            min_group = curr_group;
+        if (threads_queued > 0) {
+            double effective_spec_virt_time = curr_group->spec_virt_time;
+            if (curr_group == prev_running_group) effective_spec_virt_time -= GROUP_BONUS;
+            if (effective_spec_virt_time < min_spec_virt_time) {
+                min_spec_virt_time = effective_spec_virt_time;
+                min_group = curr_group;
+            }
         }
         curr_group = curr_group->next;
     }
@@ -295,7 +301,8 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
     min_group->runqueue_head = next_p->next;
     next_p->next = NULL;
 
-    trace_schedule(next_p->process_id, next_p->group->group_id, core_id);
+    int group_changed = prev_running_group != min_group;
+    trace_schedule(next_p->process_id, next_p->group->group_id, group_changed, core_id);
 
     // update spec time
     double time_expecting = (double)TICK_LENGTH / next_p->group->weight;

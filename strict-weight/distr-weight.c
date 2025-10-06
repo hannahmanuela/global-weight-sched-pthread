@@ -158,6 +158,24 @@ int group_in_gs(struct group *g) {
     return 0;
 }
 
+int p_in_local_group(struct process *p, int core_id) {
+
+    int found = 0;
+
+    if (gs->cores[core_id]->current_process) {
+        struct local_group *curr_group = gs->cores[core_id]->local_group_head;
+        while (curr_group) {
+            if (curr_group->group == p->group) {
+                found = 1;
+                break;
+            }
+            curr_group = curr_group->next;
+        }
+    }
+
+    return found;
+}
+
 
 void re_enq_running_process(int core_id) {
 
@@ -196,18 +214,28 @@ double sum_weight_cores_running(struct group *group) {
     return num_cores_running;
 }
 
+int qlen(struct group *group) {
+    struct process *curr_process = group->runqueue_head;
+    int len = 0;
+    while (curr_process) {
+        len++;
+        curr_process = curr_process->next;
+    }
+    return len;
+}
+
 void print_global_state(struct global_state *gs_to_print) {
     printf("global state:\n");
     printf("total weight: %d\n", gs_to_print->total_weight);
     struct group *curr_group = gs_to_print->group_head;
     while (curr_group) {
-        printf("group %d, weight %d, num threads %d\n", curr_group->group_id, curr_group->weight, curr_group->num_threads);
+        printf("group %d, weight %d, num threads %d, q_len %d\n", curr_group->group_id, curr_group->weight, curr_group->num_threads, qlen(curr_group));
         curr_group = curr_group->next;
     }
 
     printf("cores:\n");
     for (int i = 0; i < NUM_CORES; i++) {
-        printf("core %d:\n", i);
+        printf("core %d current process %d (grp %d):\n", i, gs_to_print->cores[i]->current_process ? gs_to_print->cores[i]->current_process->process_id : -1, gs_to_print->cores[i]->current_process ? gs_to_print->cores[i]->current_process->group->group_id : -1);
         struct local_group *curr_local_group = gs_to_print->cores[i]->local_group_head;
         while (curr_local_group) {
             printf("  local group %d, weight %f\n", curr_local_group->group->group_id, curr_local_group->local_weight);
@@ -262,24 +290,24 @@ void free_global_state(struct global_state *gs_to_free) {
     free(gs_to_free);
 }
 
-void trace_wakeup(int process_id) {
+void trace_wakeup(int process_id, int num_cores_changed) {
     pthread_mutex_lock(&log_lock);
     FILE *f = fopen("event_log.txt", "a");
     struct timeval curr;
     gettimeofday(&curr, NULL);
     long long ms_tod = (curr.tv_sec * 1000 + curr.tv_usec / 1000);
-    fprintf(f, "%lld wakeup %d\n", ms_tod, process_id);
+    fprintf(f, "%lld wakeup %d, caused changes %d\n", ms_tod, process_id, num_cores_changed);
     fclose(f);
     pthread_mutex_unlock(&log_lock);
 }
 
-void trace_exit(int process_id) {
+void trace_exit(int process_id, int num_cores_changed) {
     pthread_mutex_lock(&log_lock);
     FILE *f = fopen("event_log.txt", "a");
     struct timeval curr;
     gettimeofday(&curr, NULL);
     long long ms_tod = (curr.tv_sec * 1000 + curr.tv_usec / 1000);
-    fprintf(f, "%lld exit %d\n", ms_tod, process_id);
+    fprintf(f, "%lld exit %d, caused changes %d\n", ms_tod, process_id, num_cores_changed);
     fclose(f);
     pthread_mutex_unlock(&log_lock);
 }
@@ -382,7 +410,7 @@ void distribute_weight(struct global_state *new_gs) {
 
 }
 
-void distribute_enforce_weight() {
+int distribute_enforce_weight() {
 
     struct global_state *new_gs = copy_global_state();
 
@@ -473,26 +501,15 @@ void distribute_enforce_weight() {
 
     free_global_state(new_gs);
 
-    printf("num cores changed: %d\n", num_cores_changed);
+    return num_cores_changed;
+
 }
 
 
 void schedule(int core_id, int time_passed) {
 
     // printf("scheduling core %d\n", core_id);
-
-    // update timing
     struct process *running_process = gs->cores[core_id]->current_process;
-    if (running_process) {
-        struct local_group *curr_group = gs->cores[core_id]->local_group_head;
-        while (curr_group) {
-            if (curr_group->group == running_process->group) {
-                curr_group->virt_time_gotten += (double)time_passed / curr_group->local_weight;
-                break;
-            }
-            curr_group = curr_group->next;
-        }
-    }
 
     // re-enq the running process
     if (running_process) {
@@ -510,6 +527,20 @@ void schedule(int core_id, int time_passed) {
         }
     }
 
+    // update timing if required (don't if we were running a process from a group that we are no longer in charge of, b/c an enq/deq moved local groups around)
+    if (running_process && p_in_local_group(running_process, core_id)) {
+        struct local_group *curr_group = gs->cores[core_id]->local_group_head;
+        while (curr_group) {
+            if (curr_group->group == running_process->group) {
+                curr_group->virt_time_gotten += (double)time_passed / curr_group->local_weight;
+                break;
+            }
+            curr_group = curr_group->next;
+        }
+    }
+
+    gs->cores[core_id]->current_process = NULL;
+
     // choose the local group with min virt time gotten
     struct local_group *min_local_group = NULL;
     struct local_group *curr_local_group = gs->cores[core_id]->local_group_head;
@@ -521,13 +552,17 @@ void schedule(int core_id, int time_passed) {
     }
 
     if (!min_local_group) {
-        assert(gs->cores[core_id]->current_process == NULL);
         // printf("done scheduling core %d\n", core_id);    
         trace_schedule(-1, core_id);
         return;
     }
 
     struct process *next_p = min_local_group->group->runqueue_head;
+    if (!next_p) {
+        // this is sometimes happening because cores might still be running processes from the old groups even after re-assignment, so if a new core tries to schedule its new group it might not find a process
+        printf("no next process for core %d group %d\n", core_id, min_local_group->group->group_id);
+        print_global_state(gs);
+    }
     assert(next_p); // the algorithm should only assign groups that have threads left
     min_local_group->group->runqueue_head = next_p->next;
     next_p->next = NULL;
@@ -544,7 +579,7 @@ void schedule(int core_id, int time_passed) {
 
 
 // add to group
-void enqueue(struct process *p) {
+int enqueue(struct process *p) {
 
     // printf("enqueuing p %d\n", p->process_id);
 
@@ -576,11 +611,11 @@ void enqueue(struct process *p) {
     p->group->num_threads += 1;
 
     // umm what is this doing? it has no way of effectuating the changes it knows it needs to make?
-    distribute_enforce_weight();
+    return distribute_enforce_weight();
 
 }
 
-void dequeue(struct process *p, int core_id) {
+int dequeue(struct process *p, int core_id) {
 
     // printf("dequeuing p %d\n", p->process_id);
     
@@ -638,7 +673,7 @@ void dequeue(struct process *p, int core_id) {
         assert(!group_in_gs(p->group));
     }
 
-    distribute_enforce_weight();
+    return distribute_enforce_weight();
 
 }
 
@@ -685,9 +720,9 @@ void run_core(void* core_num_ptr) {
             pool = p->next;
             p->next = NULL;
             pthread_mutex_lock(&global_lock);
-            enqueue(p);
+            int num_cores_changed = enqueue(p);
             pthread_mutex_unlock(&global_lock);
-            trace_wakeup(p->process_id);
+            trace_wakeup(p->process_id, num_cores_changed);
             usleep((int)(TICK_MS * MS_TO_US / 2));
         } else {
             pthread_mutex_lock(&global_lock);
@@ -696,9 +731,9 @@ void run_core(void* core_num_ptr) {
                 pthread_mutex_unlock(&global_lock);
                 continue;
             }
-            dequeue(p, core_id);
+            int num_cores_changed = dequeue(p, core_id);
             pthread_mutex_unlock(&global_lock);
-            trace_exit(p->process_id);
+            trace_exit(p->process_id, num_cores_changed);
             p->next = pool;
             pool = p;
             usleep((int)(TICK_MS * MS_TO_US / 2));
@@ -750,20 +785,15 @@ void main() {
         }
     }
 
-    schedule(0, 1000);
+    pthread_t threads[NUM_CORES]; 
 
-    print_global_state(gs);
+    for (int i = 0; i < NUM_CORES; i ++) {
+        pthread_create(&threads[i], NULL, run_core, (void*)i);
+    }
 
-
-    // pthread_t threads[NUM_CORES]; 
-
-    // for (int i = 0; i < NUM_CORES; i ++) {
-    //     pthread_create(&threads[i], NULL, run_core, (void*)i);
-    // }
-
-    // for (int i = 0; i < NUM_CORES; i++) {
-    //     pthread_join(threads[i], NULL);
-    // }
+    for (int i = 0; i < NUM_CORES; i++) {
+        pthread_join(threads[i], NULL);
+    }
 
 }
 
@@ -780,262 +810,3 @@ void main() {
 // - negative (ienew space is created where existing work can be moved to)
 //      - when overserved group loses enough threads to become underserved
 //      - when a group stops/is removed (is that really different from the first?)
-
-
-
-
-
-
-
-// void distribute_enforce_weight() {
-
-//     int weight_left = gs->total_weight;
-//     int cores_left = NUM_CORES;
-//     double curr_w_p_core, curr_w_p_thread;
-
-//     struct group_weight_off {
-//         struct group *group;
-//         double weight_off;
-//     };
-
-//     int num_groups = 0;
-//     struct group *curr_group = gs->group_head;
-//     while (curr_group) {
-//         num_groups++;
-//         curr_group = curr_group->next;
-//     }
-
-//     struct group_weight_off groups_need_more[num_groups]; // need some way of tracking how much more they need
-//     int num_groups_need_more = 0;
-//     struct group_weight_off groups_need_less[num_groups];
-//     int num_groups_need_less = 0;
-
-//     for (int i = 0; i < num_groups; i++) {
-//         groups_need_more[i] = (struct group_weight_off){NULL, 0};
-//         groups_need_less[i] = (struct group_weight_off){NULL, 0};
-//     }
-
-//     sort_groups_by_weight_p_thread();
-
-//     int curr_core_assigning = 0;
-
-//     curr_group = gs->group_head;
-
-//     while (curr_group) {
-
-//         curr_w_p_core = (double)weight_left / (double)cores_left;
-//         curr_w_p_thread = (double)curr_group->weight / (double)curr_group->num_threads;
-
-//         printf("weight_left: %d, cores_left: %d, curr_w_p_thread: %f, curr_w_p_core: %f\n", weight_left, cores_left, curr_w_p_thread, curr_w_p_core);
-
-//         if (curr_w_p_thread <= curr_w_p_core) {
-//             break;
-//         }
-
-//         int cores_group_should_get = curr_group->num_threads;
-//         double cores_group_has = sum_weight_cores_running(curr_group);
-
-//         printf("scenario 1, group %d: cores_group_should_get: %d, cores_group_has: %f\n", curr_group->group_id, cores_group_should_get, cores_group_has);
-
-//         if (cores_group_should_get == cores_group_has) {
-//             curr_group = curr_group->next;
-//             continue;
-//         } else if (cores_group_should_get > cores_group_has) {
-//             // need to take away some cores from this group, for now just note because we will redistribute at the end
-//             groups_need_more[num_groups_need_more] = (struct group_weight_off){curr_group, cores_group_should_get - cores_group_has};
-//             num_groups_need_more++;
-//         } else {
-//             // cores_group_should_get < cores_group_has
-//             groups_need_less[num_groups_need_less] = (struct group_weight_off){curr_group, cores_group_has - cores_group_should_get};
-//             num_groups_need_less++;
-//         }
-
-//         cores_left -= cores_group_should_get;
-//         weight_left -= curr_group->weight;
-//         curr_group = curr_group->next;
-//     }
-
-    
-//     // now only have groups with enough threads left
-//     while (curr_group) {
-
-//         double cores_group_should_get = (double)(curr_group->weight) / curr_w_p_core;
-//         double cores_group_has = sum_weight_cores_running(curr_group);
-//         printf("scenario 2, group %d: cores_group_should_get: %f, cores_group_has: %f\n", curr_group->group_id, cores_group_should_get, cores_group_has);
-
-//         if (cores_group_should_get == cores_group_has) {
-//             curr_group = curr_group->next;
-//             continue;
-//         } else if (cores_group_should_get > cores_group_has) {
-//             groups_need_more[num_groups_need_more] = (struct group_weight_off){curr_group, cores_group_should_get - cores_group_has};
-//             num_groups_need_more++;
-//         } else {
-//             groups_need_less[num_groups_need_less] = (struct group_weight_off){curr_group, cores_group_has - cores_group_should_get};
-//             num_groups_need_less++;
-//         }
-
-//         curr_group = curr_group->next;
-//     }
-
-//     for (int i = 0; i < num_groups_need_more; i++) {
-//         printf("group %d needs %f more\n", groups_need_more[i].group->group_id, groups_need_more[i].weight_off);
-//     }
-//     for (int i = 0; i < num_groups_need_less; i++) {
-//         printf("group %d needs %f less\n", groups_need_less[i].group->group_id, groups_need_less[i].weight_off);
-//     }
-
-
-//     // now go through and redistribute
-
-//     // track idle cores
-//     struct core_state *idle_core_ids[NUM_CORES];
-//     struct core_state *cores_changed[NUM_CORES];
-//     int num_idle_cores = 0;
-//     for (int i = 0; i < NUM_CORES; i++) {
-//         cores_changed[i] = NULL;
-//         if (gs->cores[i]->local_group_head == NULL) {
-//             idle_core_ids[num_idle_cores] = gs->cores[i];
-//             num_idle_cores++;
-//         }
-//     }
-
-//     // pretty sure it is necessarily the case that weight needed <= weight too much 
-//     // (> because if there were idle cores, then their weight is needed but there is no corresponding group with too much weight?)
-//     double weight_needed = 0;
-//     double weight_too_much = 0;
-//     for (int i = 0; i < num_groups_need_more; i++) {
-//         weight_needed += groups_need_more[i].weight_off;
-//     }
-//     for (int i = 0; i < num_groups_need_less; i++) {
-//         weight_too_much += groups_need_less[i].weight_off;
-//     }
-//     double weight_idle = 0;
-//     for (int i = 0; i < NUM_CORES; i++) {
-//         if (gs->cores[i]->remaining_capacity > 0) {
-//             weight_idle += gs->cores[i]->remaining_capacity;
-//         }
-//     }
-//     // assert(weight_needed <= weight_too_much + weight_idle);
-
-//     // assign cores to groups to fulfill weight needed
-//     for (int i = 0; i < num_groups_need_more; i++) {
-//         struct group *group_needs_more = groups_need_more[i].group;
-//         double weight_to_assign = groups_need_more[i].weight_off;
-//         while (weight_to_assign > 0) {
-
-//             double weight_to_assign_to_core;
-//             if (weight_to_assign > 1) {
-//                 weight_to_assign_to_core = 1;
-//             } else {
-//                 weight_to_assign_to_core = weight_to_assign;
-//             }
-
-//             // if there are idle cores left, use those first
-//             if (num_idle_cores > 0) {
-//                 struct core_state *idle_core = idle_core_ids[0];
-//                 num_idle_cores--;
-//                 assert(idle_core->remaining_capacity == 1);
-//                 idle_core->remaining_capacity -= weight_to_assign_to_core;
-//                 weight_to_assign -= weight_to_assign_to_core;
-//                 idle_core->local_group_head = create_local_group(group_needs_more, weight_to_assign_to_core);
-
-//                 cores_changed[idle_core->core_id] = idle_core;
-
-//                 continue;
-//             }
-
-//             int found = 0;
-//             // there might be a core with enough remaining capacity
-//             for (int i = 0; i < NUM_CORES; i++) {
-//                 if (gs->cores[i]->remaining_capacity >= weight_to_assign) {
-//                     found = 1;
-//                     cores_changed[gs->cores[i]->core_id] = gs->cores[i];
-//                     struct local_group *curr_local_group = gs->cores[i]->local_group_head;
-//                     while (curr_local_group) {
-//                         curr_local_group = curr_local_group->next;
-//                     }
-//                     curr_local_group->next = create_local_group(group_needs_more, weight_to_assign);
-
-//                     break;
-//                 }
-//             }
-
-//             if (found) {
-//                 continue;
-//             }
-
-//             printf("no idle or 'remaining capacity' core found\n");
-
-//             // otherwise, use a core from the groups that have too much weight
-//             for (int i = 0; i < NUM_CORES; i++) {
-
-//                 double weight_availabe = gs->cores[i]->remaining_capacity;
-
-//                 printf("looking at core %d, ", i);
-
-//                 struct local_group *curr_local_group = gs->cores[i]->local_group_head;
-
-//                 while (curr_local_group) {
-                
-//                     for (int j = 0; j < num_groups_need_less; j++) {
-//                         if (groups_need_less[j].group == curr_local_group->group) {
-//                             weight_availabe += curr_local_group->local_weight;
-//                         }
-//                     }
-//                     curr_local_group = curr_local_group->next;
-//                 }
-
-//                 if (weight_availabe >= weight_to_assign) {
-//                     found = 1;
-//                     cores_changed[i] = gs->cores[i];
-
-//                     // actually do the weight transfer
-//                     double weight_stolen = gs->cores[i]->remaining_capacity;
-//                     gs->cores[i]->remaining_capacity = 0; // know that we need to use all of it, because otherwise the above loop would have found it
-//                     while (weight_stolen < weight_to_assign) {
-//                         struct local_group *curr_local_group = gs->cores[i]->local_group_head;
-//                         while (curr_local_group && weight_stolen < weight_to_assign) {
-//                             if (curr_local_group->local_weight > weight_to_assign - weight_stolen) {
-//                                 curr_local_group->local_weight -= weight_to_assign - weight_stolen;
-//                                 weight_stolen = weight_to_assign;
-//                                 break;
-//                             } else {
-//                                 weight_stolen += curr_local_group->local_weight;
-//                                 gs->cores[i]->local_group_head = curr_local_group->next;
-//                                 free(curr_local_group);
-//                                 curr_local_group = gs->cores[i]->local_group_head;
-//                             }                            
-//                         }
-//                     }
-//                     if (gs->cores[i]->local_group_head) {
-//                         struct local_group *old_next = gs->cores[i]->local_group_head->next;
-//                         gs->cores[i]->local_group_head->next = create_local_group(group_needs_more, weight_to_assign);
-//                         gs->cores[i]->local_group_head->next->next = old_next;
-//                     } else {
-//                         gs->cores[i]->local_group_head = create_local_group(group_needs_more, weight_to_assign);
-//                     }
-//                 }
-
-//                 if (found) break;
-
-//             }
-
-//             if (!found) {
-//                 // found no idle or "needs less" core to steal from
-//                 // this might be because "needs less" cores have weight distributed among them, so there is no one to steal from?
-//                 assert(0);
-//             }
-
-//             weight_to_assign -= weight_to_assign_to_core;
-//         }
-
-//     }
-
-//     // TODO: notify cores whose local groups need to change - wait for them to make the change?
-//     // for (int i = 0; i < NUM_CORES; i++) {
-//     //     if (cores_changed[i]) {
-//     //         // this
-//     //     }
-//     // }
-
-// }

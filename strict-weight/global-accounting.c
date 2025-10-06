@@ -10,7 +10,7 @@
 #include <assert.h>
 
 #define NUM_CORES 56
-#define TICK_LENGTH 4000
+#define TICK_LENGTH 40000
 
 // there are only global datastructures here
 
@@ -48,6 +48,7 @@ struct global_state {
 
 struct global_state* gs;
 pthread_mutex_t global_lock;
+pthread_mutex_t log_lock;
 
 
 // ================
@@ -147,6 +148,30 @@ void write_global_state(FILE *f) {
     for (int i = 0; i < NUM_CORES; i++) {
         fprintf(f, "core %d: running process of group %d \n", i, gs->cores[i]->current_process ? gs->cores[i]->current_process->group->group_id : -1);
     }
+}
+
+void trace_schedule(int process_id, int group_id, int core_id) {
+    pthread_mutex_lock(&log_lock);
+    FILE *f = fopen("event_log.txt", "a");
+    fprintf(f, "scheduled process %d of group %d on core %d\n", process_id, group_id, core_id);
+    fclose(f);
+    pthread_mutex_unlock(&log_lock);
+}
+
+void trace_dequeue(int process_id, int group_id, int core_id) {
+    pthread_mutex_lock(&log_lock);
+    FILE *f = fopen("event_log.txt", "a");
+    fprintf(f, "dequeued process %d of group %d from core %d\n", process_id, group_id, core_id);
+    fclose(f);
+    pthread_mutex_unlock(&log_lock);
+}
+
+void trace_enqueue(int process_id, int group_id, int core_id) {
+    pthread_mutex_lock(&log_lock);
+    FILE *f = fopen("event_log.txt", "a");
+    fprintf(f, "enqueued process %d of group %d on core %d\n", process_id, group_id, core_id);
+    fclose(f);
+    pthread_mutex_unlock(&log_lock);
 }
 
 
@@ -249,7 +274,6 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
         if (threads_queued > 0 && curr_group->spec_virt_time < min_spec_virt_time) {
             min_spec_virt_time = curr_group->spec_virt_time;
             min_group = curr_group;
-            break;
         }
         curr_group = curr_group->next;
     }
@@ -259,11 +283,19 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
         return;
     }
 
+    // pthread_mutex_lock(&log_lock);
+    // FILE *f = fopen("event_log.txt", "a");
+    // write_global_state(f);
+    // fclose(f);
+    // pthread_mutex_unlock(&log_lock);
+
     // assign the next process
     struct process *next_p = min_group->runqueue_head;
     gs->cores[core_id]->current_process = next_p;
     min_group->runqueue_head = next_p->next;
     next_p->next = NULL;
+
+    trace_schedule(next_p->process_id, next_p->group->group_id, core_id);
 
     // update spec time
     double time_expecting = (double)TICK_LENGTH / next_p->group->weight;
@@ -366,25 +398,21 @@ void run_core(void* core_num_ptr) {
         gettimeofday(&start, NULL);
 
         pthread_mutex_lock(&global_lock);
-        schedule(core_id, 4000, 1);
+        schedule(core_id, TICK_LENGTH, 1);
         gettimeofday(&end, NULL);
         long long us_elapsed = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
 
         FILE *f = fopen("schedule_time.txt", "a");
         fprintf(f, "%lld\n", us_elapsed);
         fclose(f);
-
-        f = fopen("schedule_log.txt", "a");
-        fprintf(f, "scheduled core %d\n", core_id);
-        write_global_state(f);
-        fprintf(f, "\n");
-        fclose(f);
         pthread_mutex_unlock(&global_lock);
+
+        usleep(TICK_LENGTH);
 
         // randomly choose to: "run" for the full tick, "enq" a new process, or "deq" something
         int choice = rand() % 3;
         if (choice == 0) {
-            usleep(4000); // just run
+            continue; // just run
         } else if (choice == 1) {
             // pick an exisitng process from the pool?
             struct process *p = pool;
@@ -395,13 +423,9 @@ void run_core(void* core_num_ptr) {
             p->next = NULL;
             pthread_mutex_lock(&global_lock);
             enqueue(p, 1);
-            FILE *f = fopen("schedule_log.txt", "a");
-            fprintf(f, "enqueued p %d on core %d\n", p->process_id, core_id);
-            write_global_state(f);
-            fprintf(f, "\n");
-            fclose(f);
             pthread_mutex_unlock(&global_lock);
-            usleep(2000);
+            trace_enqueue(p->process_id, p->group->group_id, core_id);
+            usleep((int)(TICK_LENGTH / 2));
         } else {
             pthread_mutex_lock(&global_lock);
             struct process *p = gs->cores[core_id]->current_process;
@@ -409,17 +433,12 @@ void run_core(void* core_num_ptr) {
                 pthread_mutex_unlock(&global_lock);
                 continue;
             }
-            dequeue(p, 2000, core_id);
-            
-            FILE *f = fopen("schedule_log.txt", "a");
-            fprintf(f, "dequeued p %d on core %d\n", p->process_id, core_id);
-            write_global_state(f);
-            fprintf(f, "\n");
-            fclose(f);
+            dequeue(p, TICK_LENGTH, core_id);
             pthread_mutex_unlock(&global_lock);
+            trace_dequeue(p->process_id, p->group->group_id, core_id);
             p->next = pool;
             pool = p;
-            usleep(2000);
+            usleep((int)(TICK_LENGTH / 2));
         }
         
     }
@@ -430,11 +449,12 @@ void run_core(void* core_num_ptr) {
 
 void main() {
     pthread_mutex_init(&global_lock, NULL);
+    pthread_mutex_init(&log_lock, NULL);
 
     FILE *f = fopen("schedule_time.txt", "w");
     fclose(f);
 
-    f = fopen("schedule_log.txt", "w");
+    f = fopen("event_log.txt", "w");
     fclose(f);
 
     int num_groups = 10;
@@ -455,8 +475,6 @@ void main() {
             enqueue(p, 1);
         }
     }
-
-    // print_global_state();
 
     pthread_t threads[NUM_CORES]; 
 

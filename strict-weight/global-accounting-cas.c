@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sched.h>
 #include <assert.h>
+#include <stdbool.h>
 
 #define NUM_CORES 56
 #define TICK_LENGTH 4000
@@ -31,7 +32,8 @@ struct group {
     int group_id;
     int weight;
     int num_threads;
-    double spec_virt_time; // updated when the group is scheduled, assuming full tick
+    int threads_queued;
+    int spec_virt_time; // updated when the group is scheduled, assuming full tick
     struct spec_time *spec_time_head; // keeps track of who speculated what
     struct process *runqueue_head;
     struct group *next;
@@ -48,7 +50,6 @@ struct global_state {
 };
 
 struct global_state* gs;
-pthread_mutex_t global_lock;
 pthread_mutex_t log_lock;
 
 
@@ -71,7 +72,7 @@ struct group *create_group(int id, int weight) {
     g->group_id = id;
     g->weight = weight;
     g->num_threads = 0;
-    g->spec_virt_time = -1;
+    g->spec_virt_time = 0;
     g->spec_time_head = NULL;
     g->runqueue_head = NULL;
     g->next = NULL;
@@ -99,14 +100,14 @@ int num_cores_running(struct group *group) {
         }
     }
 
-    int num_cores_speculating = 0;
-    struct spec_time *curr_spec_time = group->spec_time_head;
-    while (curr_spec_time) {
-        num_cores_speculating++;
-        curr_spec_time = curr_spec_time->next;
-    }
+    // int num_cores_speculating = 0;
+    // struct spec_time *curr_spec_time = group->spec_time_head;
+    // while (curr_spec_time) {
+    //     num_cores_speculating++;
+    //     curr_spec_time = curr_spec_time->next;
+    // }
 
-    assert(num_cores_running == num_cores_speculating);
+    // assert(num_cores_running == num_cores_speculating);
 
     return num_cores_running;
 }
@@ -125,7 +126,7 @@ void print_global_state() {
     printf("global state:\n");
     struct group *curr_group = gs->group_head;
     while (curr_group) {
-        printf("group %d, weight %d, num threads %d, spec virt time %f, num cores running %d\n", curr_group->group_id, curr_group->weight, 
+        printf("group %d, weight %d, num threads %d, spec virt time %d, num cores running %d\n", curr_group->group_id, curr_group->weight, 
             curr_group->num_threads, curr_group->spec_virt_time, num_cores_running(curr_group));
         curr_group = curr_group->next;
     }
@@ -140,7 +141,7 @@ void write_global_state(FILE *f) {
     fprintf(f, "global state:\n");
     struct group *curr_group = gs->group_head;
     while (curr_group) {
-        fprintf(f, "group %d, weight %d, num threads %d, spec virt time %f, num cores running %d\n", curr_group->group_id, curr_group->weight, 
+        fprintf(f, "group %d, weight %d, num threads %d, spec virt time %d, num cores running %d\n", curr_group->group_id, curr_group->weight, 
             curr_group->num_threads, curr_group->spec_virt_time, num_cores_running(curr_group));
         curr_group = curr_group->next;
     }
@@ -151,10 +152,10 @@ void write_global_state(FILE *f) {
     }
 }
 
-void trace_schedule(int process_id, int group_id, int group_changed, int core_id) {
+void trace_schedule(int process_id, int group_id, int prev_group_id, int core_id) {
     pthread_mutex_lock(&log_lock);
     FILE *f = fopen("event_log.txt", "a");
-    fprintf(f, "scheduled process %d of group %d on core %d, group changed %d\n", process_id, group_id, core_id, group_changed);
+    fprintf(f, "scheduled process %d of group %d on core %d, group changed %d\n", process_id, group_id, core_id, group_id != prev_group_id);
     fclose(f);
     pthread_mutex_unlock(&log_lock);
 }
@@ -185,31 +186,44 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 void enqueue(struct process *p, int is_new) {
 
     // printf("enqueueing p %d\n", p->process_id);
+    enq_again:
 
-    if (p->group->num_threads == 0) {
-        struct group *curr_head = gs->group_head;
-        gs->group_head = p->group;
-        p->group->next = curr_head;
-
-        assert(p->group->spec_virt_time == -1);
+    if (__atomic_load_n(&p->group->num_threads, __ATOMIC_ACQUIRE) == 0) {
         int min_spec_virt_time = INT_MAX;
         struct group *curr_group = gs->group_head;
         while (curr_group) {
-            if (curr_group->spec_virt_time < min_spec_virt_time) {
-                min_spec_virt_time = curr_group->spec_virt_time;
+            if (curr_group == p->group) continue; // in case deq hasn't removed it yet, just skip
+            int cg_svt = __atomic_load_n(&curr_group->spec_virt_time, __ATOMIC_ACQUIRE);
+            if (cg_svt < min_spec_virt_time) {
+                min_spec_virt_time = cg_svt;
             }
             curr_group = curr_group->next;
         }
-        p->group->spec_virt_time = min_spec_virt_time;
+        if (min_spec_virt_time == INT_MAX) {
+            min_spec_virt_time = 0;
+        }
+
+try_add_group_again:
+        struct group *curr_head = gs->group_head;
+        p->group->next = curr_head; // this is ok because we will check/sync on the next op
+        if (!__atomic_compare_exchange(&gs->group_head, &curr_head, &p->group, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) { // failure memorder is ok b/c we're going to write that mem again in the retry anyway?
+            goto try_add_group_again;
+        }
+
+        __atomic_store_n(&p->group->spec_virt_time, min_spec_virt_time, __ATOMIC_RELEASE);
     }
 
+put_in_rq_again:
     struct process *curr_head = p->group->runqueue_head;
-    p->group->runqueue_head = p;
-    p->next = curr_head;
+    p->next = curr_head; // we own p right now so this should be ok? will overwrite if we fail anyway
+    if (!__atomic_compare_exchange(&p->group->runqueue_head, &curr_head, &p, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+        goto put_in_rq_again;
+    }
 
     if (is_new) {
-        p->group->num_threads += 1;
+        __atomic_add_fetch(&p->group->num_threads, 1, __ATOMIC_RELAXED);
     }
+    __atomic_add_fetch(&p->group->threads_queued, 1, __ATOMIC_RELAXED);
 
     // printf("done enqueuing p %d\n", p->process_id);
 
@@ -219,43 +233,55 @@ void enqueue(struct process *p, int is_new) {
 void schedule(int core_id, int time_passed, int should_re_enq) {
     // printf("scheduling core %d\n", core_id);
 
-    struct process *running_process = gs->cores[core_id]->current_process;
+    struct process *running_process = gs->cores[core_id]->current_process; // cores only read this themselves, so s'all good
     struct group *prev_running_group = NULL;
 
     // if there was a process running, update spec time (collapse spec time)
     if (running_process) {
         prev_running_group = running_process->group;
 
+        int removed = 0;
+remove_spec_node_again:
         struct spec_time *curr_spec_node = prev_running_group->spec_time_head;
         assert(curr_spec_node);
         // remove spec time struct and free memory, remember time had expected
         int time_had_expected = -1;
         if (curr_spec_node->core_running == core_id) {
             time_had_expected = curr_spec_node->time_expecting;
-            prev_running_group->spec_time_head = curr_spec_node->next;
+            if (!__atomic_compare_exchange(&prev_running_group->spec_time_head, &curr_spec_node, &curr_spec_node->next, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+                goto remove_spec_node_again;
+            }
             free(curr_spec_node);
+            removed = 1;
         } else {
             struct spec_time *prev = curr_spec_node;
             curr_spec_node = curr_spec_node->next;
             while (curr_spec_node) {
                 if (curr_spec_node->core_running == core_id) {
                     time_had_expected = curr_spec_node->time_expecting;
-                    prev->next = curr_spec_node->next;
+                    if (!__atomic_compare_exchange(&prev->next, &curr_spec_node, &curr_spec_node->next, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+                        goto remove_spec_node_again;
+                    }
                     free(curr_spec_node);
+                    removed = 1;
                     break;
                 }
                 prev = curr_spec_node;
                 curr_spec_node = curr_spec_node->next;
             }
         }
+        if (!removed) {
+            goto remove_spec_node_again; // could be that things were shuffled around as we read
+        }
         
         // update spec virt time if time gotten was not what this core expected
         assert(time_had_expected != -1); // we picked it, so must have expected time
-        double virt_time_gotten = time_passed / prev_running_group->weight;
+        int virt_time_gotten = (int)(time_passed / prev_running_group->weight);
         if (time_had_expected  != virt_time_gotten) {
             // need to edit the spec time to use time actually got
-            double diff = time_had_expected - virt_time_gotten;
-            prev_running_group->spec_virt_time -= diff;
+            int diff = time_had_expected - virt_time_gotten;
+
+            __atomic_sub_fetch(&prev_running_group->spec_virt_time, diff, __ATOMIC_RELAXED);
         }
 
     }
@@ -268,13 +294,14 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
     gs->cores[core_id]->current_process = NULL;
 
     // pick the group with the min spec virt time
+pick_min_group_again:
     struct group *min_group = NULL;
-    double min_spec_virt_time = INT_MAX;
+    int min_spec_virt_time = INT_MAX;
     struct group *curr_group = gs->group_head;
     while (curr_group) {
-        int threads_queued = curr_group->num_threads - num_cores_running(curr_group);
+        int threads_queued = __atomic_load_n(&curr_group->threads_queued, __ATOMIC_RELAXED); // ok to be relaxed? the real sync point is writing once we've picked a group
         if (threads_queued > 0) {
-            double effective_spec_virt_time = curr_group->spec_virt_time;
+            int effective_spec_virt_time = __atomic_load_n(&curr_group->spec_virt_time, __ATOMIC_ACQUIRE);
             if (curr_group == prev_running_group) effective_spec_virt_time -= GROUP_BONUS;
             if (effective_spec_virt_time < min_spec_virt_time) {
                 min_spec_virt_time = effective_spec_virt_time;
@@ -290,89 +317,79 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
     }
 
     // assign the next process
+get_next_p_again:
     struct process *next_p = min_group->runqueue_head;
-    gs->cores[core_id]->current_process = next_p;
-    min_group->runqueue_head = next_p->next;
+    if (!next_p) {
+        goto pick_min_group_again;
+    }
+    if (!__atomic_compare_exchange(&min_group->runqueue_head, &next_p, &next_p->next, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
+        goto get_next_p_again;
+    }
+    __atomic_sub_fetch(&min_group->threads_queued, 1, __ATOMIC_RELAXED);
+    
+
+    gs->cores[core_id]->current_process = next_p; // know we right now own the p, so can do with it what we want
     next_p->next = NULL;
 
-    int group_changed = prev_running_group != min_group;
-    trace_schedule(next_p->process_id, next_p->group->group_id, group_changed, core_id);
-
     // update spec time
-    double time_expecting = (double)TICK_LENGTH / next_p->group->weight;
-    next_p->group->spec_virt_time += time_expecting;
+    int time_expecting = (int)TICK_LENGTH / __atomic_load_n(&next_p->group->weight, __ATOMIC_ACQUIRE);
+    __atomic_add_fetch(&next_p->group->spec_virt_time, time_expecting, __ATOMIC_RELAXED);
+
     struct spec_time *new_spec_time = create_spec_time(time_expecting, core_id);
+add_spec_node_again:
     struct spec_time *old_spec_head = next_p->group->spec_time_head;
-    next_p->group->spec_time_head = new_spec_time;
     new_spec_time->next = old_spec_head;
+    if (!__atomic_compare_exchange(&next_p->group->spec_time_head, &old_spec_head, &new_spec_time, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
+        goto add_spec_node_again;
+    }    
 
     // printf("done scheduling core %d\n", core_id);
 }
 
+// assumes p is running on core_id
 void dequeue(struct process *p, int time_gotten, int core_id) {
 
     // printf("dequeuing core %d\n", core_id);
 
-    int need_resched = 0;
+    gs->cores[core_id]->current_process = NULL; // is it important where this happens? no b/c no one else is relying on it?
 
-    // if the process was running, need to reschedule (don't need to account yet, schedule will do that)
-    for (int i = 0; i < NUM_CORES; i++) {
-        if (gs->cores[i]->current_process == p) {
-            need_resched = 1;
-            break;
-        }
-    }
-
-    // if it wasn't running, need to remove it from the group's runqueue
-    if (!need_resched) {
-        struct process *curr_p = p->group->runqueue_head;
-        if (curr_p->process_id == p->process_id) {
-            p->group->runqueue_head = curr_p->next;
-        } else {
-            struct process *prev = curr_p;
-            curr_p = curr_p->next;
-            while (curr_p) {
-                if (curr_p->process_id == p->process_id) {
-                    prev->next = curr_p->next;
-                    break;
-                }
-                prev = curr_p;
-                curr_p = curr_p->next;
-            }
-        }
-        p->next = NULL;
-    }
-
-    // update the group's number of threads
-    p->group->num_threads -= 1;
+    // update the group's number of threads - process was running, so num_queued remains correct
+    int new_num_threads = __atomic_sub_fetch(&p->group->num_threads, 1, __ATOMIC_ACQUIRE);
 
     // need to remove group from global group list if now empty
-    if (p->group->num_threads == 0) { 
+    // what if there is an interleaved enq and deq? (last process is being deqed while a new one being enqed)
+    if (new_num_threads == 0) { 
+try_remove_group_again: 
         struct group *curr_group = gs->group_head;
         if (curr_group == p->group) {
-            gs->group_head = curr_group->next;
+            if (!__atomic_compare_exchange(&gs->group_head, &curr_group, &curr_group->next, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+                goto try_remove_group_again;
+            }
         } else {
             while (curr_group) {
                 if (curr_group->next == p->group) {
-                    curr_group->next = curr_group->next->next;
+                    if (!__atomic_compare_exchange(&curr_group->next, &p->group, &p->group->next, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+                        goto try_remove_group_again;
+                    }
+                    break;
                 }
                 curr_group = curr_group->next;
             }
         }
-        p->group->spec_virt_time = -1;
 
-        // remove speculation if there was any
-        gs->cores[core_id]->current_process = NULL;
+        // remove speculation if there was any    
+    try_remove_spec_again:
         struct spec_time *curr_spec_time = p->group->spec_time_head;
-        assert(curr_spec_time->next == NULL);
-        p->group->spec_time_head = NULL;
+        struct spec_time *next_spec_time = NULL;
+        if (!__atomic_compare_exchange(&p->group->spec_time_head, &curr_spec_time, &next_spec_time, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+            goto try_remove_spec_again;
+        }
+
         free(curr_spec_time);
     }
 
     // schedule if need be
-    if (need_resched) {
-        schedule(core_id, time_gotten, 0);
-    }
+    schedule(core_id, time_gotten, 0);
 
     // printf("done dequeuing core %d\n", core_id);
 
@@ -395,10 +412,10 @@ void run_core(void* core_num_ptr) {
     while (1) {
 
         // time how long it takes to schedule, write to file
+        struct process *prev_running_process = gs->cores[core_id]->current_process;
         struct timeval start, end;
         gettimeofday(&start, NULL);
 
-        pthread_mutex_lock(&global_lock);
         schedule(core_id, TICK_LENGTH, 1);
         gettimeofday(&end, NULL);
         long long us_elapsed = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
@@ -406,7 +423,9 @@ void run_core(void* core_num_ptr) {
         FILE *f = fopen("schedule_time.txt", "a");
         fprintf(f, "%lld\n", us_elapsed);
         fclose(f);
-        pthread_mutex_unlock(&global_lock);
+
+        struct process *next_running_process = gs->cores[core_id]->current_process;
+        trace_schedule(next_running_process ? next_running_process->process_id : -1, next_running_process ? next_running_process->group->group_id : -1, prev_running_process ? prev_running_process->group->group_id : -1, core_id);
 
         usleep(TICK_LENGTH);
 
@@ -422,20 +441,15 @@ void run_core(void* core_num_ptr) {
             }
             pool = p->next;
             p->next = NULL;
-            pthread_mutex_lock(&global_lock);
             enqueue(p, 1);
-            pthread_mutex_unlock(&global_lock);
             trace_enqueue(p->process_id, p->group->group_id, core_id);
             usleep((int)(TICK_LENGTH / 2));
         } else {
-            pthread_mutex_lock(&global_lock);
             struct process *p = gs->cores[core_id]->current_process;
             if (!p) {
-                pthread_mutex_unlock(&global_lock);
                 continue;
             }
             dequeue(p, TICK_LENGTH, core_id);
-            pthread_mutex_unlock(&global_lock);
             trace_dequeue(p->process_id, p->group->group_id, core_id);
             p->next = pool;
             pool = p;
@@ -449,7 +463,6 @@ void run_core(void* core_num_ptr) {
 
 
 void main() {
-    pthread_mutex_init(&global_lock, NULL);
     pthread_mutex_init(&log_lock, NULL);
 
     FILE *f = fopen("schedule_time.txt", "w");
@@ -476,6 +489,9 @@ void main() {
             enqueue(p, 1);
         }
     }
+
+    // print_global_state();
+
 
     pthread_t threads[NUM_CORES]; 
 

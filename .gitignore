@@ -4,4 +4,6 @@
 
 # Unignore all with extensions
 !*.c
+!*.cpp
+!*.sh
 !Makefile

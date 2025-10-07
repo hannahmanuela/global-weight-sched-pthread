@@ -9,6 +9,8 @@
 #include <sched.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <immintrin.h>
+#include <stdint.h> 
 
 #define NUM_CORES 56
 #define TICK_LENGTH 4000
@@ -22,11 +24,11 @@ struct process {
     struct process *next;
 };
 
-struct spec_time {
-    double time_expecting;
-    int core_running;
-    struct spec_time *next;
-};
+// struct spec_time {
+//     double time_expecting;
+//     int core_running;
+//     struct spec_time *next;
+// };
 
 struct group {
     int group_id;
@@ -34,7 +36,7 @@ struct group {
     int num_threads;
     int threads_queued;
     int spec_virt_time; // updated when the group is scheduled, assuming full tick
-    struct spec_time *spec_time_head; // keeps track of who speculated what
+    // struct spec_time *spec_time_head; // keeps track of who speculated what
     struct process *runqueue_head;
     struct group *next;
 };
@@ -73,18 +75,9 @@ struct group *create_group(int id, int weight) {
     g->weight = weight;
     g->num_threads = 0;
     g->spec_virt_time = 0;
-    g->spec_time_head = NULL;
     g->runqueue_head = NULL;
     g->next = NULL;
     return g;
-}
-
-struct spec_time *create_spec_time(double time_expecting, int core_running) {
-    struct spec_time *s = malloc(sizeof(struct spec_time));
-    s->time_expecting = time_expecting;
-    s->core_running = core_running;
-    s->next = NULL;
-    return s;
 }
 
 
@@ -100,26 +93,7 @@ int num_cores_running(struct group *group) {
         }
     }
 
-    // int num_cores_speculating = 0;
-    // struct spec_time *curr_spec_time = group->spec_time_head;
-    // while (curr_spec_time) {
-    //     num_cores_speculating++;
-    //     curr_spec_time = curr_spec_time->next;
-    // }
-
-    // assert(num_cores_running == num_cores_speculating);
-
     return num_cores_running;
-}
-
-int num_cores_speculating(struct group *group) {
-    int num_cores_speculating = 0;
-    struct spec_time *curr_spec_time = group->spec_time_head;
-    while (curr_spec_time) {
-        num_cores_speculating++;
-        curr_spec_time = curr_spec_time->next;
-    }
-    return num_cores_speculating;
 }
 
 void print_global_state() {
@@ -230,8 +204,22 @@ put_in_rq_again:
 }
 
 
-void schedule(int core_id, int time_passed, int should_re_enq) {
+struct sched_times {
+    uint64_t start;
+    uint64_t spec_node_rem;
+    uint64_t pick_min_group;
+    uint64_t get_next_p;
+    uint64_t end;
+};
+
+struct sched_times schedule(int core_id, int time_passed, int should_re_enq) {
     // printf("scheduling core %d\n", core_id);
+
+    
+    struct sched_times ret_val;
+    _mm_lfence();
+    ret_val.start = _rdtsc();
+    _mm_lfence(); 
 
     struct process *running_process = gs->cores[core_id]->current_process; // cores only read this themselves, so s'all good
     struct group *prev_running_group = NULL;
@@ -240,42 +228,9 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
     if (running_process) {
         prev_running_group = running_process->group;
 
-        int removed = 0;
-remove_spec_node_again:
-        struct spec_time *curr_spec_node = prev_running_group->spec_time_head;
-        assert(curr_spec_node);
-        // remove spec time struct and free memory, remember time had expected
-        int time_had_expected = -1;
-        if (curr_spec_node->core_running == core_id) {
-            time_had_expected = curr_spec_node->time_expecting;
-            if (!__atomic_compare_exchange(&prev_running_group->spec_time_head, &curr_spec_node, &curr_spec_node->next, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-                goto remove_spec_node_again;
-            }
-            free(curr_spec_node);
-            removed = 1;
-        } else {
-            struct spec_time *prev = curr_spec_node;
-            curr_spec_node = curr_spec_node->next;
-            while (curr_spec_node) {
-                if (curr_spec_node->core_running == core_id) {
-                    time_had_expected = curr_spec_node->time_expecting;
-                    if (!__atomic_compare_exchange(&prev->next, &curr_spec_node, &curr_spec_node->next, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-                        goto remove_spec_node_again;
-                    }
-                    free(curr_spec_node);
-                    removed = 1;
-                    break;
-                }
-                prev = curr_spec_node;
-                curr_spec_node = curr_spec_node->next;
-            }
-        }
-        if (!removed) {
-            goto remove_spec_node_again; // could be that things were shuffled around as we read
-        }
+        int time_had_expected = (int) (TICK_LENGTH / prev_running_group->weight);
         
         // update spec virt time if time gotten was not what this core expected
-        assert(time_had_expected != -1); // we picked it, so must have expected time
         int virt_time_gotten = (int)(time_passed / prev_running_group->weight);
         if (time_had_expected  != virt_time_gotten) {
             // need to edit the spec time to use time actually got
@@ -285,6 +240,10 @@ remove_spec_node_again:
         }
 
     }
+
+    _mm_lfence();
+    ret_val.spec_node_rem = _rdtsc();
+    _mm_lfence();
 
 
     if (should_re_enq && running_process) {
@@ -311,9 +270,14 @@ pick_min_group_again:
         curr_group = curr_group->next;
     }
 
+    _mm_lfence();
+    ret_val.pick_min_group = _rdtsc();
+    _mm_lfence();
+
     if (!min_group) {
         // no group to run
-        return;
+        ret_val.get_next_p = ret_val.pick_min_group;
+        goto done;
     }
 
     // assign the next process
@@ -331,19 +295,22 @@ get_next_p_again:
     gs->cores[core_id]->current_process = next_p; // know we right now own the p, so can do with it what we want
     next_p->next = NULL;
 
+    _mm_lfence();
+    ret_val.get_next_p = _rdtsc();
+    _mm_lfence();
+
     // update spec time
     int time_expecting = (int)TICK_LENGTH / __atomic_load_n(&next_p->group->weight, __ATOMIC_ACQUIRE);
     __atomic_add_fetch(&next_p->group->spec_virt_time, time_expecting, __ATOMIC_RELAXED);
 
-    struct spec_time *new_spec_time = create_spec_time(time_expecting, core_id);
-add_spec_node_again:
-    struct spec_time *old_spec_head = next_p->group->spec_time_head;
-    new_spec_time->next = old_spec_head;
-    if (!__atomic_compare_exchange(&next_p->group->spec_time_head, &old_spec_head, &new_spec_time, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
-        goto add_spec_node_again;
-    }    
+done:
+    _mm_lfence(); 
+    ret_val.end = _rdtsc();
+    _mm_lfence(); 
 
     // printf("done scheduling core %d\n", core_id);
+
+    return ret_val;
 }
 
 // assumes p is running on core_id
@@ -377,15 +344,6 @@ try_remove_group_again:
             }
         }
 
-        // remove speculation if there was any    
-    try_remove_spec_again:
-        struct spec_time *curr_spec_time = p->group->spec_time_head;
-        struct spec_time *next_spec_time = NULL;
-        if (!__atomic_compare_exchange(&p->group->spec_time_head, &curr_spec_time, &next_spec_time, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-            goto try_remove_spec_again;
-        }
-
-        free(curr_spec_time);
     }
 
     // schedule if need be
@@ -416,12 +374,13 @@ void run_core(void* core_num_ptr) {
         struct timeval start, end;
         gettimeofday(&start, NULL);
 
-        schedule(core_id, TICK_LENGTH, 1);
+        struct sched_times ret_val = schedule(core_id, TICK_LENGTH, 1);
         gettimeofday(&end, NULL);
         long long us_elapsed = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
 
         FILE *f = fopen("schedule_time.txt", "a");
-        fprintf(f, "%lld\n", us_elapsed);
+        fprintf(f, "total us: %lld --", us_elapsed);
+        fprintf(f, "  %lu, %lu, %lu, %lu\n", ret_val.spec_node_rem - ret_val.start, ret_val.pick_min_group - ret_val.spec_node_rem, ret_val.get_next_p - ret_val.pick_min_group, ret_val.end - ret_val.get_next_p);
         fclose(f);
 
         struct process *next_running_process = gs->cores[core_id]->current_process;

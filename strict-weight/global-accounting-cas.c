@@ -11,10 +11,10 @@
 #include <stdbool.h>
 #include <immintrin.h>
 #include <stdint.h> 
+#include <sys/resource.h>
 
 #define NUM_CORES 56
-#define TICK_LENGTH 4000
-#define GROUP_BONUS 1000
+#define TICK_LENGTH 50
 
 // there are only global datastructures here
 
@@ -86,6 +86,13 @@ struct group *create_group(int id, int weight) {
 // ================
 // HELPER FUNCTIONS
 // ================
+
+int safe_read_tsc() {
+    _mm_lfence();
+    int ret_val = _rdtsc();
+    _mm_lfence();
+    return ret_val;
+}
 
 int num_cores_running(struct group *group) {
     int num_cores_running = 0;
@@ -233,6 +240,7 @@ struct sched_times {
     uint64_t pick_min_group;
     uint64_t get_next_p;
     uint64_t end;
+    int num_times_did_iter;
 };
 
 struct sched_times schedule(int core_id, int time_passed, int should_re_enq) {
@@ -240,9 +248,7 @@ struct sched_times schedule(int core_id, int time_passed, int should_re_enq) {
 
     
     struct sched_times ret_val;
-    _mm_lfence();
-    ret_val.start = _rdtsc();
-    _mm_lfence(); 
+    ret_val.start = safe_read_tsc();
 
     struct process *running_process = gs->cores[core_id]->current_process; // cores only read this themselves, so s'all good
     struct group *prev_running_group = NULL;
@@ -264,9 +270,7 @@ struct sched_times schedule(int core_id, int time_passed, int should_re_enq) {
 
     }
 
-    _mm_lfence();
-    ret_val.spec_time_collapse = _rdtsc();
-    _mm_lfence();
+    ret_val.spec_time_collapse = safe_read_tsc();
 
 
     if (should_re_enq && running_process) {
@@ -275,18 +279,17 @@ struct sched_times schedule(int core_id, int time_passed, int should_re_enq) {
 
     gs->cores[core_id]->current_process = NULL;
 
-    _mm_lfence();
-    ret_val.enq_old_running = _rdtsc();
-    _mm_lfence();
+    ret_val.enq_old_running = safe_read_tsc();
 
     // pick the group with the min spec virt time
+    int num_times_did_iter = 0;
 pick_min_group_again:
+    num_times_did_iter++;
     struct group *min_group = NULL;
     int min_spec_virt_time = INT_MAX;
     struct group *curr_group = gs->group_head;
     while (curr_group) {
         int effective_spec_virt_time = __atomic_load_n(&curr_group->spec_virt_time, __ATOMIC_ACQUIRE);
-        if (curr_group == prev_running_group) effective_spec_virt_time -= GROUP_BONUS;
         if (effective_spec_virt_time < min_spec_virt_time) {
             min_spec_virt_time = effective_spec_virt_time;
             min_group = curr_group;
@@ -294,9 +297,7 @@ pick_min_group_again:
         curr_group = curr_group->next;
     }
 
-    _mm_lfence();
-    ret_val.pick_min_group = _rdtsc();
-    _mm_lfence();
+    ret_val.pick_min_group = safe_read_tsc();
 
     if (!min_group) {
         // no group to run
@@ -305,9 +306,16 @@ pick_min_group_again:
     }
 
     // assign the next process
+    int time_expecting = (int)TICK_LENGTH / __atomic_load_n(&min_group->weight, __ATOMIC_ACQUIRE);
+    int new_time = min_spec_virt_time + time_expecting;
+    if (!__atomic_compare_exchange(&min_group->spec_virt_time, &min_spec_virt_time, &new_time, false, __ATOMIC_ACQUIRE, __ATOMIC_ACQUIRE)) {
+       goto pick_min_group_again;
+    }
+
 get_next_p_again:
     struct process *next_p = min_group->runqueue_head;
     if (!next_p) {
+        __atomic_sub_fetch(&min_group->spec_virt_time, time_expecting, __ATOMIC_RELAXED);
         goto pick_min_group_again; // this is because I remove the group at the end of deq, but remove p at the beginning
     }
     int success = dequeue(next_p, 0, 0, core_id);
@@ -319,18 +327,12 @@ get_next_p_again:
     gs->cores[core_id]->current_process = next_p; // know we right now own the p, so can do with it what we want
     next_p->next = NULL;
 
-    _mm_lfence();
-    ret_val.get_next_p = _rdtsc();
-    _mm_lfence();
-
-    // update spec time
-    int time_expecting = (int)TICK_LENGTH / __atomic_load_n(&next_p->group->weight, __ATOMIC_ACQUIRE);
-    __atomic_add_fetch(&next_p->group->spec_virt_time, time_expecting, __ATOMIC_RELAXED);
+    ret_val.get_next_p = safe_read_tsc();
 
 done:
-    _mm_lfence(); 
-    ret_val.end = _rdtsc();
-    _mm_lfence(); 
+    ret_val.end = safe_read_tsc();
+
+    ret_val.num_times_did_iter = num_times_did_iter;
 
     // printf("done scheduling core %d\n", core_id);
 
@@ -413,16 +415,21 @@ void run_core(void* core_num_ptr) {
 
         // time how long it takes to schedule, write to file
         struct process *prev_running_process = gs->cores[core_id]->current_process;
-        struct timeval start, end;
-        gettimeofday(&start, NULL);
+        struct timespec start_cpu, end_cpu;
+        struct timespec start_wall, end_wall;
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start_wall);
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &start_cpu);
 
         struct sched_times ret_val = schedule(core_id, TICK_LENGTH, 1);
-        gettimeofday(&end, NULL);
-        long long us_elapsed = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end_wall);
+        clock_gettime(CLOCK_THREAD_CPUTIME_ID, &end_cpu);
+        long long wall_us = (end_wall.tv_sec - start_wall.tv_sec) * 1000000LL + (end_wall.tv_nsec - start_wall.tv_nsec) / 1000;
+        long long cpu_us = (end_cpu.tv_sec - start_cpu.tv_sec) * 1000000LL + (end_cpu.tv_nsec - start_cpu.tv_nsec) / 1000;
 
         FILE *f = fopen("schedule_time.txt", "a");
-        fprintf(f, "total us: %lld --", us_elapsed);
-        fprintf(f, "  %lu, %lu, %lu, %lu, %lu\n", ret_val.spec_time_collapse - ret_val.start, ret_val.enq_old_running - ret_val.spec_time_collapse, ret_val.pick_min_group - ret_val.enq_old_running, ret_val.get_next_p - ret_val.pick_min_group, ret_val.end - ret_val.get_next_p);
+        fprintf(f, "total us: %lld, ru: %lld --", wall_us, cpu_us);
+        fprintf(f, "  %lu, %lu, %lu, %lu, %lu, r: %d\n", ret_val.spec_time_collapse - ret_val.start, ret_val.enq_old_running - ret_val.spec_time_collapse, ret_val.pick_min_group - ret_val.enq_old_running, ret_val.get_next_p - ret_val.pick_min_group, ret_val.end - ret_val.get_next_p, ret_val.num_times_did_iter);
         fclose(f);
 
         struct process *next_running_process = gs->cores[core_id]->current_process;
@@ -472,6 +479,10 @@ void main() {
     f = fopen("event_log.txt", "w");
     fclose(f);
 
+    // struct sched_param sched_param;
+    // sched_param.sched_priority = 99;
+    // sched_setscheduler(0, SCHED_FIFO, &sched_param);
+
     int num_groups = 10;
     int num_threads_p_group = 20;
 
@@ -498,7 +509,7 @@ void main() {
 
     for (int i = 0; i < NUM_CORES; i ++) {
         pthread_create(&threads[i], NULL, run_core, (void*)i);
-        usleep(200);
+        // usleep(200);
     }
 
     for (int i = 0; i < NUM_CORES; i++) {

@@ -228,7 +228,8 @@ bool dequeue(struct process *p, int was_running, int time_gotten, int core_id);
 
 struct sched_times {
     uint64_t start;
-    uint64_t spec_node_rem;
+    uint64_t spec_time_collapse;
+    uint64_t enq_old_running;
     uint64_t pick_min_group;
     uint64_t get_next_p;
     uint64_t end;
@@ -264,7 +265,7 @@ struct sched_times schedule(int core_id, int time_passed, int should_re_enq) {
     }
 
     _mm_lfence();
-    ret_val.spec_node_rem = _rdtsc();
+    ret_val.spec_time_collapse = _rdtsc();
     _mm_lfence();
 
 
@@ -274,20 +275,21 @@ struct sched_times schedule(int core_id, int time_passed, int should_re_enq) {
 
     gs->cores[core_id]->current_process = NULL;
 
+    _mm_lfence();
+    ret_val.enq_old_running = _rdtsc();
+    _mm_lfence();
+
     // pick the group with the min spec virt time
 pick_min_group_again:
     struct group *min_group = NULL;
     int min_spec_virt_time = INT_MAX;
     struct group *curr_group = gs->group_head;
     while (curr_group) {
-        int threads_queued = __atomic_load_n(&curr_group->threads_queued, __ATOMIC_RELAXED); // ok to be relaxed? the real sync point is writing once we've picked a group
-        if (threads_queued > 0) {
-            int effective_spec_virt_time = __atomic_load_n(&curr_group->spec_virt_time, __ATOMIC_ACQUIRE);
-            if (curr_group == prev_running_group) effective_spec_virt_time -= GROUP_BONUS;
-            if (effective_spec_virt_time < min_spec_virt_time) {
-                min_spec_virt_time = effective_spec_virt_time;
-                min_group = curr_group;
-            }
+        int effective_spec_virt_time = __atomic_load_n(&curr_group->spec_virt_time, __ATOMIC_ACQUIRE);
+        if (curr_group == prev_running_group) effective_spec_virt_time -= GROUP_BONUS;
+        if (effective_spec_virt_time < min_spec_virt_time) {
+            min_spec_virt_time = effective_spec_virt_time;
+            min_group = curr_group;
         }
         curr_group = curr_group->next;
     }
@@ -306,7 +308,7 @@ pick_min_group_again:
 get_next_p_again:
     struct process *next_p = min_group->runqueue_head;
     if (!next_p) {
-        goto pick_min_group_again;
+        goto pick_min_group_again; // this is because I remove the group at the end of deq, but remove p at the beginning
     }
     int success = dequeue(next_p, 0, 0, core_id);
     if (!success) {
@@ -354,7 +356,7 @@ bool dequeue(struct process *p, int was_running, int time_gotten, int core_id) {
     }
 
 
-    if (__atomic_load_n(&p->group->threads_queued, __ATOMIC_RELEASE) == 1) {
+    if (__atomic_load_n(&p->group->threads_queued, __ATOMIC_ACQUIRE) == 1) {
         int curr_avg_spec_virt_time = avg_spec_virt_time(NULL);
         int read_spec_virt_time = __atomic_load_n(&p->group->spec_virt_time, __ATOMIC_ACQUIRE);
 
@@ -420,7 +422,7 @@ void run_core(void* core_num_ptr) {
 
         FILE *f = fopen("schedule_time.txt", "a");
         fprintf(f, "total us: %lld --", us_elapsed);
-        fprintf(f, "  %lu, %lu, %lu, %lu\n", ret_val.spec_node_rem - ret_val.start, ret_val.pick_min_group - ret_val.spec_node_rem, ret_val.get_next_p - ret_val.pick_min_group, ret_val.end - ret_val.get_next_p);
+        fprintf(f, "  %lu, %lu, %lu, %lu, %lu\n", ret_val.spec_time_collapse - ret_val.start, ret_val.enq_old_running - ret_val.spec_time_collapse, ret_val.pick_min_group - ret_val.enq_old_running, ret_val.get_next_p - ret_val.pick_min_group, ret_val.end - ret_val.get_next_p);
         fclose(f);
 
         struct process *next_running_process = gs->cores[core_id]->current_process;

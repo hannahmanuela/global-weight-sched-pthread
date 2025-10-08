@@ -24,19 +24,19 @@ struct process {
     struct process *next;
 };
 
-// struct spec_time {
-//     double time_expecting;
-//     int core_running;
-//     struct spec_time *next;
-// };
-
 struct group {
     int group_id;
     int weight;
-    int num_threads;
-    int threads_queued;
+
+    int num_threads; // the total number of threads in the system
+    int threads_queued; // the number of threads runnable and in the q (ie not running)
     int spec_virt_time; // updated when the group is scheduled, assuming full tick
-    // struct spec_time *spec_time_head; // keeps track of who speculated what
+
+    int virt_lag; // only has a value when a group is dequeued
+    // only has a value when a group is dequeued, and if virt_lag is positive
+    // use this to implement delay deq: if g has positie lag when deqed, that lag isn't added on if it is enqed after the lag time has passed
+    int last_virt_time; 
+
     struct process *runqueue_head;
     struct group *next;
 };
@@ -75,6 +75,8 @@ struct group *create_group(int id, int weight) {
     g->weight = weight;
     g->num_threads = 0;
     g->spec_virt_time = 0;
+    g->virt_lag = 0;
+    g->last_virt_time = 0;
     g->runqueue_head = NULL;
     g->next = NULL;
     return g;
@@ -94,6 +96,27 @@ int num_cores_running(struct group *group) {
     }
 
     return num_cores_running;
+}
+
+// added group_to_ignore so that we are robust against enq/deq interleaving where group is already on the rq when it's not expected to be
+int avg_spec_virt_time(struct group *group_to_ignore) {
+    int total_spec_virt_time = 0;
+    int num_groups = 0;
+    struct group *curr_group = gs->group_head;
+    while (curr_group) {
+        if (curr_group == group_to_ignore) {
+            curr_group = curr_group->next;
+            continue;
+        }
+        int curr_svt = __atomic_load_n(&curr_group->spec_virt_time, __ATOMIC_ACQUIRE);
+        total_spec_virt_time += curr_svt;
+        num_groups++;
+        curr_group = curr_group->next;
+    }
+    if (num_groups == 0) {
+        return 0;
+    }
+    return total_spec_virt_time / num_groups;
 }
 
 void print_global_state() {
@@ -160,21 +183,18 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 void enqueue(struct process *p, int is_new) {
 
     // printf("enqueueing p %d\n", p->process_id);
-    enq_again:
 
-    if (__atomic_load_n(&p->group->num_threads, __ATOMIC_ACQUIRE) == 0) {
-        int min_spec_virt_time = INT_MAX;
-        struct group *curr_group = gs->group_head;
-        while (curr_group) {
-            if (curr_group == p->group) continue; // in case deq hasn't removed it yet, just skip
-            int cg_svt = __atomic_load_n(&curr_group->spec_virt_time, __ATOMIC_ACQUIRE);
-            if (cg_svt < min_spec_virt_time) {
-                min_spec_virt_time = cg_svt;
+    if (__atomic_load_n(&p->group->threads_queued, __ATOMIC_ACQUIRE) == 0) {
+        int initial_virt_time = avg_spec_virt_time(p->group);
+
+        int read_last_virt_time = __atomic_load_n(&p->group->last_virt_time, __ATOMIC_ACQUIRE);
+        int read_virt_lag = __atomic_load_n(&p->group->virt_lag, __ATOMIC_ACQUIRE);
+        if (read_virt_lag > 0) {
+            if (read_last_virt_time > initial_virt_time) {
+                initial_virt_time = read_last_virt_time; // adding back left over lag only if its still ahead
             }
-            curr_group = curr_group->next;
-        }
-        if (min_spec_virt_time == INT_MAX) {
-            min_spec_virt_time = 0;
+        } else if (read_virt_lag < 0) {
+            initial_virt_time -= read_virt_lag; // negative lag always carries over? maybe limit it?
         }
 
 try_add_group_again:
@@ -184,12 +204,12 @@ try_add_group_again:
             goto try_add_group_again;
         }
 
-        __atomic_store_n(&p->group->spec_virt_time, min_spec_virt_time, __ATOMIC_RELEASE);
+        __atomic_store_n(&p->group->spec_virt_time, initial_virt_time, __ATOMIC_RELEASE);
     }
 
 put_in_rq_again:
     struct process *curr_head = p->group->runqueue_head;
-    p->next = curr_head; // we own p right now so this should be ok? will overwrite if we fail anyway
+    p->next = curr_head; // ok b/c will overwrite if we fail
     if (!__atomic_compare_exchange(&p->group->runqueue_head, &curr_head, &p, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
         goto put_in_rq_again;
     }
@@ -203,6 +223,8 @@ put_in_rq_again:
 
 }
 
+
+bool dequeue(struct process *p, int was_running, int time_gotten, int core_id);
 
 struct sched_times {
     uint64_t start;
@@ -286,10 +308,10 @@ get_next_p_again:
     if (!next_p) {
         goto pick_min_group_again;
     }
-    if (!__atomic_compare_exchange(&min_group->runqueue_head, &next_p, &next_p->next, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
+    int success = dequeue(next_p, 0, 0, core_id);
+    if (!success) {
         goto get_next_p_again;
     }
-    __atomic_sub_fetch(&min_group->threads_queued, 1, __ATOMIC_RELAXED);
     
 
     gs->cores[core_id]->current_process = next_p; // know we right now own the p, so can do with it what we want
@@ -313,19 +335,39 @@ done:
     return ret_val;
 }
 
-// assumes p is running on core_id
-void dequeue(struct process *p, int time_gotten, int core_id) {
+// for now assuming that:
+// - if was_running, the process is exiting
+// - if !was running, the process is being deqed to be run on this core
+bool dequeue(struct process *p, int was_running, int time_gotten, int core_id) {
 
     // printf("dequeuing core %d\n", core_id);
 
-    gs->cores[core_id]->current_process = NULL; // is it important where this happens? no b/c no one else is relying on it?
+    if (was_running) {
+        __atomic_sub_fetch(&p->group->num_threads, 1, __ATOMIC_ACQUIRE); // the total number of threads in the system has changed
+        gs->cores[core_id]->current_process = NULL;
+        schedule(core_id, time_gotten, 0);
+        return true;
+    }
 
-    // update the group's number of threads - process was running, so num_queued remains correct
-    int new_num_threads = __atomic_sub_fetch(&p->group->num_threads, 1, __ATOMIC_ACQUIRE);
+    if (!__atomic_compare_exchange(&p->group->runqueue_head, &p, &p->next, false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
+        return false;
+    }
 
-    // need to remove group from global group list if now empty
-    // what if there is an interleaved enq and deq? (last process is being deqed while a new one being enqed)
-    if (new_num_threads == 0) { 
+
+    if (__atomic_load_n(&p->group->threads_queued, __ATOMIC_RELEASE) == 1) {
+        int curr_avg_spec_virt_time = avg_spec_virt_time(NULL);
+        int read_spec_virt_time = __atomic_load_n(&p->group->spec_virt_time, __ATOMIC_ACQUIRE);
+
+        __atomic_store_n(&p->group->virt_lag, curr_avg_spec_virt_time - read_spec_virt_time, __ATOMIC_RELEASE);
+        __atomic_store_n(&p->group->last_virt_time, read_spec_virt_time, __ATOMIC_RELEASE);
+    }
+
+
+    int new_threads_queued = __atomic_sub_fetch(&p->group->threads_queued, 1, __ATOMIC_ACQUIRE); // decrease num_queued, only once we succesfully deqed the p
+    
+    // need to remove group from global group list if now no longer contending
+    if (new_threads_queued == 0) {
+
 try_remove_group_again: 
         struct group *curr_group = gs->group_head;
         if (curr_group == p->group) {
@@ -345,10 +387,8 @@ try_remove_group_again:
         }
 
     }
-
-    // schedule if need be
-    schedule(core_id, time_gotten, 0);
-
+    
+    return true;
     // printf("done dequeuing core %d\n", core_id);
 
 }
@@ -408,7 +448,7 @@ void run_core(void* core_num_ptr) {
             if (!p) {
                 continue;
             }
-            dequeue(p, TICK_LENGTH, core_id);
+            dequeue(p, 1, TICK_LENGTH, core_id);
             trace_dequeue(p->process_id, p->group->group_id, core_id);
             p->next = pool;
             pool = p;

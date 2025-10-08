@@ -13,6 +13,8 @@
 #define TICK_LENGTH 4000
 #define GROUP_BONUS 1000
 
+// THIS FILE IS OUTDATED
+
 // there are only global datastructures here
 
 struct process {

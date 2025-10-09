@@ -7,6 +7,8 @@ all:
 cas:
 	gcc -g -o strict-weight/global-accounting-cas strict-weight/global-accounting-cas.c -pthread
 
+stupid:
+	gcc -g -o stupid-check stupid-check.c -pthread
 clean:
 	rm strict-weight/distr-weight
 	rm strict-weight/global-accounting

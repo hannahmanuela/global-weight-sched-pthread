@@ -428,6 +428,9 @@ void run_core(void* core_num_ptr) {
         long long cpu_us = (end_cpu.tv_sec - start_cpu.tv_sec) * 1000000LL + (end_cpu.tv_nsec - start_cpu.tv_nsec) / 1000;
 
         FILE *f = fopen("schedule_time.txt", "a");
+        if (wall_us > 10) {
+            fprintf(f, "====== here long =======\n");
+        }
         fprintf(f, "total us: %lld, ru: %lld --", wall_us, cpu_us);
         fprintf(f, "  %lu, %lu, %lu, %lu, %lu, r: %d\n", ret_val.spec_time_collapse - ret_val.start, ret_val.enq_old_running - ret_val.spec_time_collapse, ret_val.pick_min_group - ret_val.enq_old_running, ret_val.get_next_p - ret_val.pick_min_group, ret_val.end - ret_val.get_next_p, ret_val.num_times_did_iter);
         fclose(f);

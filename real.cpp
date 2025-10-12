@@ -121,10 +121,10 @@ int main() {
       break;
     }
     if (pid == 0) {
-      if (move_pid_to_cgroup(cgroup_paths[i], getpid()) != 0) {
-        perror("write cgroup.procs/tasks");
-        _exit(2);
-      }
+      // if (move_pid_to_cgroup(cgroup_paths[i], getpid()) != 0) {
+      //   perror("write cgroup.procs/tasks");
+      //   _exit(2);
+      // }
       run_worker_group();
       _exit(0);
     } else {

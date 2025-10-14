@@ -25,13 +25,14 @@ struct process {
     int process_id;
     struct group *group;
     struct process *next;
-};
+} __attribute__((aligned(64)));
 
 struct group {
     int group_id;
     int weight;
 
     pthread_rwlock_t group_lock;
+    uint64_t nfail;
 
     int num_threads; // the total number of threads in the system
     int threads_queued; // the number of threads runnable and in the q (ie not running)
@@ -44,7 +45,7 @@ struct group {
 
     struct process *runqueue_head;
     struct group *next;
-};
+} __attribute__((aligned(64)));
 
 struct core_state {
 	int core_id;
@@ -55,13 +56,13 @@ struct core_state {
 	int nsched;
 	int nenq;
 	int nyield;
-};
+} __attribute__((aligned(64)));
 
 struct group_list {
 	pthread_rwlock_t group_list_lock;
 	struct group *group_head;
 	uint64_t nfail;
-};
+} __attribute__((aligned(64)));
 
 struct global_state {
 	struct group_list *glist;

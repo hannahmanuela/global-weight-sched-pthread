@@ -294,6 +294,27 @@ int grp_spec_virt_time(struct group_list *gl, struct group *g) {
 	
 }
 
+// update spec time (collapse spec time)
+void grp_upd_spec_virt_time(struct group *g, int time_passed) {
+        pthread_rwlock_rdlock(&g->group_lock);
+        int p_grp_weight = g->weight;
+        pthread_rwlock_unlock(&g->group_lock);
+
+
+        int time_had_expected = (int) (tick_length / p_grp_weight);
+        
+        // update spec virt time if time gotten was not what this core expected
+        int virt_time_gotten = (int)(time_passed / p_grp_weight);
+        if (time_had_expected  != virt_time_gotten) {
+		// need to edit the spec time to use time actually got
+		int diff = time_had_expected - virt_time_gotten;
+
+		pthread_rwlock_wrlock(&g->group_lock);
+		g->spec_virt_time -= diff;
+		pthread_rwlock_unlock(&g->group_lock);
+        }
+}
+
 
 // add p to its group. caller must hold group lock
 void grp_add_process(struct process *p, int is_new) {
@@ -358,26 +379,8 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
     struct process *running_process = core->current_process; 
     struct group *prev_running_group = NULL;
 
-    // if there was a process running, update spec time (collapse spec time)
     if (running_process) {
-        prev_running_group = running_process->group;
-        pthread_rwlock_rdlock(&prev_running_group->group_lock);
-        int p_grp_weight = prev_running_group->weight;
-        pthread_rwlock_unlock(&prev_running_group->group_lock);
-
-
-        int time_had_expected = (int) (tick_length / p_grp_weight);
-        
-        // update spec virt time if time gotten was not what this core expected
-        int virt_time_gotten = (int)(time_passed / p_grp_weight);
-        if (time_had_expected  != virt_time_gotten) {
-            // need to edit the spec time to use time actually got
-            int diff = time_had_expected - virt_time_gotten;
-
-            pthread_rwlock_wrlock(&prev_running_group->group_lock);
-            prev_running_group->spec_virt_time -= diff;
-            pthread_rwlock_unlock(&prev_running_group->group_lock);
-        }
+	    grp_upd_spec_virt_time(running_process->group, time_passed);
 
     }
 
@@ -391,7 +394,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
     if(min_group == NULL)
 	    return;
 
-    // assign the next process
+    // select the next process
     int time_expecting = (int)tick_length / min_group->weight;
     min_group->spec_virt_time += time_expecting;
 

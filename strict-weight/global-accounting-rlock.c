@@ -194,48 +194,12 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 }
 
 // =================
-// SUPPORT FUNCTIONS (used by the main functions)
+// SUPPORT FUNCTIONS for group list
 // =================
-
-// add p to its group. caller must hold group lock
-void add_process(struct process *p, int is_new) {
-	struct process *curr_head = p->group->runqueue_head;
-	p->next = curr_head;
-	p->group->runqueue_head = p;
-	if (is_new) {
-		p->group->num_threads += 1;
-	}
-	p->group->threads_queued += 1;
-}
-
-// compute avg_spec_virt_time for groups in gl, ignoring group_to_ignore
-int avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
-    int total_spec_virt_time = 0;
-    int num_groups = 0;
-    pthread_rwlock_rdlock(&gl->group_list_lock);
-    struct group *curr_group = gl->group_head;
-    while (curr_group) {
-        if (curr_group == group_to_ignore) {
-            curr_group = curr_group->next;
-            continue;
-        }
-        pthread_rwlock_rdlock(&curr_group->group_lock);
-        total_spec_virt_time += curr_group->spec_virt_time;
-        pthread_rwlock_unlock(&curr_group->group_lock);
-
-        num_groups++;
-        curr_group = curr_group->next;
-    }
-    pthread_rwlock_unlock(&gl->group_list_lock);
-    if (num_groups == 0) {
-        return 0;
-    }
-    return total_spec_virt_time / num_groups;
-}
 
 // find the group with the min spec virt time, and
 // return it locked
-struct group *find_min_group(struct group_list *gl) {
+struct group *gl_find_min_group(struct group_list *gl) {
     struct group *min_group = NULL;
     int min_spec_virt_time = INT_MAX;
     pthread_rwlock_wrlock(&gl->group_list_lock); // not because we are writing, but because we need exclusive access to the group list
@@ -260,7 +224,33 @@ struct group *find_min_group(struct group_list *gl) {
     }
 }
 
-void add_group(struct group_list *gl, struct group *g) {
+// compute avg_spec_virt_time for groups in gl, ignoring group_to_ignore
+int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
+    int total_spec_virt_time = 0;
+    int num_groups = 0;
+    pthread_rwlock_rdlock(&gl->group_list_lock);
+    struct group *curr_group = gl->group_head;
+    while (curr_group) {
+        if (curr_group == group_to_ignore) {
+            curr_group = curr_group->next;
+            continue;
+        }
+        pthread_rwlock_rdlock(&curr_group->group_lock);
+        total_spec_virt_time += curr_group->spec_virt_time;
+        pthread_rwlock_unlock(&curr_group->group_lock);
+
+        num_groups++;
+        curr_group = curr_group->next;
+    }
+    pthread_rwlock_unlock(&gl->group_list_lock);
+    if (num_groups == 0) {
+        return 0;
+    }
+    return total_spec_virt_time / num_groups;
+}
+
+
+void gl_add_group(struct group_list *gl, struct group *g) {
         pthread_rwlock_wrlock(&gl->group_list_lock);
         struct group *curr_head = gl->group_head;
         g->next = curr_head; // XXX this is ok because we will check/sync on the next op
@@ -268,9 +258,13 @@ void add_group(struct group_list *gl, struct group *g) {
         pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
+// =================
+// SUPPORT FUNCTIONS for group
+// =================
+
 // compute spec_virt_time for new group g. assumes caller hold lock for g
-int spec_virt_time(struct group_list *gl, struct group *g) {
-	int initial_virt_time = avg_spec_virt_time(gs->glist, g);
+int grp_spec_virt_time(struct group_list *gl, struct group *g) {
+	int initial_virt_time = gl_avg_spec_virt_time(gs->glist, g);
 	if (g->virt_lag > 0) {
 		if (g->last_virt_time > initial_virt_time) {
 			initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
@@ -282,6 +276,19 @@ int spec_virt_time(struct group_list *gl, struct group *g) {
 	
 }
 
+
+// add p to its group. caller must hold group lock
+void grp_add_process(struct process *p, int is_new) {
+	struct process *curr_head = p->group->runqueue_head;
+	p->next = curr_head;
+	p->group->runqueue_head = p;
+	if (is_new) {
+		p->group->num_threads += 1;
+	}
+	p->group->threads_queued += 1;
+}
+
+
 // ================
 // MAIN FUNCTIONS
 // ================
@@ -292,16 +299,16 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	pthread_rwlock_rdlock(&p->group->group_lock);
 
 	if (p->group->threads_queued == 0) {
-		int virt_time = spec_virt_time(gs->glist, p->group);
+		int virt_time = grp_spec_virt_time(gs->glist, p->group);
 
-		add_group(gl, p->group);
+		gl_add_group(gl, p->group);
 
 		// XXX updates p->group while holding on rlock?
 		p->group->spec_virt_time = virt_time;
 	}
 
 	// XXX updates p->group while holding on rlock?
-	add_process(p, is_new);
+	grp_add_process(p, is_new);
 
 	pthread_rwlock_unlock(&p->group->group_lock);
 }
@@ -313,7 +320,7 @@ void dequeue(struct core_state *core, struct group_list *gl, struct process *p, 
     // NOTE: assuming that we currently hold p's group's lock
 
     if (p->group->threads_queued == 1) {
-	    int curr_avg_spec_virt_time = avg_spec_virt_time(gl, NULL);
+	    int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
         int read_spec_virt_time = p->group->spec_virt_time;
 
         p->group->virt_lag = curr_avg_spec_virt_time - read_spec_virt_time;
@@ -380,7 +387,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
     core->current_process = NULL;
 
-    struct group *min_group = find_min_group(gl);
+    struct group *min_group = gl_find_min_group(gl);
     if(min_group == NULL)
 	    return;
 

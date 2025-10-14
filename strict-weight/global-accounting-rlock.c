@@ -294,13 +294,16 @@ int grp_spec_virt_time(struct group_list *gl, struct group *g) {
 	
 }
 
-// update spec time (collapse spec time)
-void grp_upd_spec_virt_time(struct group *g, int time_passed) {
+int grp_get_weight(struct group *g) {
         pthread_rwlock_rdlock(&g->group_lock);
         int p_grp_weight = g->weight;
         pthread_rwlock_unlock(&g->group_lock);
+	return p_grp_weight;
+}
 
-
+// update spec time (collapse spec time)
+void grp_upd_spec_virt_time(struct group *g, int time_passed) {
+	int p_grp_weight = grp_get_weight(g);
         int time_had_expected = (int) (tick_length / p_grp_weight);
         
         // update spec virt time if time gotten was not what this core expected
@@ -334,25 +337,24 @@ void grp_dec_nthread(struct group *g) {
 }
 
 
+
 // ================
 // MAIN FUNCTIONS
 // ================
 
 
-// Make p runnable. NOTE: assumes we hold no locks
+// Make p runnable.
 void enqueue(struct group_list *gl, struct process *p, int is_new) {
-	pthread_rwlock_rdlock(&p->group->group_lock);
+	pthread_rwlock_wrlock(&p->group->group_lock);
 
 	if (p->group->threads_queued == 0) {
 		int virt_time = grp_spec_virt_time(gs->glist, p->group);
 
 		gl_add_group(gl, p->group);
 
-		// XXX updates p->group while holding on rlock?
 		p->group->spec_virt_time = virt_time;
 	}
 
-	// XXX updates p->group while holding on rlock?
 	grp_add_process(p, is_new);
 
 	pthread_rwlock_unlock(&p->group->group_lock);

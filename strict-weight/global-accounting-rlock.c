@@ -331,7 +331,7 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 }
 
 // Assumes caller holds p's group lock
-void dequeue(struct core_state *core, struct group_list *gl, struct process *p, int time_gotten) {
+void dequeue(struct core_state *core, struct group_list *gl, struct process *p) {
 	if (p->group->threads_queued == 1) {
 		int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
 		int spec_virt_time = p->group->spec_virt_time;
@@ -391,13 +391,11 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
     min_group->spec_virt_time += time_expecting;
 
     struct process *next_p = min_group->runqueue_head;
-    dequeue(core, gl, next_p, 0); 
+    dequeue(core, gl, next_p);
     pthread_rwlock_unlock(&min_group->group_lock);  
 
-    core->current_process = next_p; // know we right now own the p, so can do with it what we want
+    core->current_process = next_p; // core owns p
     next_p->next = NULL;
-
-    return;
 }
 
 // NOTE: assume we hold no locks

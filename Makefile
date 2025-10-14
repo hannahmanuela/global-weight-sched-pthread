@@ -8,7 +8,7 @@ cas:
 	gcc -g -o strict-weight/global-accounting-cas strict-weight/global-accounting-cas.c -pthread
 
 rlock:
-	gcc -pg -o strict-weight/global-accounting-rlock strict-weight/global-accounting-rlock.c -pthread
+	gcc -O2 -pg -o strict-weight/global-accounting-rlock strict-weight/global-accounting-rlock.c -pthread
 
 stupid:
 	gcc -g -o stupid-check stupid-check.c -pthread

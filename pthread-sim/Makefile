@@ -10,6 +10,9 @@ cas:
 rlock:
 	gcc -O2 -pg -o strict-weight/global-accounting-rlock strict-weight/global-accounting-rlock.c -pthread
 
+rlock-debug:
+	gcc -g -pg -o strict-weight/global-accounting-rlock strict-weight/global-accounting-rlock.c -pthread
+
 clean:
 	rm strict-weight/distr-weight
 	rm strict-weight/global-accounting

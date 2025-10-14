@@ -6,4 +6,10 @@
 !*.c
 !*.cpp
 !*.sh
+!*.py
+!*.png
+!**/out/**
 !Makefile
+
+# Ignore virtual environment in pthread-sim
+pthread-sim/.venv/

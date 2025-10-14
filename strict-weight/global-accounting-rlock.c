@@ -306,8 +306,44 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	pthread_rwlock_unlock(&p->group->group_lock);
 }
 
+void dequeue(struct core_state *core, struct group_list *gl, struct process *p, int time_gotten) {
 
-void dequeue(struct core_state *, struct group_list *gl, struct process *p, int was_running, int time_gotten);
+    // printf("dequeuing core %d\n", core_id);
+
+    // NOTE: assuming that we currently hold p's group's lock
+
+    if (p->group->threads_queued == 1) {
+	    int curr_avg_spec_virt_time = avg_spec_virt_time(gl, NULL);
+        int read_spec_virt_time = p->group->spec_virt_time;
+
+        p->group->virt_lag = curr_avg_spec_virt_time - read_spec_virt_time;
+        p->group->last_virt_time = read_spec_virt_time;
+    }
+
+    int new_threads_queued = p->group->threads_queued - 1; // decrease num_queued, only once we succesfully deqed the p
+    
+    // need to remove group from global group list if now no longer contending
+    if (new_threads_queued == 0) {
+        pthread_rwlock_wrlock(&gl->group_list_lock);
+        struct group *curr_group = gl->group_head;
+        if (curr_group == p->group) {
+            gl->group_head = curr_group->next;
+        } else {
+            while (curr_group) {
+                if (curr_group->next == p->group) {
+                    curr_group->next = p->group->next;
+                    break;
+                }
+                curr_group = curr_group->next;
+            }
+        }
+        pthread_rwlock_unlock(&gl->group_list_lock);
+    }
+    
+    return;
+    // printf("done dequeuing core %d\n", core_id);
+}
+
 
 void schedule(struct core_state *core, struct group_list *gl, int time_passed, int should_re_enq) {
 	//printf("%d", core_id);
@@ -353,7 +389,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
     min_group->spec_virt_time += time_expecting;
 
     struct process *next_p = min_group->runqueue_head;
-    dequeue(core, gl, next_p, 0, 0); 
+    dequeue(core, gl, next_p, 0); 
     pthread_rwlock_unlock(&min_group->group_lock);  
 
     core->current_process = next_p; // know we right now own the p, so can do with it what we want
@@ -362,57 +398,13 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
     return;
 }
 
-// for now assuming that:
-// - if was_running, the process is exiting
-// - if !was running, the process is being deqed to be run on this core
-void dequeue(struct core_state *core, struct group_list *gl, struct process *p, int was_running, int time_gotten) {
-
-    // printf("dequeuing core %d\n", core_id);
-
-    if (was_running) {
-        // NOTE: assume we hold no locks
+// NOTE: assume we hold no locks
+void yield(struct core_state *core, struct group_list *gl, struct process *p, int time_gotten) {
         pthread_rwlock_wrlock(&p->group->group_lock);
         p->group->num_threads -= 1; // the total number of threads in the system has changed
         pthread_rwlock_unlock(&p->group->group_lock);
         core->current_process = NULL;
         schedule(core, gl, time_gotten, 0);
-        return;
-    }
-
-    // NOTE: assuming that we currently hold p's group's lock
-
-    if (p->group->threads_queued == 1) {
-	    int curr_avg_spec_virt_time = avg_spec_virt_time(gl, NULL);
-        int read_spec_virt_time = p->group->spec_virt_time;
-
-        p->group->virt_lag = curr_avg_spec_virt_time - read_spec_virt_time;
-        p->group->last_virt_time = read_spec_virt_time;
-    }
-
-
-    int new_threads_queued = p->group->threads_queued - 1; // decrease num_queued, only once we succesfully deqed the p
-    
-    // need to remove group from global group list if now no longer contending
-    if (new_threads_queued == 0) {
-        pthread_rwlock_wrlock(&gl->group_list_lock);
-        struct group *curr_group = gl->group_head;
-        if (curr_group == p->group) {
-            gl->group_head = curr_group->next;
-        } else {
-            while (curr_group) {
-                if (curr_group->next == p->group) {
-                    curr_group->next = p->group->next;
-                    break;
-                }
-                curr_group = curr_group->next;
-            }
-        }
-        pthread_rwlock_unlock(&gl->group_list_lock);
-    }
-    
-    return;
-    // printf("done dequeuing core %d\n", core_id);
-
 }
 
 
@@ -449,11 +441,11 @@ void *run_core(void* core_num_ptr) {
 	    struct process *next_running_process = mycore->current_process;
 	    trace_schedule(next_running_process ? next_running_process->process_id : -1, next_running_process ? next_running_process->group->group_id : -1, prev_running_process ? prev_running_process->group->group_id : -1, core_id);
 
-	    usleep(tick_length);
 
 	    // randomly choose to: "run" for the full tick, "enq" a new process, or "deq" something
 	    int choice = rand() % 3;
 	    if (choice == 0) {
+		    usleep(tick_length);
 		    continue; // just run
 	    } else if (choice == 1) {
 		    // pick an exisitng process from the pool?
@@ -475,7 +467,8 @@ void *run_core(void* core_num_ptr) {
 			    continue;
 		    }
 		    int ts = safe_read_tsc();
-		    dequeue(mycore, gs->glist, p, 1, tick_length);
+		    // XXX should 1/2 tick_length?
+		    yield(mycore, gs->glist, p, tick_length);
 		    mycore->deq_cycles += safe_read_tsc() - ts;
 		    mycore->ndeq += 1;
 		    // trace_dequeue(p->process_id, p->group->group_id, core_id);

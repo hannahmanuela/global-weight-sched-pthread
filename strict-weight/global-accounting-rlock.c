@@ -197,7 +197,7 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 // SUPPORT FUNCTIONS (used by the main functions)
 // =================
 
-// add p to its group. caller must hold locks
+// add p to its group. caller must hold group lock
 void add_process(struct process *p, int is_new) {
 	struct process *curr_head = p->group->runqueue_head;
 	p->next = curr_head;
@@ -268,6 +268,20 @@ void add_group(struct group_list *gl, struct group *g) {
         pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
+// compute spec_virt_time for new group g. assumes caller hold lock for g
+int spec_virt_time(struct group_list *gl, struct group *g) {
+	int initial_virt_time = avg_spec_virt_time(gs->glist, g);
+	if (g->virt_lag > 0) {
+		if (g->last_virt_time > initial_virt_time) {
+			initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
+		}
+	} else if (g->virt_lag < 0) {
+		initial_virt_time -= g->virt_lag; // negative lag always carries over? maybe limit it?
+	}
+	return initial_virt_time;
+	
+}
+
 // ================
 // MAIN FUNCTIONS
 // ================
@@ -278,20 +292,12 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	pthread_rwlock_rdlock(&p->group->group_lock);
 
 	if (p->group->threads_queued == 0) {
-		int initial_virt_time = avg_spec_virt_time(gs->glist, p->group);
-
-		if (p->group->virt_lag > 0) {
-			if (p->group->last_virt_time > initial_virt_time) {
-				initial_virt_time = p->group->last_virt_time; // adding back left over lag only if its still ahead
-			}
-		} else if (p->group->virt_lag < 0) {
-			initial_virt_time -= p->group->virt_lag; // negative lag always carries over? maybe limit it?
-		}
+		int virt_time = spec_virt_time(gs->glist, p->group);
 
 		add_group(gl, p->group);
 
 		// XXX updates p->group while holding on rlock?
-		p->group->spec_virt_time = initial_virt_time;
+		p->group->spec_virt_time = virt_time;
 	}
 
 	// XXX updates p->group while holding on rlock?

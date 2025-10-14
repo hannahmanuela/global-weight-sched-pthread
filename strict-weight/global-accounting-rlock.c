@@ -256,12 +256,12 @@ void enqueue(struct process *p, int is_new) {
 }
 
 
-void dequeue(struct process *p, int was_running, int time_gotten, int core_id);
+void dequeue(struct core_state *, struct process *p, int was_running, int time_gotten);
 
-void schedule(int core_id, int time_passed, int should_re_enq) {
+void schedule(struct core_state *core, int time_passed, int should_re_enq) {
 	//printf("%d", core_id);
 
-    struct process *running_process = gs->cores[core_id].current_process; // cores only read this themselves, so s'all good
+    struct process *running_process = core->current_process; // cores only read this themselves, so s'all good
     struct group *prev_running_group = NULL;
 
     // if there was a process running, update spec time (collapse spec time)
@@ -291,7 +291,7 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
         enqueue(running_process, 0);
     }
 
-    gs->cores[core_id].current_process = NULL;
+    core->current_process = NULL;
 
     // pick the group with the min spec virt time
     struct group *min_group = NULL;
@@ -322,12 +322,11 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
     min_group->spec_virt_time += time_expecting;
 
     struct process *next_p = min_group->runqueue_head;
-    dequeue(next_p, 0, 0, core_id);
+    dequeue(core, next_p, 0, 0); 
     pthread_rwlock_unlock(&min_group->group_lock);  
 
-    gs->cores[core_id].current_process = next_p; // know we right now own the p, so can do with it what we want
+    core->current_process = next_p; // know we right now own the p, so can do with it what we want
     next_p->next = NULL;
-
 
     return;
 }
@@ -335,7 +334,7 @@ void schedule(int core_id, int time_passed, int should_re_enq) {
 // for now assuming that:
 // - if was_running, the process is exiting
 // - if !was running, the process is being deqed to be run on this core
-void dequeue(struct process *p, int was_running, int time_gotten, int core_id) {
+void dequeue(struct core_state *core, struct process *p, int was_running, int time_gotten) {
 
     // printf("dequeuing core %d\n", core_id);
 
@@ -344,8 +343,8 @@ void dequeue(struct process *p, int was_running, int time_gotten, int core_id) {
         pthread_rwlock_wrlock(&p->group->group_lock);
         p->group->num_threads -= 1; // the total number of threads in the system has changed
         pthread_rwlock_unlock(&p->group->group_lock);
-        gs->cores[core_id].current_process = NULL;
-        schedule(core_id, time_gotten, 0);
+        core->current_process = NULL;
+        schedule(core, time_gotten, 0);
         return;
     }
 
@@ -412,7 +411,7 @@ void *run_core(void* core_num_ptr) {
 	    struct process *prev_running_process = mycore->current_process;
 
 	    int ts = safe_read_tsc();
-	    schedule(core_id, tick_length, 1);
+	    schedule(mycore, tick_length, 1);
 	    mycore->sched_cycles += safe_read_tsc() - ts;
 	    mycore->nsched += 1;
 
@@ -445,7 +444,7 @@ void *run_core(void* core_num_ptr) {
 			    continue;
 		    }
 		    int ts = safe_read_tsc();
-		    dequeue(p, 1, tick_length, core_id);
+		    dequeue(mycore, p, 1, tick_length);
 		    mycore->deq_cycles += safe_read_tsc() - ts;
 		    mycore->ndeq += 1;
 		    // trace_dequeue(p->process_id, p->group->group_id, core_id);

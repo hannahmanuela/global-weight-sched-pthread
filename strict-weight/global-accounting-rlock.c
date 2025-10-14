@@ -174,7 +174,7 @@ void trace_schedule(int process_id, int group_id, int prev_group_id, int core_id
 #endif
 }
 
-void trace_dequeue(int process_id, int group_id, int core_id) {
+void trace_yield(int process_id, int group_id, int core_id) {
 #ifdef TRACE
     pthread_mutex_lock(&log_lock);
     FILE *f = fopen("event_log.txt", "a");
@@ -445,14 +445,14 @@ void *run_core(void* core_num_ptr) {
 	    struct process *next_running_process = mycore->current_process;
 	    trace_schedule(next_running_process ? next_running_process->process_id : -1, next_running_process ? next_running_process->group->group_id : -1, prev_running_process ? prev_running_process->group->group_id : -1, core_id);
 
+	    usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
 	    // randomly choose to: "run" for the full tick, "enq" a new process, or "deq" something
 	    int choice = rand() % 3;
-	    if (choice == 0) {  // Run for full tick
-		    usleep(tick_length);
-		    continue; // just run
-	    } else if (choice == 1) { // Run for full tick and make a process runnable
-		    usleep(tick_length);
+	    switch(choice) {
+	    case 0: // Run for full tick
+		    continue;
+	    case 1: // Make a process runnable
 		    // pick an exisitng process from the pool?
 		    struct process *p = pool;
 		    if (!p) {
@@ -465,20 +465,22 @@ void *run_core(void* core_num_ptr) {
 		    mycore->enq_cycles += safe_read_tsc() - ts;
 		    mycore->nenq += 1;
 		    // trace_enqueue(p->process_id, p->group->group_id, core_id);
-	    } else { // Yield core after 1/2 tick
-		    struct process *p = mycore->current_process;
+		    usleep(tick_length);
+		    break;
+	    case 2: // Yield core
+		    p = mycore->current_process;
 		    if (!p) {
 			    continue;
 		    }
-		    usleep((int)(tick_length / 2));
-		    int ts = safe_read_tsc();
+		    ts = safe_read_tsc();
 		    // XXX should 1/2 tick_length?
 		    yield(mycore, gs->glist, p, tick_length);
 		    mycore->yield_cycles += safe_read_tsc() - ts;
 		    mycore->nyield += 1;
-		    // trace_dequeue(p->process_id, p->group->group_id, core_id);
+		    // trace_yield(p->process_id, p->group->group_id, core_id);
 		    p->next = pool;
 		    pool = p;
+		    usleep((int)(tick_length / 2));
 	    }
         
     }

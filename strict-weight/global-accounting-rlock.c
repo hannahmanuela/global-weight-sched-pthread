@@ -97,7 +97,7 @@ struct group *create_group(int id, int weight) {
 
 
 // ================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS (for run_core)
 // ================
 
 int safe_read_tsc() {
@@ -107,6 +107,8 @@ int safe_read_tsc() {
     return ret_val;
 }
 
+
+// for printing
 int num_cores_running(struct group *group) {
     int num_cores_running = 0;
     for (int i = 0; i < num_cores; i++) {
@@ -119,29 +121,6 @@ int num_cores_running(struct group *group) {
 }
 
 // added group_to_ignore so that we are robust against enq/deq interleaving where group is already on the rq when it's not expected to be
-int avg_spec_virt_time(struct group *group_to_ignore) {
-    int total_spec_virt_time = 0;
-    int num_groups = 0;
-    pthread_rwlock_rdlock(&gs->group_list_lock);
-    struct group *curr_group = gs->group_head;
-    while (curr_group) {
-        if (curr_group == group_to_ignore) {
-            curr_group = curr_group->next;
-            continue;
-        }
-        pthread_rwlock_rdlock(&curr_group->group_lock);
-        total_spec_virt_time += curr_group->spec_virt_time;
-        pthread_rwlock_unlock(&curr_group->group_lock);
-
-        num_groups++;
-        curr_group = curr_group->next;
-    }
-    pthread_rwlock_unlock(&gs->group_list_lock);
-    if (num_groups == 0) {
-        return 0;
-    }
-    return total_spec_virt_time / num_groups;
-}
 
 void print_core(struct core_state *c) {
 	printf("%d cycles: sched %d(%0.2f) enq %d(%0.2f) deq %d (%0.2f)\n", c - gs->cores,
@@ -210,7 +189,60 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 #endif
 }
 
+// =================
+// SUPPORT FUNCTIONS (used by the main functions)
+// =================
 
+int avg_spec_virt_time(struct group *group_to_ignore) {
+    int total_spec_virt_time = 0;
+    int num_groups = 0;
+    pthread_rwlock_rdlock(&gs->group_list_lock);
+    struct group *curr_group = gs->group_head;
+    while (curr_group) {
+        if (curr_group == group_to_ignore) {
+            curr_group = curr_group->next;
+            continue;
+        }
+        pthread_rwlock_rdlock(&curr_group->group_lock);
+        total_spec_virt_time += curr_group->spec_virt_time;
+        pthread_rwlock_unlock(&curr_group->group_lock);
+
+        num_groups++;
+        curr_group = curr_group->next;
+    }
+    pthread_rwlock_unlock(&gs->group_list_lock);
+    if (num_groups == 0) {
+        return 0;
+    }
+    return total_spec_virt_time / num_groups;
+}
+
+// find the group with the min spec virt time, and
+// return it locked
+struct group *find_min_group() {
+    struct group *min_group = NULL;
+    int min_spec_virt_time = INT_MAX;
+    pthread_rwlock_wrlock(&gs->group_list_lock); // not because we are writing, but because we need exclusive access to the group list
+    struct group *curr_group = gs->group_head;
+    while (curr_group) {
+        pthread_rwlock_rdlock(&curr_group->group_lock);
+        int curr_spec_virt_time = curr_group->spec_virt_time;
+        pthread_rwlock_unlock(&curr_group->group_lock);
+        if (curr_spec_virt_time < min_spec_virt_time) {
+            min_spec_virt_time = curr_spec_virt_time;
+            min_group = curr_group;
+        }
+        curr_group = curr_group->next;
+    }
+    if (min_group) {
+        pthread_rwlock_wrlock(&min_group->group_lock); // first lock the group then unlock the list lock
+        pthread_rwlock_unlock(&gs->group_list_lock);
+	return min_group;
+    } else {
+        pthread_rwlock_unlock(&gs->group_list_lock);
+        return NULL;
+    }
+}
 
 // ================
 // MAIN FUNCTIONS
@@ -293,29 +325,9 @@ void schedule(struct core_state *core, int time_passed, int should_re_enq) {
 
     core->current_process = NULL;
 
-    // pick the group with the min spec virt time
-    struct group *min_group = NULL;
-    int min_spec_virt_time = INT_MAX;
-    pthread_rwlock_wrlock(&gs->group_list_lock); // not because we are writing, but because we need exclusive access to the group list
-    struct group *curr_group = gs->group_head;
-    while (curr_group) {
-        pthread_rwlock_rdlock(&curr_group->group_lock);
-        int curr_spec_virt_time = curr_group->spec_virt_time;
-        pthread_rwlock_unlock(&curr_group->group_lock);
-        if (curr_spec_virt_time < min_spec_virt_time) {
-            min_spec_virt_time = curr_spec_virt_time;
-            min_group = curr_group;
-        }
-        curr_group = curr_group->next;
-    }
-
-    if (min_group) {
-        pthread_rwlock_wrlock(&min_group->group_lock); // first lock the group then unlock the list lock
-        pthread_rwlock_unlock(&gs->group_list_lock);
-    } else {
-        pthread_rwlock_unlock(&gs->group_list_lock);
-        return;
-    }
+    struct group *min_group = find_min_group();
+    if(min_group == NULL)
+	    return;
 
     // assign the next process
     int time_expecting = (int)tick_length / min_group->weight;

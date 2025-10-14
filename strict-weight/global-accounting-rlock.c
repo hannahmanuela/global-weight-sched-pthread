@@ -51,10 +51,10 @@ struct core_state {
 	struct process *current_process;
 	int sched_cycles;
 	int enq_cycles;
-	int deq_cycles;
+	int yield_cycles;
 	int nsched;
 	int nenq;
-	int ndeq;
+	int nyield;
 };
 
 struct group_list {
@@ -127,10 +127,11 @@ int num_cores_running(struct group *group) {
 // added group_to_ignore so that we are robust against enq/deq interleaving where group is already on the rq when it's not expected to be
 
 void print_core(struct core_state *c) {
-	printf("%d cycles: sched %d(%0.2f) enq %d(%0.2f) deq %d (%0.2f)\n", c - gs->cores,
+	printf("%d cycles: sched %d(%0.2f) enq %d(%0.2f) yield %d (%0.2f)\n",
+	       c - gs->cores,
 	       c->sched_cycles, 1.0*c->sched_cycles/c->nsched,
 	       c->enq_cycles, 1.0*c->enq_cycles/c->nenq,
-	       c->deq_cycles, 1.0*c->deq_cycles/c->nenq);
+	       c->yield_cycles, 1.0*c->yield_cycles/c->nyield);
 }
 
 void print_global_state() {
@@ -473,8 +474,8 @@ void *run_core(void* core_num_ptr) {
 		    int ts = safe_read_tsc();
 		    // XXX should 1/2 tick_length?
 		    yield(mycore, gs->glist, p, tick_length);
-		    mycore->deq_cycles += safe_read_tsc() - ts;
-		    mycore->ndeq += 1;
+		    mycore->yield_cycles += safe_read_tsc() - ts;
+		    mycore->nyield += 1;
 		    // trace_dequeue(p->process_id, p->group->group_id, core_id);
 		    p->next = pool;
 		    pool = p;

@@ -508,7 +508,7 @@ void main(int argc, char *argv[]) {
 
     int num_threads_p_group = 20;
     if (argc != 4) {
-	    fprintf(stderr, "usage: <num_cores> <tick_length> <num_groups>\n");
+	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_groups>\n");
 	    exit(1);
     }
     num_cores = atoi(argv[1]);
@@ -542,6 +542,7 @@ void main(int argc, char *argv[]) {
         // usleep(200);
     }
 
+    printf("results for %d cores %d us tick, %d groups\n",  num_cores, tick_length, num_groups);
     for (int i = 0; i < num_cores; i++) {
         pthread_join(threads[i], NULL);
 	print_core(&(gs->cores[i]));

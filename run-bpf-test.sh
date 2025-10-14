@@ -1,26 +1,28 @@
 #!/bin/bash
 
 
+# g++ -std=c++17 -o test_policy/test test_policy/test.cpp
+
 # check we're running as root
 if [ $(id -u) -ne 0 ]; then
     echo "Please run as root"
     exit 1
 fi
 
-
 echo 1 > /sys/kernel/debug/tracing/tracing_on
-./test_policy/test &
-pid=$!
-
-sleep 4
 
 cd bpf-stuff
-./scx_simple &
+./scx_h &
 bpf_pid=$!
 
 cd ..
 
-sleep 2
+sleep 0.5
+
+taskset -c 4 ./test_policy/test &
+pid=$!
+
+sleep 4
 
 kill -9 $bpf_pid
 

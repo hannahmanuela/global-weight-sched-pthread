@@ -10,16 +10,17 @@
 #include <libgen.h>
 #include <bpf/bpf.h>
 #include <scx/common.h>
-#include "scx_simple.bpf.skel.h"
+#include "scx_h.bpf.skel.h"
 
 const char help_fmt[] =
-"A simple sched_ext scheduler.\n"
+"A hierarchical global accounting sched_ext scheduler.\n"
 "\n"
-"See the top-level comment in .bpf.c for more details.\n"
+"This scheduler implements the global accounting logic from global-accounting-cas.c\n"
+"in a BPF sched_ext program. It maintains global virtual time tracking and\n"
+"supports cgroup hierarchies with proper weight-based scheduling.\n"
 "\n"
-"Usage: %s [-f] [-v]\n"
+"Usage: %s [-v]\n"
 "\n"
-"  -f            Use FIFO scheduling instead of weighted vtime scheduling\n"
 "  -v            Print libbpf debug messages\n"
 "  -h            Display this help and exit\n";
 
@@ -40,7 +41,7 @@ static void sigint_handler(int simple)
 
 int main(int argc, char **argv)
 {
-    struct scx_simple *skel;
+    struct scx_h *skel;
     struct bpf_link *link;
     __u32 opt;
     __u64 ecode;
@@ -49,7 +50,7 @@ int main(int argc, char **argv)
     signal(SIGINT, sigint_handler);
     signal(SIGTERM, sigint_handler);
 restart:
-    skel = SCX_OPS_OPEN(simple_ops, scx_simple);
+    skel = SCX_OPS_OPEN(h_ops, scx_h);
 
     while ((opt = getopt(argc, argv, "vh")) != -1) {
         switch (opt) {
@@ -62,19 +63,19 @@ restart:
         }
     }
 
-    SCX_OPS_LOAD(skel, simple_ops, scx_simple, uei);
-    link = SCX_OPS_ATTACH(skel, simple_ops, scx_simple);
+    SCX_OPS_LOAD(skel, h_ops, scx_h, uei);
+    link = SCX_OPS_ATTACH(skel, h_ops, scx_h);
+
+    printf("Hierarchical global accounting scheduler loaded\n");
+    printf("Press Ctrl+C to exit\n");
 
     while (!exit_req && !UEI_EXITED(skel, uei)) {
-
-        printf("running\n");
-        fflush(stdout);
         sleep(1);
     }
 
     bpf_link__destroy(link);
     ecode = UEI_REPORT(skel, uei);
-    scx_simple__destroy(skel);
+    scx_h__destroy(skel);
 
     if (UEI_ECODE_RESTART(ecode))
         goto restart;

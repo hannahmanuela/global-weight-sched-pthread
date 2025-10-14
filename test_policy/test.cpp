@@ -12,6 +12,12 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sched.h>
+#include <sys/stat.h>
+#include <sys/mount.h>
+#include <fcntl.h>
+#include <filesystem>
+#include <fstream>
+#include <errno.h>
 
 #define CPU_NUM 4
 
@@ -28,12 +34,67 @@ bool setAffinityToCpu(int cpuIndex) {
     return true;
 }
 
-bool setNiceValue(int niceValue) {
-    // niceValue in [-20, 19]; lower = higher priority (higher weight)
-    if (setpriority(PRIO_PROCESS, 0, niceValue) != 0) {
-        std::perror("setpriority");
+bool createCgroup(const std::string& cgroupName) {
+    std::string cgroupPath = "/sys/fs/cgroup/" + cgroupName;
+    
+    // Create the cgroup directory
+    if (mkdir(cgroupPath.c_str(), 0755) != 0 && errno != EEXIST) {
+        std::perror(("mkdir " + cgroupPath).c_str());
         return false;
     }
+    
+    return true;
+}
+
+bool setCgroupWeight(const std::string& cgroupName, int weight) {
+    std::string weightPath = "/sys/fs/cgroup/" + cgroupName + "/cpu.weight";
+    
+    std::ofstream weightFile(weightPath);
+    if (!weightFile.is_open()) {
+        std::perror(("open " + weightPath).c_str());
+        return false;
+    }
+    
+    weightFile << weight << std::endl;
+    weightFile.close();
+    
+    if (weightFile.fail()) {
+        std::perror(("write " + weightPath).c_str());
+        return false;
+    }
+    
+    return true;
+}
+
+bool addProcessToCgroup(const std::string& cgroupName, pid_t pid) {
+    std::string procsPath = "/sys/fs/cgroup/" + cgroupName + "/cgroup.procs";
+    
+    std::ofstream procsFile(procsPath);
+    if (!procsFile.is_open()) {
+        std::perror(("open " + procsPath).c_str());
+        return false;
+    }
+    
+    procsFile << pid << std::endl;
+    procsFile.close();
+    
+    if (procsFile.fail()) {
+        std::perror(("write " + procsPath).c_str());
+        return false;
+    }
+    
+    return true;
+}
+
+bool removeCgroup(const std::string& cgroupName) {
+    std::string cgroupPath = "/sys/fs/cgroup/" + cgroupName;
+    
+    // Remove the cgroup directory
+    if (rmdir(cgroupPath.c_str()) != 0 && errno != ENOENT) {
+        std::perror(("rmdir " + cgroupPath).c_str());
+        return false;
+    }
+    
     return true;
 }
 
@@ -55,6 +116,31 @@ CpuAndWall sampleCpuAndWall() {
 }
 
 volatile unsigned long long sink = 0; // prevents optimization
+
+// Global variables for cleanup
+pid_t g_childLow = 0;
+pid_t g_childHigh = 0;
+
+void cleanupAndExit(int sig) {
+    std::cout << "\nCleaning up cgroups and exiting...\n";
+    
+    // Kill children first
+    if (g_childLow > 0) {
+        kill(g_childLow, SIGTERM);
+    }
+    if (g_childHigh > 0) {
+        kill(g_childHigh, SIGTERM);
+    }
+    
+    // Wait a bit for children to exit
+    usleep(500000); // 500ms
+    
+    // Remove cgroups
+    // removeCgroup("low_weight");
+    // removeCgroup("high_weight");
+    
+    exit(0);
+}
 
 void runBusyAndReport(const std::string &label) {
     // Pin to CPU 0
@@ -92,6 +178,10 @@ void runBusyAndReport(const std::string &label) {
 }
 
 int main() {
+    // Set up signal handler for cleanup
+    signal(SIGINT, cleanupAndExit);
+    signal(SIGTERM, cleanupAndExit);
+    
     // Parent will create two children; both children will run indefinitely
     pid_t childLow = fork();
     if (childLow < 0) {
@@ -100,15 +190,19 @@ int main() {
     }
 
     if (childLow == 0) {
-        // Low weight: nice=19
-        if (!setNiceValue(19)) {
-            std::cerr << "PID=" << getpid() << ": failed to set nice to 19 (lowest weight).\n";
+        // Low weight: cgroup with weight 1
+        if (!createCgroup("low_weight")) {
+            std::cerr << "PID=" << getpid() << ": failed to create low_weight cgroup.\n";
+            return 1;
         }
-        // struct sched_param param;
-        // param.sched_priority = 0;
-        // if (sched_setscheduler(getpid(), SCHED_IDLE, &param) != 0) {
-        //     std::perror("sched_setscheduler");
-        // }
+        if (!setCgroupWeight("low_weight", 1)) {
+            std::cerr << "PID=" << getpid() << ": failed to set cgroup weight to 1.\n";
+            return 1;
+        }
+        if (!addProcessToCgroup("low_weight", getpid())) {
+            std::cerr << "PID=" << getpid() << ": failed to add process to low_weight cgroup.\n";
+            return 1;
+        }
 
         runBusyAndReport("idle");
         return 0;
@@ -121,15 +215,28 @@ int main() {
     }
 
     if (childHigh == 0) {
-        // High weight: nice=-20 (may require CAP_SYS_NICE)
-        if (!setNiceValue(-20)) {
-            std::cerr << "PID=" << getpid() << ": failed to set nice to -20 (highest weight)."
-                      << " You may need privileges; continuing with current nice.\n";
+        // High weight: cgroup with weight 100
+        if (!createCgroup("high_weight")) {
+            std::cerr << "PID=" << getpid() << ": failed to create high_weight cgroup.\n";
+            return 1;
         }
+        if (!setCgroupWeight("high_weight", 100)) {
+            std::cerr << "PID=" << getpid() << ": failed to set cgroup weight to 100.\n";
+            return 1;
+        }
+        if (!addProcessToCgroup("high_weight", getpid())) {
+            std::cerr << "PID=" << getpid() << ": failed to add process to high_weight cgroup.\n";
+            return 1;
+        }
+        
         runBusyAndReport("normal");
         return 0;
     }
 
+    // Store child PIDs for cleanup
+    g_childLow = childLow;
+    g_childHigh = childHigh;
+    
     // Parent: ensure both children share the same CPU as well (optional)
     setAffinityToCpu(CPU_NUM);
 

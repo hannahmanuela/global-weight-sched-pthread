@@ -225,7 +225,7 @@ struct group *gl_find_min_group(struct group_list *gl) {
 	int min_spec_virt_time = INT_MAX;
 
 	// acquire lock so that the list doesn't change under out of us
-	pthread_rwlock_rdlock_fail(&gl->group_list_lock, &gl->nfail_min); 
+	pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_min); 
 	struct group *curr_group = gl->group_head;
 	while (curr_group) {
 		int curr_spec_virt_time = grp_get_spec_virt_time(curr_group);

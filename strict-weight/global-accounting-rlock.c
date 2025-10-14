@@ -311,7 +311,7 @@ void grp_add_process(struct process *p, int is_new) {
 // ================
 
 
-// NOTE: assume we hold no locks
+// Make p runnable. NOTE: assume we hold no locks
 void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	pthread_rwlock_rdlock(&p->group->group_lock);
 
@@ -330,31 +330,22 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	pthread_rwlock_unlock(&p->group->group_lock);
 }
 
+// Assumes caller holds p's group lock
 void dequeue(struct core_state *core, struct group_list *gl, struct process *p, int time_gotten) {
+	if (p->group->threads_queued == 1) {
+		int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
+		int spec_virt_time = p->group->spec_virt_time;
+		p->group->virt_lag = curr_avg_spec_virt_time - spec_virt_time;
+		p->group->last_virt_time = spec_virt_time;
+	}
 
-    // printf("dequeuing core %d\n", core_id);
-
-    // NOTE: assuming that we currently hold p's group's lock
-
-    if (p->group->threads_queued == 1) {
-	    int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
-        int read_spec_virt_time = p->group->spec_virt_time;
-
-        p->group->virt_lag = curr_avg_spec_virt_time - read_spec_virt_time;
-        p->group->last_virt_time = read_spec_virt_time;
-    }
-
-    int new_threads_queued = p->group->threads_queued - 1; // decrease num_queued, only once we succesfully deqed the p
+	int new_threads_queued = p->group->threads_queued - 1; // decrease num_queued, only once we succesfully deqed the p
     
-    // need to remove group from global group list if now no longer contending
-    if (new_threads_queued == 0) {
-	    gl_del_group(gl, p->group);
-    }
-    
-    return;
-    // printf("done dequeuing core %d\n", core_id);
+	// need to remove group from global group list if now no longer contending
+	if (new_threads_queued == 0) {
+		gl_del_group(gl, p->group);
+	}
 }
-
 
 void schedule(struct core_state *core, struct group_list *gl, int time_passed, int should_re_enq) {
 	//printf("%d", core_id);
@@ -455,10 +446,11 @@ void *run_core(void* core_num_ptr) {
 
 	    // randomly choose to: "run" for the full tick, "enq" a new process, or "deq" something
 	    int choice = rand() % 3;
-	    if (choice == 0) {
+	    if (choice == 0) {  // Run for full tick
 		    usleep(tick_length);
 		    continue; // just run
-	    } else if (choice == 1) {
+	    } else if (choice == 1) { // Run for full tick and make a process runnable
+		    usleep(tick_length);
 		    // pick an exisitng process from the pool?
 		    struct process *p = pool;
 		    if (!p) {
@@ -471,12 +463,12 @@ void *run_core(void* core_num_ptr) {
 		    mycore->enq_cycles += safe_read_tsc() - ts;
 		    mycore->nenq += 1;
 		    // trace_enqueue(p->process_id, p->group->group_id, core_id);
-		    usleep((int)(tick_length / 2));
-	    } else {
+	    } else { // Yield core after 1/2 tick
 		    struct process *p = mycore->current_process;
 		    if (!p) {
 			    continue;
 		    }
+		    usleep((int)(tick_length / 2));
 		    int ts = safe_read_tsc();
 		    // XXX should 1/2 tick_length?
 		    yield(mycore, gs->glist, p, tick_length);
@@ -485,7 +477,6 @@ void *run_core(void* core_num_ptr) {
 		    // trace_dequeue(p->process_id, p->group->group_id, core_id);
 		    p->next = pool;
 		    pool = p;
-		    usleep((int)(tick_length / 2));
 	    }
         
     }

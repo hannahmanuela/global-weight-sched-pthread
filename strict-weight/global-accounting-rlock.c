@@ -258,6 +258,23 @@ void gl_add_group(struct group_list *gl, struct group *g) {
         pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
+void gl_del_group(struct group_list *gl, struct group *g) {
+        pthread_rwlock_wrlock(&gl->group_list_lock);
+        struct group *curr_group = gl->group_head;
+        if (curr_group == g) {
+            gl->group_head = curr_group->next;
+        } else {
+            while (curr_group) {
+                if (curr_group->next == g) {
+                    curr_group->next = g->next;
+                    break;
+                }
+                curr_group = curr_group->next;
+            }
+        }
+        pthread_rwlock_unlock(&gl->group_list_lock);
+}
+
 // =================
 // SUPPORT FUNCTIONS for group
 // =================
@@ -331,20 +348,7 @@ void dequeue(struct core_state *core, struct group_list *gl, struct process *p, 
     
     // need to remove group from global group list if now no longer contending
     if (new_threads_queued == 0) {
-        pthread_rwlock_wrlock(&gl->group_list_lock);
-        struct group *curr_group = gl->group_head;
-        if (curr_group == p->group) {
-            gl->group_head = curr_group->next;
-        } else {
-            while (curr_group) {
-                if (curr_group->next == p->group) {
-                    curr_group->next = p->group->next;
-                    break;
-                }
-                curr_group = curr_group->next;
-            }
-        }
-        pthread_rwlock_unlock(&gl->group_list_lock);
+	    gl_del_group(gl, p->group);
     }
     
     return;

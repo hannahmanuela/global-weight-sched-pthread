@@ -224,7 +224,7 @@ struct group *gl_find_min_group(struct group_list *gl) {
 	struct group *min_group = NULL;
 	int min_spec_virt_time = INT_MAX;
 
-	// we need exclusive access to the group list   XXX rdlock?
+	// acquire lock so that the list doesn't change under out of us
 	pthread_rwlock_rdlock_fail(&gl->group_list_lock, &gl->nfail_min); 
 	struct group *curr_group = gl->group_head;
 	while (curr_group) {

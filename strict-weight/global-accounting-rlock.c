@@ -60,6 +60,7 @@ struct core_state {
 struct group_list {
 	pthread_rwlock_t group_list_lock;
 	struct group *group_head;
+	uint64_t nfail;
 };
 
 struct global_state {
@@ -199,11 +200,16 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 // =================
 
 // find the group with the min spec virt time, and
-// return it locked
+// return it locked. 
 struct group *gl_find_min_group(struct group_list *gl) {
     struct group *min_group = NULL;
     int min_spec_virt_time = INT_MAX;
-    pthread_rwlock_wrlock(&gl->group_list_lock); // not because we are writing, but because we need exclusive access to the group list
+
+    // we need exclusive access to the group list
+    if (pthread_rwlock_trywrlock(&gl->group_list_lock) != 0) {
+	    __atomic_add_fetch(&gl->nfail, 1, __ATOMIC_RELAXED);
+	    pthread_rwlock_wrlock(&gl->group_list_lock); 
+    }
     struct group *curr_group = gl->group_head;
     while (curr_group) {
         pthread_rwlock_rdlock(&curr_group->group_lock);
@@ -539,6 +545,7 @@ void main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
 	print_core(&(gs->cores[i]));
     }
+    printf("failed glist trylock %d\n", gs->glist->nfail);
 
 }
 

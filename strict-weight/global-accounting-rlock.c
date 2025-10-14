@@ -331,25 +331,23 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 }
 
 // Assumes caller holds p's group lock
-void dequeue(struct core_state *core, struct group_list *gl, struct process *p) {
-	if (p->group->threads_queued == 1) {
+void dequeue(struct group_list *gl, struct group *g) {
+	if (g->threads_queued == 1) {
 		int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
-		int spec_virt_time = p->group->spec_virt_time;
-		p->group->virt_lag = curr_avg_spec_virt_time - spec_virt_time;
-		p->group->last_virt_time = spec_virt_time;
+		int spec_virt_time = g->spec_virt_time;
+		g->virt_lag = curr_avg_spec_virt_time - spec_virt_time;
+		g->last_virt_time = spec_virt_time;
 	}
 
-	int new_threads_queued = p->group->threads_queued - 1; // decrease num_queued, only once we succesfully deqed the p
+	int new_threads_queued = g->threads_queued - 1; // decrease num_queued, only once we succesfully deqed the p
     
 	// need to remove group from global group list if now no longer contending
 	if (new_threads_queued == 0) {
-		gl_del_group(gl, p->group);
+		gl_del_group(gl, g);
 	}
 }
 
 void schedule(struct core_state *core, struct group_list *gl, int time_passed, int should_re_enq) {
-	//printf("%d", core_id);
-
     struct process *running_process = core->current_process; // cores only read this themselves, so s'all good
     struct group *prev_running_group = NULL;
 
@@ -391,7 +389,8 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
     min_group->spec_virt_time += time_expecting;
 
     struct process *next_p = min_group->runqueue_head;
-    dequeue(core, gl, next_p);
+    dequeue(gl, next_p->group);
+
     pthread_rwlock_unlock(&min_group->group_lock);  
 
     core->current_process = next_p; // core owns p

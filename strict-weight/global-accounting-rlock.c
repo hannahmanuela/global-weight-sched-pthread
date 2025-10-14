@@ -305,13 +305,19 @@ void grp_add_process(struct process *p, int is_new) {
 	p->group->threads_queued += 1;
 }
 
+void grp_dec_nthread(struct group *g) {
+        pthread_rwlock_wrlock(&g->group_lock);
+        g->num_threads -= 1;
+        pthread_rwlock_unlock(&g->group_lock);
+}
+
 
 // ================
 // MAIN FUNCTIONS
 // ================
 
 
-// Make p runnable. NOTE: assume we hold no locks
+// Make p runnable. NOTE: assumes we hold no locks
 void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	pthread_rwlock_rdlock(&p->group->group_lock);
 
@@ -348,7 +354,7 @@ void dequeue(struct group_list *gl, struct process *p) {
 }
 
 void schedule(struct core_state *core, struct group_list *gl, int time_passed, int should_re_enq) {
-    struct process *running_process = core->current_process; // cores only read this themselves, so s'all good
+    struct process *running_process = core->current_process; 
     struct group *prev_running_group = NULL;
 
     // if there was a process running, update spec time (collapse spec time)
@@ -399,9 +405,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
 // NOTE: assume we hold no locks
 void yield(struct core_state *core, struct group_list *gl, struct process *p, int time_gotten) {
-        pthread_rwlock_wrlock(&p->group->group_lock);
-        p->group->num_threads -= 1; // the total number of threads in the system has changed
-        pthread_rwlock_unlock(&p->group->group_lock);
+	grp_dec_nthread(p->group);
         core->current_process = NULL;
         schedule(core, gl, time_gotten, 0);
 }

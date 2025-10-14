@@ -57,10 +57,14 @@ struct core_state {
 	int ndeq;
 };
 
+struct group_list {
+	pthread_rwlock_t group_list_lock;
+	struct group *group_head;
+};
+
 struct global_state {
-    pthread_rwlock_t group_list_lock;
-    struct group *group_head;
-    struct core_state *cores;
+	struct group_list *glist;
+	struct core_state *cores;
 };
 
 struct global_state* gs;
@@ -131,7 +135,7 @@ void print_core(struct core_state *c) {
 
 void print_global_state() {
     printf("global state:\n");
-    struct group *curr_group = gs->group_head;
+    struct group *curr_group = gs->glist->group_head;
     while (curr_group) {
         printf("group %d, weight %d, num threads %d, spec virt time %d, num cores running %d\n", curr_group->group_id, curr_group->weight, 
             curr_group->num_threads, curr_group->spec_virt_time, num_cores_running(curr_group));
@@ -146,7 +150,7 @@ void print_global_state() {
 
 void write_global_state(FILE *f) {
     fprintf(f, "global state:\n");
-    struct group *curr_group = gs->group_head;
+    struct group *curr_group = gs->glist->group_head;
     while (curr_group) {
         fprintf(f, "group %d, weight %d, num threads %d, spec virt time %d, num cores running %d\n", curr_group->group_id, curr_group->weight, 
             curr_group->num_threads, curr_group->spec_virt_time, num_cores_running(curr_group));
@@ -193,11 +197,11 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 // SUPPORT FUNCTIONS (used by the main functions)
 // =================
 
-int avg_spec_virt_time(struct group *group_to_ignore) {
+int avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
     int total_spec_virt_time = 0;
     int num_groups = 0;
-    pthread_rwlock_rdlock(&gs->group_list_lock);
-    struct group *curr_group = gs->group_head;
+    pthread_rwlock_rdlock(&gl->group_list_lock);
+    struct group *curr_group = gl->group_head;
     while (curr_group) {
         if (curr_group == group_to_ignore) {
             curr_group = curr_group->next;
@@ -210,7 +214,7 @@ int avg_spec_virt_time(struct group *group_to_ignore) {
         num_groups++;
         curr_group = curr_group->next;
     }
-    pthread_rwlock_unlock(&gs->group_list_lock);
+    pthread_rwlock_unlock(&gl->group_list_lock);
     if (num_groups == 0) {
         return 0;
     }
@@ -219,11 +223,11 @@ int avg_spec_virt_time(struct group *group_to_ignore) {
 
 // find the group with the min spec virt time, and
 // return it locked
-struct group *find_min_group() {
+struct group *find_min_group(struct group_list *gl) {
     struct group *min_group = NULL;
     int min_spec_virt_time = INT_MAX;
-    pthread_rwlock_wrlock(&gs->group_list_lock); // not because we are writing, but because we need exclusive access to the group list
-    struct group *curr_group = gs->group_head;
+    pthread_rwlock_wrlock(&gl->group_list_lock); // not because we are writing, but because we need exclusive access to the group list
+    struct group *curr_group = gl->group_head;
     while (curr_group) {
         pthread_rwlock_rdlock(&curr_group->group_lock);
         int curr_spec_virt_time = curr_group->spec_virt_time;
@@ -236,10 +240,10 @@ struct group *find_min_group() {
     }
     if (min_group) {
         pthread_rwlock_wrlock(&min_group->group_lock); // first lock the group then unlock the list lock
-        pthread_rwlock_unlock(&gs->group_list_lock);
+        pthread_rwlock_unlock(&gl->group_list_lock);
 	return min_group;
     } else {
-        pthread_rwlock_unlock(&gs->group_list_lock);
+        pthread_rwlock_unlock(&gl->group_list_lock);
         return NULL;
     }
 }
@@ -249,13 +253,13 @@ struct group *find_min_group() {
 // ================
 
 
-void enqueue(struct process *p, int is_new) {
+// NOTE: assume we hold no locks
+void enqueue(struct group_list *gl, struct process *p, int is_new) {
 
-    // NOTE: assume we hold no locks
     pthread_rwlock_rdlock(&p->group->group_lock);
 
     if (p->group->threads_queued == 0) {
-        int initial_virt_time = avg_spec_virt_time(p->group);
+	    int initial_virt_time = avg_spec_virt_time(gs->glist, p->group);
 
         if (p->group->virt_lag > 0) {
             if (p->group->last_virt_time > initial_virt_time) {
@@ -265,11 +269,11 @@ void enqueue(struct process *p, int is_new) {
             initial_virt_time -= p->group->virt_lag; // negative lag always carries over? maybe limit it?
         }
 
-        pthread_rwlock_wrlock(&gs->group_list_lock);
-        struct group *curr_head = gs->group_head;
+        pthread_rwlock_wrlock(&gl->group_list_lock);
+        struct group *curr_head = gl->group_head;
         p->group->next = curr_head; // this is ok because we will check/sync on the next op
-        gs->group_head = p->group;
-        pthread_rwlock_unlock(&gs->group_list_lock);
+        gl->group_head = p->group;
+        pthread_rwlock_unlock(&gl->group_list_lock);
 
         p->group->spec_virt_time = initial_virt_time;
     }
@@ -288,9 +292,9 @@ void enqueue(struct process *p, int is_new) {
 }
 
 
-void dequeue(struct core_state *, struct process *p, int was_running, int time_gotten);
+void dequeue(struct core_state *, struct group_list *gl, struct process *p, int was_running, int time_gotten);
 
-void schedule(struct core_state *core, int time_passed, int should_re_enq) {
+void schedule(struct core_state *core, struct group_list *gl, int time_passed, int should_re_enq) {
 	//printf("%d", core_id);
 
     struct process *running_process = core->current_process; // cores only read this themselves, so s'all good
@@ -320,12 +324,12 @@ void schedule(struct core_state *core, int time_passed, int should_re_enq) {
     }
 
     if (should_re_enq && running_process) {
-        enqueue(running_process, 0);
+	    enqueue(gl, running_process, 0);
     }
 
     core->current_process = NULL;
 
-    struct group *min_group = find_min_group();
+    struct group *min_group = find_min_group(gl);
     if(min_group == NULL)
 	    return;
 
@@ -334,7 +338,7 @@ void schedule(struct core_state *core, int time_passed, int should_re_enq) {
     min_group->spec_virt_time += time_expecting;
 
     struct process *next_p = min_group->runqueue_head;
-    dequeue(core, next_p, 0, 0); 
+    dequeue(core, gl, next_p, 0, 0); 
     pthread_rwlock_unlock(&min_group->group_lock);  
 
     core->current_process = next_p; // know we right now own the p, so can do with it what we want
@@ -346,7 +350,7 @@ void schedule(struct core_state *core, int time_passed, int should_re_enq) {
 // for now assuming that:
 // - if was_running, the process is exiting
 // - if !was running, the process is being deqed to be run on this core
-void dequeue(struct core_state *core, struct process *p, int was_running, int time_gotten) {
+void dequeue(struct core_state *core, struct group_list *gl, struct process *p, int was_running, int time_gotten) {
 
     // printf("dequeuing core %d\n", core_id);
 
@@ -356,14 +360,14 @@ void dequeue(struct core_state *core, struct process *p, int was_running, int ti
         p->group->num_threads -= 1; // the total number of threads in the system has changed
         pthread_rwlock_unlock(&p->group->group_lock);
         core->current_process = NULL;
-        schedule(core, time_gotten, 0);
+        schedule(core, gl, time_gotten, 0);
         return;
     }
 
     // NOTE: assuming that we currently hold p's group's lock
 
     if (p->group->threads_queued == 1) {
-        int curr_avg_spec_virt_time = avg_spec_virt_time(NULL);
+	    int curr_avg_spec_virt_time = avg_spec_virt_time(gl, NULL);
         int read_spec_virt_time = p->group->spec_virt_time;
 
         p->group->virt_lag = curr_avg_spec_virt_time - read_spec_virt_time;
@@ -375,10 +379,10 @@ void dequeue(struct core_state *core, struct process *p, int was_running, int ti
     
     // need to remove group from global group list if now no longer contending
     if (new_threads_queued == 0) {
-        pthread_rwlock_wrlock(&gs->group_list_lock);
-        struct group *curr_group = gs->group_head;
+        pthread_rwlock_wrlock(&gl->group_list_lock);
+        struct group *curr_group = gl->group_head;
         if (curr_group == p->group) {
-            gs->group_head = curr_group->next;
+            gl->group_head = curr_group->next;
         } else {
             while (curr_group) {
                 if (curr_group->next == p->group) {
@@ -388,7 +392,7 @@ void dequeue(struct core_state *core, struct process *p, int was_running, int ti
                 curr_group = curr_group->next;
             }
         }
-        pthread_rwlock_unlock(&gs->group_list_lock);
+        pthread_rwlock_unlock(&gl->group_list_lock);
     }
     
     return;
@@ -423,7 +427,7 @@ void *run_core(void* core_num_ptr) {
 	    struct process *prev_running_process = mycore->current_process;
 
 	    int ts = safe_read_tsc();
-	    schedule(mycore, tick_length, 1);
+	    schedule(mycore, gs->glist, tick_length, 1);
 	    mycore->sched_cycles += safe_read_tsc() - ts;
 	    mycore->nsched += 1;
 
@@ -445,7 +449,7 @@ void *run_core(void* core_num_ptr) {
 		    pool = p->next;
 		    p->next = NULL;
 		    int ts = safe_read_tsc();
-		    enqueue(p, 1);
+		    enqueue(gs->glist, p, 1);
 		    mycore->enq_cycles += safe_read_tsc() - ts;
 		    mycore->nenq += 1;
 		    // trace_enqueue(p->process_id, p->group->group_id, core_id);
@@ -456,7 +460,7 @@ void *run_core(void* core_num_ptr) {
 			    continue;
 		    }
 		    int ts = safe_read_tsc();
-		    dequeue(mycore, p, 1, tick_length);
+		    dequeue(mycore, gs->glist, p, 1, tick_length);
 		    mycore->deq_cycles += safe_read_tsc() - ts;
 		    mycore->ndeq += 1;
 		    // trace_dequeue(p->process_id, p->group->group_id, core_id);
@@ -486,9 +490,10 @@ void main(int argc, char *argv[]) {
     num_groups = atoi(argv[3]);
 
     gs = malloc(sizeof(struct global_state));
-    gs->group_head = NULL;
+    gs->glist = (struct group_list *) malloc(sizeof(struct group_list));
+    gs->glist->group_head = NULL;
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
-    pthread_rwlock_init(&gs->group_list_lock, NULL);
+    pthread_rwlock_init(&gs->glist->group_list_lock, NULL);
     for (int i = 0; i < num_cores; i++) {
         gs->cores[i].core_id = i;
         gs->cores[i].current_process = NULL;
@@ -498,7 +503,7 @@ void main(int argc, char *argv[]) {
         struct group *g = create_group(i, 10);
         for (int j = 0; j < num_threads_p_group; j++) {
             struct process *p = create_process(i*num_threads_p_group+j, g);
-            enqueue(p, 1);
+            enqueue(gs->glist, p, 1);
         }
     }
 

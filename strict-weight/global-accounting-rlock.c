@@ -61,7 +61,9 @@ struct core_state {
 struct group_list {
 	pthread_rwlock_t group_list_lock;
 	struct group *group_head;
-	uint64_t nfail;
+	uint64_t nfail_min;
+	uint64_t nfail_time;
+	uint64_t nfail_list;
 } __attribute__((aligned(64)));
 
 struct global_state {
@@ -72,6 +74,20 @@ struct global_state {
 struct global_state* gs;
 pthread_mutex_t log_lock;
 
+
+void pthread_rwlock_wrlock_fail(pthread_rwlock_t *l, uint64_t *fail) {
+    if (pthread_rwlock_trywrlock(l) != 0) {
+            __atomic_add_fetch(fail, 1, __ATOMIC_RELAXED);
+            pthread_rwlock_wrlock(l);
+    }
+}
+
+void pthread_rwlock_rdlock_fail(pthread_rwlock_t *l, uint64_t *fail) {
+    if (pthread_rwlock_tryrdlock(l) != 0) {
+            __atomic_add_fetch(fail, 1, __ATOMIC_RELAXED);
+            pthread_rwlock_rdlock(l);
+    }
+}
 
 // ================
 // CREATION FUNCTIONS
@@ -205,38 +221,36 @@ int grp_get_spec_virt_time(struct group *g);
 // find the group with the min spec virt time, and
 // return it locked. 
 struct group *gl_find_min_group(struct group_list *gl) {
-    struct group *min_group = NULL;
-    int min_spec_virt_time = INT_MAX;
+	struct group *min_group = NULL;
+	int min_spec_virt_time = INT_MAX;
 
-    // we need exclusive access to the group list   XXX rdlock?
-    if (pthread_rwlock_trywrlock(&gl->group_list_lock) != 0) {
-	    __atomic_add_fetch(&gl->nfail, 1, __ATOMIC_RELAXED);
-	    pthread_rwlock_wrlock(&gl->group_list_lock); 
-    }
-    struct group *curr_group = gl->group_head;
-    while (curr_group) {
-	    int curr_spec_virt_time = grp_get_spec_virt_time(curr_group);
-        if (curr_spec_virt_time < min_spec_virt_time) {
-            min_spec_virt_time = curr_spec_virt_time;
-            min_group = curr_group;
-        }
-        curr_group = curr_group->next;
-    }
-    if (min_group) {
-        pthread_rwlock_wrlock(&min_group->group_lock); // first lock the group then unlock the list lock
-        pthread_rwlock_unlock(&gl->group_list_lock);
-	return min_group;
-    } else {
-        pthread_rwlock_unlock(&gl->group_list_lock);
-        return NULL;
-    }
+	// we need exclusive access to the group list   XXX rdlock?
+	pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_min); 
+	struct group *curr_group = gl->group_head;
+	while (curr_group) {
+		int curr_spec_virt_time = grp_get_spec_virt_time(curr_group);
+		if (curr_spec_virt_time < min_spec_virt_time) {
+			min_spec_virt_time = curr_spec_virt_time;
+			min_group = curr_group;
+		}
+		curr_group = curr_group->next;
+	}
+	if (min_group) {
+		// first lock the group then unlock the list lock
+		pthread_rwlock_wrlock(&min_group->group_lock);
+		pthread_rwlock_unlock(&gl->group_list_lock);
+		return min_group;
+	} else {
+		pthread_rwlock_unlock(&gl->group_list_lock);
+		return NULL;
+	}
 }
 
 // compute avg_spec_virt_time for groups in gl, ignoring group_to_ignore
 int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
     int total_spec_virt_time = 0;
     int num_groups = 0;
-    pthread_rwlock_rdlock(&gl->group_list_lock);
+    pthread_rwlock_rdlock_fail(&gl->group_list_lock, &gl->nfail_time);
     struct group *curr_group = gl->group_head;
     while (curr_group) {
         if (curr_group == group_to_ignore) {
@@ -256,7 +270,7 @@ int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) 
 
 
 void gl_add_group(struct group_list *gl, struct group *g) {
-        pthread_rwlock_wrlock(&gl->group_list_lock);
+        pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
         struct group *curr_head = gl->group_head;
         g->next = curr_head; // XXX this is ok because we will check/sync on the next op
         gl->group_head = g;
@@ -264,7 +278,7 @@ void gl_add_group(struct group_list *gl, struct group *g) {
 }
 
 void gl_del_group(struct group_list *gl, struct group *g) {
-        pthread_rwlock_wrlock(&gl->group_list_lock);
+        pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
         struct group *curr_group = gl->group_head;
         if (curr_group == g) {
             gl->group_head = curr_group->next;
@@ -551,7 +565,7 @@ void main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
 	print_core(&(gs->cores[i]));
     }
-    printf("failed glist trylock %d\n", gs->glist->nfail);
+    printf("failed glist trylock min %d time %d list %d\n", gs->glist->nfail_min, gs->glist->nfail_time, gs->glist->nfail_list);
 
 }
 

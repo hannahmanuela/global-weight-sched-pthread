@@ -338,11 +338,9 @@ void dequeue(struct group_list *gl, struct group *g) {
 		g->virt_lag = curr_avg_spec_virt_time - spec_virt_time;
 		g->last_virt_time = spec_virt_time;
 	}
-
-	int new_threads_queued = g->threads_queued - 1; // decrease num_queued, only once we succesfully deqed the p
-    
-	// need to remove group from global group list if now no longer contending
-	if (new_threads_queued == 0) {
+	// XXX where should this happen? g->threads_queued = -1; 
+	if (g->threads_queued - 1 == 0) {
+		// need to remove group from global group list if now no longer contending
 		gl_del_group(gl, g);
 	}
 }

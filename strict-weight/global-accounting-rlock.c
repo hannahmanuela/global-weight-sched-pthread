@@ -200,22 +200,22 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 // SUPPORT FUNCTIONS for group list
 // =================
 
+int grp_get_spec_virt_time(struct group *g);
+
 // find the group with the min spec virt time, and
 // return it locked. 
 struct group *gl_find_min_group(struct group_list *gl) {
     struct group *min_group = NULL;
     int min_spec_virt_time = INT_MAX;
 
-    // we need exclusive access to the group list
+    // we need exclusive access to the group list   XXX rdlock?
     if (pthread_rwlock_trywrlock(&gl->group_list_lock) != 0) {
 	    __atomic_add_fetch(&gl->nfail, 1, __ATOMIC_RELAXED);
 	    pthread_rwlock_wrlock(&gl->group_list_lock); 
     }
     struct group *curr_group = gl->group_head;
     while (curr_group) {
-        pthread_rwlock_rdlock(&curr_group->group_lock);
-        int curr_spec_virt_time = curr_group->spec_virt_time;
-        pthread_rwlock_unlock(&curr_group->group_lock);
+	    int curr_spec_virt_time = grp_get_spec_virt_time(curr_group);
         if (curr_spec_virt_time < min_spec_virt_time) {
             min_spec_virt_time = curr_spec_virt_time;
             min_group = curr_group;
@@ -243,10 +243,7 @@ int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) 
             curr_group = curr_group->next;
             continue;
         }
-        pthread_rwlock_rdlock(&curr_group->group_lock);
-        total_spec_virt_time += curr_group->spec_virt_time;
-        pthread_rwlock_unlock(&curr_group->group_lock);
-
+        total_spec_virt_time += grp_get_spec_virt_time(curr_group);
         num_groups++;
         curr_group = curr_group->next;
     }
@@ -286,6 +283,13 @@ void gl_del_group(struct group_list *gl, struct group *g) {
 // =================
 // SUPPORT FUNCTIONS for group
 // =================
+
+int grp_get_spec_virt_time(struct group *g) {
+        pthread_rwlock_rdlock(&g->group_lock);
+        int curr_spec_virt_time = g->spec_virt_time;
+        pthread_rwlock_unlock(&g->group_lock);
+	return curr_spec_virt_time;
+}
 
 // compute spec_virt_time for new group g. assumes caller hold lock for g
 int grp_spec_virt_time(struct group_list *gl, struct group *g) {

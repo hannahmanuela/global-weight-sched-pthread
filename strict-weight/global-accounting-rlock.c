@@ -331,14 +331,16 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 }
 
 // Assumes caller holds p's group lock
-void dequeue(struct group_list *gl, struct group *g) {
+void dequeue(struct group_list *gl, struct process *p) {
+	// XXX should p be removed from its group process list?
+	struct group *g = p->group;
 	if (g->threads_queued == 1) {
 		int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
 		int spec_virt_time = g->spec_virt_time;
 		g->virt_lag = curr_avg_spec_virt_time - spec_virt_time;
 		g->last_virt_time = spec_virt_time;
 	}
-	// XXX where should this happen? g->threads_queued = -1; 
+	// XXX where should this happen? g->threads_queued -= 1; 
 	if (g->threads_queued - 1 == 0) {
 		// need to remove group from global group list if now no longer contending
 		gl_del_group(gl, g);
@@ -387,7 +389,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
     min_group->spec_virt_time += time_expecting;
 
     struct process *next_p = min_group->runqueue_head;
-    dequeue(gl, next_p->group);
+    dequeue(gl, next_p);
 
     pthread_rwlock_unlock(&min_group->group_lock);  
 

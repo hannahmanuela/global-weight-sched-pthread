@@ -13,6 +13,9 @@ rlock:
 rlock-debug:
 	gcc -g -pg -o strict-weight/global-accounting-rlock strict-weight/global-accounting-rlock.c -pthread
 
+test-heap:
+	gcc -g -o test-heap test-heap.c -pthread
+
 clean:
 	rm strict-weight/distr-weight
 	rm strict-weight/global-accounting

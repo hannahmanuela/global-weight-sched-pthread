@@ -14,11 +14,11 @@
 #include <sys/resource.h>
 
 // #define TRACE
-// #define ASSERTS
+#define ASSERTS
 // #define ASSERTS_SINGLE_WORKER
 
 // #define TIME_TO_RUN 10000000LL
-#define TIME_TO_RUN 10000000LL
+#define TIME_TO_RUN 10000LL
 
 int num_groups = 100;
 int num_cores = 27;
@@ -54,6 +54,7 @@ struct group {
 
     struct process *runqueue_head;
     struct group *next;
+    int heap_index; // index within the global group's min-heap, -1 if not present
 } __attribute__((aligned(64)));
 
 struct core_state {
@@ -69,7 +70,10 @@ struct core_state {
 
 struct group_list {
 	pthread_rwlock_t group_list_lock;
-	struct group *group_head;
+    // Min-heap of groups keyed by spec_virt_time
+    struct group **heap;
+    int heap_size;
+    int heap_capacity;
 
 	uint64_t nfail_min;
 	uint64_t nfail_time;
@@ -129,6 +133,7 @@ struct group *create_group(int id, int weight) {
     g->last_virt_time = 0;
     g->runqueue_head = NULL;
     g->next = NULL;
+    g->heap_index = -1;
     pthread_rwlock_init(&g->group_lock, NULL);
     return g;
 }
@@ -183,6 +188,19 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 #endif
 }
 
+void print_global_state() {
+    pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    printf("Global heap size: %d (empty: %d)\n", gs->glist->heap_size, num_groups_empty);
+    printf("Heap contents by (group_id: svt, num_threads, num_queued): ");
+    for (int i = 0; i < gs->glist->heap_size; i++) {
+        struct group *g = gs->glist->heap[i];
+        pthread_rwlock_rdlock(&g->group_lock);
+        printf("(%d: %d, %d, %d)%s", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, i == gs->glist->heap_size - 1 ? "\n" : ", ");
+        pthread_rwlock_unlock(&g->group_lock);
+    }
+    pthread_rwlock_unlock(&gs->glist->group_list_lock);
+}
+
 
 // =================
 // for asserts
@@ -207,13 +225,7 @@ void assert_threads_queued_correct(struct group *g) {
 // this assumes that groups never run dry
 void assert_num_groups_correct() {
     pthread_rwlock_rdlock(&gs->glist->group_list_lock);
-    int num_groups_found = 0;
-    struct group *curr_group = gs->glist->group_head;
-    while (curr_group) {
-        num_groups_found++;
-        curr_group = curr_group->next;
-    }
-
+    int num_groups_found = gs->glist->heap_size;
     if (num_groups_found + num_groups_empty != num_groups) {
         printf("num_groups_found %d num_groups_empty %d num_groups %d\n", num_groups_found, num_groups_empty, num_groups);
     }
@@ -278,24 +290,26 @@ void assert_thread_counts_correct(struct group *g, struct core_state *core) {
 void __assert_group_not_in_list(struct group *g) {
     assert(num_cores == 1);
     
-    struct group *curr_group = gs->glist->group_head;
-    while (curr_group) {
-        if (curr_group == g) {
+    pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    for (int i = 0; i < gs->glist->heap_size; i++) {
+        if (gs->glist->heap[i] == g) {
+            pthread_rwlock_unlock(&gs->glist->group_list_lock);
             assert(0);
         }
-        curr_group = curr_group->next;
     }
+    pthread_rwlock_unlock(&gs->glist->group_list_lock);
 }
 
 void __assert_group_in_list(struct group *g) {
     assert(num_cores == 1);
-    struct group *curr_group = gs->glist->group_head;
-    while (curr_group) {
-        if (curr_group == g) {
+    pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    for (int i = 0; i < gs->glist->heap_size; i++) {
+        if (gs->glist->heap[i] == g) {
+            pthread_rwlock_unlock(&gs->glist->group_list_lock);
             return;
         }
-        curr_group = curr_group->next;
     }
+    pthread_rwlock_unlock(&gs->glist->group_list_lock);
     assert(0);
 }
 
@@ -327,88 +341,170 @@ void assert_group_list_status_correct(struct group *g) {}
 
 int grp_get_spec_virt_time(struct group *g);
 
-// find the group with the min spec virt time, and
-// return it locked. 
-struct group *gl_find_min_group(struct group_list *gl) {
-	struct group *min_group = NULL;
-	int min_spec_virt_time = INT_MAX;
+// -----------------
+// heap helpers
+// -----------------
+static inline int gl_cmp_group(struct group *a, struct group *b) {
+    // Compare by spec_virt_time; lower is higher priority
+    if (a->spec_virt_time < b->spec_virt_time) return -1;
+    if (a->spec_virt_time > b->spec_virt_time) return 1;
+    // tie-breaker by group_id for determinism
+    if (a->group_id < b->group_id) return -1;
+    if (a->group_id > b->group_id) return 1;
+    return 0;
+}
 
-	// acquire lock so that the list doesn't change under out of us
-	pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_min); 
-	struct group *curr_group = gl->group_head;
-	while (curr_group) {
-		int curr_spec_virt_time = grp_get_spec_virt_time(curr_group);
-		if (curr_spec_virt_time < min_spec_virt_time) {
-			min_spec_virt_time = curr_spec_virt_time;
-			min_group = curr_group;
-		}
-		curr_group = curr_group->next;
-	}
-	if (min_group) {
-		// first lock the group then unlock the list lock
-		pthread_rwlock_wrlock(&min_group->group_lock);
-		pthread_rwlock_unlock(&gl->group_list_lock);
-		return min_group;
-	} else {
-		pthread_rwlock_unlock(&gl->group_list_lock);
-		return NULL;
-	}
+static inline void gl_heap_swap(struct group_list *gl, int i, int j) {
+    struct group *tmp = gl->heap[i];
+    gl->heap[i] = gl->heap[j];
+    gl->heap[j] = tmp;
+    gl->heap[i]->heap_index = i;
+    gl->heap[j]->heap_index = j;
+}
+
+static void gl_heap_sift_up(struct group_list *gl, int idx) {
+    while (idx > 0) {
+        int parent = (idx - 1) / 2;
+        if (gl_cmp_group(gl->heap[idx], gl->heap[parent]) < 0) {
+            gl_heap_swap(gl, idx, parent);
+            idx = parent;
+        } else {
+            break;
+        }
+    }
+}
+
+static void gl_heap_sift_down(struct group_list *gl, int idx) {
+    int n = gl->heap_size;
+    while (1) {
+        int left = idx * 2 + 1;
+        int right = idx * 2 + 2;
+        int smallest = idx;
+        if (left < n && gl_cmp_group(gl->heap[left], gl->heap[smallest]) < 0) {
+            smallest = left;
+        }
+        if (right < n && gl_cmp_group(gl->heap[right], gl->heap[smallest]) < 0) {
+            smallest = right;
+        }
+        if (smallest != idx) {
+            gl_heap_swap(gl, idx, smallest);
+            idx = smallest;
+        } else {
+            break;
+        }
+    }
+}
+
+static void gl_heap_ensure_capacity(struct group_list *gl) {
+    if (gl->heap_size < gl->heap_capacity) return;
+    int new_capacity = gl->heap_capacity == 0 ? 16 : gl->heap_capacity * 2;
+    gl->heap = realloc(gl->heap, sizeof(struct group*) * new_capacity);
+    gl->heap_capacity = new_capacity;
+}
+
+// reheapify a group at its current index after its key changed; caller must hold group_list_lock
+static inline void gl_heap_fix_index(struct group_list *gl, int idx) {
+    if (idx < 0 || idx >= gl->heap_size) return;
+    gl_heap_sift_down(gl, idx);
+    gl_heap_sift_up(gl, idx);
+}
+
+// peek min group without removing; returns with no locks held
+static struct group* gl_peek_min_group(struct group_list *gl) {
+    pthread_rwlock_rdlock_fail(&gl->group_list_lock, &gl->nfail_min);
+    struct group *g = gl->heap_size > 0 ? gl->heap[0] : NULL;
+    pthread_rwlock_unlock(&gl->group_list_lock);
+    return g;
+}
+
+// push group into heap; caller must hold group_list_lock
+static inline void gl_heap_push(struct group_list *gl, struct group *g) {
+    gl_heap_ensure_capacity(gl);
+    g->heap_index = gl->heap_size;
+    gl->heap[gl->heap_size++] = g;
+    gl_heap_sift_up(gl, g->heap_index);
+}
+
+// remove group at index; caller must hold group_list_lock
+static inline void gl_heap_remove_at(struct group_list *gl, int idx) {
+    int last = gl->heap_size - 1;
+    if (idx < 0 || idx >= gl->heap_size) return;
+    if (idx != last) {
+        gl_heap_swap(gl, idx, last);
+    }
+    struct group *removed = gl->heap[last];
+    gl->heap_size--;
+    removed->heap_index = -1;
+    if (idx < gl->heap_size) {
+        gl_heap_sift_down(gl, idx);
+        gl_heap_sift_up(gl, idx);
+    }
 }
 
 // compute avg_spec_virt_time for groups in gl, ignoring group_to_ignore
 // caller should have no locks
 int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
     int total_spec_virt_time = 0;
-    int num_groups = 0;
+    int count = 0;
     pthread_rwlock_rdlock_fail(&gl->group_list_lock, &gl->nfail_time);
-    struct group *curr_group = gl->group_head;
-    while (curr_group) {
-        if (curr_group == group_to_ignore) {
-            curr_group = curr_group->next;
-            continue;
-        }
-        total_spec_virt_time += grp_get_spec_virt_time(curr_group);
-        num_groups++;
-        curr_group = curr_group->next;
+    for (int i = 0; i < gl->heap_size; i++) {
+        struct group *g = gl->heap[i];
+        if (g == group_to_ignore) continue;
+        total_spec_virt_time += grp_get_spec_virt_time(g);
+        count++;
     }
     pthread_rwlock_unlock(&gl->group_list_lock);
-    if (num_groups == 0) {
-        return 0;
-    }
-    return total_spec_virt_time / num_groups;
+    if (count == 0) return 0;
+    return total_spec_virt_time / count;
 }
 
 
 void gl_add_group(struct group_list *gl, struct group *g) {
     pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
-    struct group *curr_head = gl->group_head;
-    g->next = curr_head; // XXX this is ok because we will check/sync on the next op
-    gl->group_head = g;
-    num_groups_empty--;
+    if (g->heap_index == -1) {
+        gl_heap_push(gl, g);
+        num_groups_empty--;
+    }
     pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
 void gl_del_group(struct group_list *gl, struct group *g) {
     pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
-    struct group *curr_group = gl->group_head;
-    if (curr_group == g) {
-        gl->group_head = curr_group->next;
-    } else {
-        while (curr_group) {
-            if (curr_group->next == g) {
-                curr_group->next = g->next;
-                break;
-            }
-            curr_group = curr_group->next;
-        }
+    if (g->heap_index != -1) {
+        gl_heap_remove_at(gl, g->heap_index);
+        num_groups_empty++;
     }
-    num_groups_empty++;
     pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
-// assumed caller holds lock for group
+// Update group's spec_virt_time and safely reheapify if the group is in the heap.
+// Caller is allowed to hold the group lock on entry; to respect the lock invariant
+// (never take the global list lock while holding a group lock), this function may
+// temporarily release and then reacquire the group lock if reheapification is needed.
 void gl_update_group_svt(struct group_list *gl, struct group *g, int diff) {
+    int initial_heap_index;
+    // We might be called with the group lock held; do the update and capture heap index
     g->spec_virt_time += diff;
+    initial_heap_index = g->heap_index;
+
+    // If not in heap, nothing else to do
+    if (initial_heap_index == -1) {
+        return;
+    }
+
+    // Respect lock invariant: release group lock before taking the global list lock
+    pthread_rwlock_unlock(&g->group_lock);
+    pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
+
+    // The group's index may have changed; read the current index under list lock
+    int current_index = g->heap_index;
+    if (current_index != -1) {
+        gl_heap_fix_index(gl, current_index);
+    }
+    pthread_rwlock_unlock(&gl->group_list_lock);
+
+    // Reacquire group lock before returning to preserve caller's expectation
+    pthread_rwlock_wrlock(&g->group_lock);
 }
 
 
@@ -451,7 +547,7 @@ int grp_get_weight(struct group *g) {
 }
 
 // update spec time (collapse spec time)
-void grp_upd_spec_virt_time(struct group *g, int time_passed) {
+void grp_collapse_spec_virt_time(struct group_list *gl, struct group *g, int time_passed) {
 	int p_grp_weight = grp_get_weight(g);
     int time_had_expected = (int) (tick_length / p_grp_weight);
     
@@ -462,8 +558,16 @@ void grp_upd_spec_virt_time(struct group *g, int time_passed) {
         int diff = virt_time_gotten - time_had_expected;
 
         pthread_rwlock_wrlock(&g->group_lock);
-        gl_update_group_svt(gl, g, diff);
+        g->spec_virt_time += diff;
+        int idx = g->heap_index;
         pthread_rwlock_unlock(&g->group_lock);
+
+        // If the group is currently in the heap, fix its position
+        if (idx != -1) {
+            pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
+            gl_heap_fix_index(gl, idx);
+            pthread_rwlock_unlock(&gl->group_list_lock);
+        }
     }
 }
 
@@ -572,7 +676,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
     struct group *prev_running_group = NULL;
 
     if (running_process) {
-	    grp_upd_spec_virt_time(running_process->group, time_passed);
+        grp_collapse_spec_virt_time(gl, running_process->group, time_passed);
     }
 
     if (should_re_enq && running_process) {
@@ -581,11 +685,12 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
     core->current_process = NULL;
 
-    struct group *min_group = gl_find_min_group(gl);
+    struct group *min_group = gl_peek_min_group(gl);
     if (min_group == NULL)
 	    return;
 
     // select the next process
+    pthread_rwlock_wrlock(&min_group->group_lock);
     int time_expecting = (int)tick_length / min_group->weight;
     gl_update_group_svt(gl, min_group, time_expecting);
 
@@ -637,6 +742,7 @@ void *run_core(void* core_num_ptr) {
 
 	    int ts = safe_read_tsc();
 	    schedule(mycore, gs->glist, tick_length, 1);
+        // print_global_state();
 	    mycore->sched_cycles += safe_read_tsc() - ts;
 	    mycore->nsched += 1;
 
@@ -666,6 +772,7 @@ void *run_core(void* core_num_ptr) {
 		    p->next = NULL;
 		    int ts = safe_read_tsc();
 		    enqueue(gs->glist, p, 1);
+            // print_global_state();
 		    mycore->enq_cycles += safe_read_tsc() - ts;
 		    mycore->nenq += 1;
 
@@ -684,6 +791,8 @@ void *run_core(void* core_num_ptr) {
 		    mycore->yield_cycles += safe_read_tsc() - ts;
 		    mycore->nyield += 1;
 
+            // print_global_state();
+
             assert_p_not_in_group(p, p->group);
 		    trace_yield(p->process_id, p->group->group_id, core_id);
 		    p->next = pool;
@@ -695,6 +804,7 @@ void *run_core(void* core_num_ptr) {
 }
 
 
+#ifndef UNIT_TEST
 void main(int argc, char *argv[]) {
     pthread_mutex_init(&log_lock, NULL);
 
@@ -714,7 +824,9 @@ void main(int argc, char *argv[]) {
 
     gs = malloc(sizeof(struct global_state));
     gs->glist = (struct group_list *) malloc(sizeof(struct group_list));
-    gs->glist->group_head = NULL;
+    gs->glist->heap = NULL;
+    gs->glist->heap_size = 0;
+    gs->glist->heap_capacity = 0;
     gs->glist->nfail_min = 0;
     gs->glist->nfail_time = 0;
     gs->glist->nfail_list = 0;
@@ -756,6 +868,7 @@ void main(int argc, char *argv[]) {
     printf("failed glist trylock min %ld time %ld list %ld\n", gs->glist->nfail_min, gs->glist->nfail_time, gs->glist->nfail_list);
 
 }
+#endif // UNIT_TEST
 
 
 

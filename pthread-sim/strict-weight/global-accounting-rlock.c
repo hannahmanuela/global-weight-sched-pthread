@@ -15,7 +15,7 @@
 #include <stdatomic.h>
 
 // #define TRACE
-#define ASSERTS
+// #define ASSERTS
 // #define ASSERTS_SINGLE_WORKER
 
 // #define TIME_TO_RUN 10000000LL
@@ -24,7 +24,7 @@
 int num_groups = 100;
 int num_cores = 27;
 int tick_length = 1000;
-int num_threads_p_group = 3;
+int num_threads_p_group = 20;
 uint8_t num_groups_empty = 0;
 
 // lock invariant (to avoid deadlocks): 

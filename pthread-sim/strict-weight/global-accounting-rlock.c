@@ -12,6 +12,7 @@
 #include <immintrin.h>
 #include <stdint.h> 
 #include <sys/resource.h>
+#include <stdatomic.h>
 
 // #define TRACE
 #define ASSERTS
@@ -80,9 +81,11 @@ struct group_list {
     int heap_size;
     int heap_capacity;
 
-	uint64_t nfail_get_min;
-	uint64_t nfail_time;
-	uint64_t nfail_list;
+    long wait_for_wr_group_list_lock_cycles;
+    long num_times_wr_group_list_locked;
+    atomic_long wait_for_rd_group_list_lock_cycles;
+    atomic_long num_times_rd_group_list_locked;
+
 } __attribute__((aligned(64)));
 
 struct global_state {
@@ -92,21 +95,6 @@ struct global_state {
 
 struct global_state* gs;
 pthread_mutex_t log_lock;
-
-
-void pthread_rwlock_wrlock_fail(pthread_rwlock_t *l, uint64_t *fail) {
-    if (pthread_rwlock_trywrlock(l) != 0) {
-            __atomic_add_fetch(fail, 1, __ATOMIC_RELAXED);
-            pthread_rwlock_wrlock(l);
-    }
-}
-
-void pthread_rwlock_rdlock_fail(pthread_rwlock_t *l, uint64_t *fail) {
-    if (pthread_rwlock_tryrdlock(l) != 0) {
-            __atomic_add_fetch(fail, 1, __ATOMIC_RELAXED);
-            pthread_rwlock_rdlock(l);
-    }
-}
 
 // =========================================================================
 // =========================================================================
@@ -155,6 +143,23 @@ int safe_read_tsc() {
     return ret_val;
 }
 
+// Wrapper functions for pthread_rwlock operations with timing
+void timed_pthread_rwlock_wrlock_group_list(pthread_rwlock_t *lock) {
+    int start_tsc = safe_read_tsc();
+    pthread_rwlock_wrlock(lock);
+    int end_tsc = safe_read_tsc();
+    gs->glist->wait_for_wr_group_list_lock_cycles += (end_tsc - start_tsc);
+    gs->glist->num_times_wr_group_list_locked++;
+}
+
+void timed_pthread_rwlock_rdlock_group_list(pthread_rwlock_t *lock) {
+    int start_tsc = safe_read_tsc();
+    pthread_rwlock_rdlock(lock);
+    int end_tsc = safe_read_tsc();
+    atomic_fetch_add_explicit(&gs->glist->wait_for_rd_group_list_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
+    atomic_fetch_add_explicit(&gs->glist->num_times_rd_group_list_locked, 1, memory_order_relaxed);
+}
+
 void print_core(struct core_state *c) {
 	printf("%ld cycles: sched %ld(%0.2f) enq %ld(%0.2f) yield %ld (%0.2f)\n",
 	       c - gs->cores,
@@ -194,7 +199,8 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 }
 
 void print_global_state() {
-    pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    // pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    timed_pthread_rwlock_rdlock_group_list(&gs->glist->group_list_lock);
     printf("Global heap size: %d (empty: %d)\n", gs->glist->heap_size, num_groups_empty);
     printf("Heap contents by (group_id: svt, num_threads, num_queued): ");
     for (int i = 0; i < gs->glist->heap_size; i++) {
@@ -229,7 +235,7 @@ void assert_threads_queued_correct(struct group *g) {
 
 // this assumes that groups never run dry
 void assert_num_groups_correct() {
-    pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    timed_pthread_rwlock_rdlock_group_list(&gs->glist->group_list_lock);
     int num_groups_found = gs->glist->heap_size;
     if (num_groups_found + num_groups_empty != num_groups) {
         printf("num_groups_found %d num_groups_empty %d num_groups %d\n", num_groups_found, num_groups_empty, num_groups);
@@ -295,7 +301,7 @@ void assert_thread_counts_correct(struct group *g, struct core_state *core) {
 void __assert_group_not_in_list(struct group *g) {
     assert(num_cores == 1);
     
-    pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    timed_pthread_rwlock_rdlock_group_list(&gs->glist->group_list_lock);
     for (int i = 0; i < gs->glist->heap_size; i++) {
         if (gs->glist->heap[i] == g) {
             pthread_rwlock_unlock(&gs->glist->group_list_lock);
@@ -307,7 +313,7 @@ void __assert_group_not_in_list(struct group *g) {
 
 void __assert_group_in_list(struct group *g) {
     assert(num_cores == 1);
-    pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    timed_pthread_rwlock_rdlock_group_list(&gs->glist->group_list_lock);
     for (int i = 0; i < gs->glist->heap_size; i++) {
         if (gs->glist->heap[i] == g) {
             pthread_rwlock_unlock(&gs->glist->group_list_lock);
@@ -419,7 +425,7 @@ void gl_update_group_svt(struct group_list *gl, struct group *g, int diff);
 // peek min group without removing; 
 // returns with group and list locked
 static struct group* gl_peek_min_group(struct group_list *gl) {
-    pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_get_min);
+    timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
     struct group *g = gl->heap_size > 0 ? gl->heap[0] : NULL;
     if (g) {
         pthread_rwlock_wrlock(&g->group_lock);
@@ -456,7 +462,7 @@ static inline void gl_heap_remove_at(struct group_list *gl, int idx) {
 int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
     int total_spec_virt_time = 0;
     int count = 0;
-    pthread_rwlock_rdlock_fail(&gl->group_list_lock, &gl->nfail_time);
+    timed_pthread_rwlock_rdlock_group_list(&gl->group_list_lock);
     for (int i = 0; i < gl->heap_size; i++) {
         struct group *g = gl->heap[i];
         if (g == group_to_ignore) continue;
@@ -470,7 +476,7 @@ int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) 
 
 
 void gl_add_group(struct group_list *gl, struct group *g) {
-    pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
+    timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
     if (g->heap_index == -1) {
         gl_heap_push(gl, g);
         num_groups_empty--;
@@ -565,7 +571,7 @@ void grp_collapse_spec_virt_time(struct group_list *gl, struct group *g, int tim
 
         // If the group is currently in the heap, fix its position
         if (idx != -1) {
-            pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
+            timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
             gl_heap_fix_index(gl, idx);
             pthread_rwlock_unlock(&gl->group_list_lock);
         }
@@ -856,9 +862,10 @@ void main(int argc, char *argv[]) {
     gs->glist->heap = NULL;
     gs->glist->heap_size = 0;
     gs->glist->heap_capacity = 0;
-    gs->glist->nfail_get_min = 0;
-    gs->glist->nfail_time = 0;
-    gs->glist->nfail_list = 0;
+    gs->glist->wait_for_wr_group_list_lock_cycles = 0;
+    gs->glist->num_times_wr_group_list_locked = 0;
+    atomic_init(&gs->glist->wait_for_rd_group_list_lock_cycles, 0);
+    atomic_init(&gs->glist->num_times_rd_group_list_locked, 0);
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
     pthread_rwlock_init(&gs->glist->group_list_lock, NULL);
     for (int i = 0; i < num_cores; i++) {
@@ -897,7 +904,19 @@ void main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
 	    print_core(&(gs->cores[i]));
     }
-    printf("failed glist trylock getMin %ld time %ld list %ld\n", gs->glist->nfail_get_min, gs->glist->nfail_time, gs->glist->nfail_list);
+
+    // Print lock timing statistics
+    printf("\nLock timing statistics:\n");
+    if (gs->glist->num_times_wr_group_list_locked > 0) {
+        printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+               gs->glist->wait_for_wr_group_list_lock_cycles / gs->glist->num_times_wr_group_list_locked,
+               gs->glist->wait_for_wr_group_list_lock_cycles, gs->glist->num_times_wr_group_list_locked);
+    }
+    if (gs->glist->num_times_rd_group_list_locked > 0) {
+        printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+               gs->glist->wait_for_rd_group_list_lock_cycles / gs->glist->num_times_rd_group_list_locked,
+               gs->glist->wait_for_rd_group_list_lock_cycles, gs->glist->num_times_rd_group_list_locked);
+    }
 
 }
 #endif // UNIT_TEST

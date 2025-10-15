@@ -406,6 +406,12 @@ void gl_del_group(struct group_list *gl, struct group *g) {
     pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
+// assumed caller holds lock for group
+void gl_update_group_svt(struct group_list *gl, struct group *g, int diff) {
+    g->spec_virt_time += diff;
+}
+
+
 // =================
 // for group
 // =================
@@ -453,10 +459,10 @@ void grp_upd_spec_virt_time(struct group *g, int time_passed) {
     int virt_time_gotten = (int)(time_passed / p_grp_weight);
     if (time_had_expected  != virt_time_gotten) {
         // need to edit the spec time to use time actually got
-        int diff = time_had_expected - virt_time_gotten;
+        int diff = virt_time_gotten - time_had_expected;
 
         pthread_rwlock_wrlock(&g->group_lock);
-        g->spec_virt_time -= diff;
+        gl_update_group_svt(gl, g, diff);
         pthread_rwlock_unlock(&g->group_lock);
     }
 }
@@ -581,7 +587,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
     // select the next process
     int time_expecting = (int)tick_length / min_group->weight;
-    min_group->spec_virt_time += time_expecting;
+    gl_update_group_svt(gl, min_group, time_expecting);
 
     struct process *next_p = min_group->runqueue_head;
     dequeue(gl, next_p);

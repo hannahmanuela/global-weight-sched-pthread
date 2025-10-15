@@ -75,7 +75,8 @@ struct group_list {
     int heap_size;
     int heap_capacity;
 
-	uint64_t nfail_min;
+	uint64_t nfail_get_min;
+	uint64_t nfail_min_group;
 	uint64_t nfail_time;
 	uint64_t nfail_list;
 } __attribute__((aligned(64)));
@@ -409,10 +410,13 @@ static inline void gl_heap_fix_index(struct group_list *gl, int idx) {
     gl_heap_sift_up(gl, idx);
 }
 
-// peek min group without removing; returns with no locks held
+// peek min group without removing; returns with group locked
 static struct group* gl_peek_min_group(struct group_list *gl) {
-    pthread_rwlock_rdlock_fail(&gl->group_list_lock, &gl->nfail_min);
+    pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_get_min);
     struct group *g = gl->heap_size > 0 ? gl->heap[0] : NULL;
+    if (g) {
+        pthread_rwlock_wrlock_fail(&g->group_lock, &gl->nfail_min_group);
+    }
     pthread_rwlock_unlock(&gl->group_list_lock);
     return g;
 }
@@ -690,7 +694,6 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 	    return;
 
     // select the next process
-    pthread_rwlock_wrlock(&min_group->group_lock);
     int time_expecting = (int)tick_length / min_group->weight;
     gl_update_group_svt(gl, min_group, time_expecting);
 
@@ -827,7 +830,8 @@ void main(int argc, char *argv[]) {
     gs->glist->heap = NULL;
     gs->glist->heap_size = 0;
     gs->glist->heap_capacity = 0;
-    gs->glist->nfail_min = 0;
+    gs->glist->nfail_min_group = 0;
+    gs->glist->nfail_get_min = 0;
     gs->glist->nfail_time = 0;
     gs->glist->nfail_list = 0;
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
@@ -865,7 +869,7 @@ void main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
 	    print_core(&(gs->cores[i]));
     }
-    printf("failed glist trylock min %ld time %ld list %ld\n", gs->glist->nfail_min, gs->glist->nfail_time, gs->glist->nfail_list);
+    printf("failed glist trylock getMin %ld minGroup %ld time %ld list %ld\n", gs->glist->nfail_get_min, gs->glist->nfail_min_group, gs->glist->nfail_time, gs->glist->nfail_list);
 
 }
 #endif // UNIT_TEST

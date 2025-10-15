@@ -26,21 +26,31 @@ def parse_output_file(file_path):
             for line in f:
                 # Look for the line starting with "failed glist trylock"
                 if line.startswith("failed glist trylock"):
-                    # Extract the lock failure data
-                    # Format: "failed glist trylock min X time Y list Z"
+                    # Extract all key/value pairs after the word "trylock"
+                    # Example formats observed:
+                    #   failed glist trylock getMin 4 minGroup 0 time 0 list 0
                     parts = line.strip().split()
-                    
-                    # Find the lock types and their failure counts
-                    for i, part in enumerate(parts):
-                        if part in ['min', 'time', 'list']:
-                            if i + 1 < len(parts):
-                                try:
-                                    count = int(parts[i + 1])
-                                    lock_failures[part] = count
-                                except ValueError:
-                                    print(f"Warning: Could not parse count for {part} in {file_path}")
-                                    lock_failures[part] = 0
-                    
+
+                    # Find index of the header token 'trylock' and parse subsequent pairs
+                    try:
+                        header_idx = parts.index('trylock')
+                    except ValueError:
+                        header_idx = 2  # fallback: after "failed glist"
+
+                    # Walk tokens two at a time: <lock_type> <int>
+                    i = header_idx + 1
+                    while i + 1 < len(parts):
+                        key = parts[i]
+                        value_token = parts[i + 1]
+                        try:
+                            value = int(value_token)
+                        except ValueError:
+                            # If value isn't an int, skip just this token and continue
+                            i += 1
+                            continue
+                        lock_failures[key] = value
+                        i += 2
+
                     break  # Only process the first matching line
     except FileNotFoundError:
         print(f"Warning: File {file_path} not found")
@@ -102,13 +112,19 @@ def create_plot(data, output_file="lock_failures_plot.png"):
     
     # Prepare data for plotting
     cores = sorted(data.keys())
-    lock_types = ['min', 'time', 'list']
+    # Dynamically determine all lock types present in the dataset
+    lock_types = sorted({lt for core in cores for lt in data[core].keys()})
     
     # Create figure and axis
     fig, ax = plt.subplots(figsize=(12, 8))
     
-    # Set up colors for different lock types
-    colors = {'min': 'red', 'time': 'blue', 'list': 'green'}
+    # Set up colors for different lock types using matplotlib's prop cycle
+    color_cycle = plt.rcParams['axes.prop_cycle'].by_key().get('color', [])
+    # Ensure we have enough colors
+    if len(color_cycle) < len(lock_types):
+        # Extend with a secondary palette if needed
+        color_cycle = (color_cycle * ((len(lock_types) // max(1, len(color_cycle))) + 1))[:len(lock_types)]
+    colors = {lt: color_cycle[idx] for idx, lt in enumerate(lock_types)}
     
     # Plot data for each lock type
     for lock_type in lock_types:
@@ -136,7 +152,10 @@ def create_plot(data, output_file="lock_failures_plot.png"):
     ax.set_xticklabels([str(core) for core in cores])
     
     # Add some padding to the y-axis
-    max_failures = max(max(data[core].values()) for core in cores if data[core])
+    max_failures = 0
+    for core in cores:
+        if data[core]:
+            max_failures = max(max_failures, max(data[core].values()))
     ax.set_ylim(0, max_failures * 1.1)
     
     # Improve layout

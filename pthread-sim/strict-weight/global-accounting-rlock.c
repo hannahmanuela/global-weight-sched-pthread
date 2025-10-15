@@ -14,8 +14,8 @@
 #include <sys/resource.h>
 
 // #define TRACE
-#define ASSERTS
-#define ASSERTS_SINGLE_WORKER
+// #define ASSERTS
+// #define ASSERTS_SINGLE_WORKER
 
 // #define TIME_TO_RUN 10000000LL
 #define TIME_TO_RUN 10000000LL
@@ -59,9 +59,9 @@ struct group {
 struct core_state {
 	int core_id;
 	struct process *current_process;
-	int sched_cycles;
-	int enq_cycles;
-	int yield_cycles;
+	long sched_cycles;
+	long enq_cycles;
+	long yield_cycles;
 	int nsched;
 	int nenq;
 	int nyield;
@@ -123,6 +123,7 @@ struct group *create_group(int id, int weight) {
     g->group_id = id;
     g->weight = weight;
     g->num_threads = 0;
+    g->threads_queued = 0;
     g->spec_virt_time = 0;
     g->virt_lag = 0;
     g->last_virt_time = 0;
@@ -145,7 +146,7 @@ int safe_read_tsc() {
 }
 
 void print_core(struct core_state *c) {
-	printf("%ld cycles: sched %d(%0.2f) enq %d(%0.2f) yield %d (%0.2f)\n",
+	printf("%ld cycles: sched %ld(%0.2f) enq %ld(%0.2f) yield %ld (%0.2f)\n",
 	       c - gs->cores,
 	       c->sched_cycles, 1.0*c->sched_cycles/c->nsched,
 	       c->enq_cycles, 1.0*c->enq_cycles/c->nenq,
@@ -631,8 +632,8 @@ void *run_core(void* core_num_ptr) {
 	    mycore->sched_cycles += safe_read_tsc() - ts;
 	    mycore->nsched += 1;
 
-        assert_thread_counts_correct(mycore->current_process->group, mycore);
         if (mycore->current_process) {
+            assert_thread_counts_correct(mycore->current_process->group, mycore);
             assert_group_list_status_correct(mycore->current_process->group);
             assert_threads_queued_correct(mycore->current_process->group);
         }
@@ -706,11 +707,20 @@ void main(int argc, char *argv[]) {
     gs = malloc(sizeof(struct global_state));
     gs->glist = (struct group_list *) malloc(sizeof(struct group_list));
     gs->glist->group_head = NULL;
+    gs->glist->nfail_min = 0;
+    gs->glist->nfail_time = 0;
+    gs->glist->nfail_list = 0;
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
     pthread_rwlock_init(&gs->glist->group_list_lock, NULL);
     for (int i = 0; i < num_cores; i++) {
         gs->cores[i].core_id = i;
         gs->cores[i].current_process = NULL;
+        gs->cores[i].sched_cycles = 0;
+        gs->cores[i].enq_cycles = 0;
+        gs->cores[i].yield_cycles = 0;
+        gs->cores[i].nsched = 0;
+        gs->cores[i].nenq = 0;
+        gs->cores[i].nyield = 0;
     }
 
     for (int i = 0; i < num_groups; i++) {

@@ -14,6 +14,8 @@
 #include <sys/resource.h>
 
 // #define TRACE
+#define ASSERTS
+// #define ASSERTS_SINGLE_WORKER
 
 // #define TIME_TO_RUN 10000000LL
 #define TIME_TO_RUN 100000LL
@@ -21,6 +23,7 @@
 int num_groups = 100;
 int num_cores = 27;
 int tick_length = 1000;
+uint8_t num_groups_empty = 0;
 
 // lock invariant (to avoid deadlocks): 
 //  - can't lock global list while holding a group lock
@@ -96,10 +99,15 @@ void pthread_rwlock_rdlock_fail(pthread_rwlock_t *l, uint64_t *fail) {
     }
 }
 
-// ================
-// CREATION FUNCTIONS
-// ================
+// =========================================================================
+// =========================================================================
+// HELPER FUNCTIONS
+// =========================================================================
+// =========================================================================
 
+// ================
+// for creation
+// ================
 
 struct process *create_process(int id, struct group *group) {
     struct process *p = malloc(sizeof(struct process));
@@ -126,7 +134,7 @@ struct group *create_group(int id, int weight) {
 
 
 // ================
-// HELPER FUNCTIONS (for run_core)
+// for run_core
 // ================
 
 int safe_read_tsc() {
@@ -142,35 +150,6 @@ void print_core(struct core_state *c) {
 	       c->sched_cycles, 1.0*c->sched_cycles/c->nsched,
 	       c->enq_cycles, 1.0*c->enq_cycles/c->nenq,
 	       c->yield_cycles, 1.0*c->yield_cycles/c->nyield);
-}
-
-void print_global_state() {
-    printf("global state:\n");
-    struct group *curr_group = gs->glist->group_head;
-    while (curr_group) {
-        printf("group %d, weight %d, num threads %d, spec virt time %d\n", curr_group->group_id, curr_group->weight, curr_group->num_threads, curr_group->spec_virt_time);
-        curr_group = curr_group->next;
-    }
-
-    printf("cores:\n");
-    for (int i = 0; i < num_cores; i++) {
-        printf("core %d: running process of group %d\n", i, gs->cores[i].current_process ? gs->cores[i].current_process->group->group_id : -1);
-    }
-}
-
-void write_global_state(FILE *f) {
-    fprintf(f, "global state:\n");
-    struct group *curr_group = gs->glist->group_head;
-    while (curr_group) {
-        fprintf(f, "group %d, weight %d, num threads %d, spec virt time %d\n", curr_group->group_id, curr_group->weight, 
-            curr_group->num_threads, curr_group->spec_virt_time);
-        curr_group = curr_group->next;
-    }
-
-    fprintf(f, "cores:\n");
-    for (int i = 0; i < num_cores; i++) {
-        fprintf(f, "core %d: running process of group %d \n", i, gs->cores[i].current_process ? gs->cores[i].current_process->group->group_id : -1);
-    }
 }
 
 void trace_schedule(int process_id, int group_id, int prev_group_id, int core_id) {
@@ -203,8 +182,120 @@ void trace_enqueue(int process_id, int group_id, int core_id) {
 #endif
 }
 
+
 // =================
-// SUPPORT FUNCTIONS for group list
+// for asserts
+// =================
+
+#ifdef ASSERTS
+
+void assert_threads_queued_correct(struct group *g) {
+    pthread_rwlock_rdlock(&g->group_lock);
+    int num_threads_queued = g->threads_queued;
+
+    int num_p_in_q = 0;
+    struct process *curr_p = g->runqueue_head;
+    while (curr_p) {
+        num_p_in_q++;
+        curr_p = curr_p->next;
+    }
+    assert(num_threads_queued == num_p_in_q);
+    pthread_rwlock_unlock(&g->group_lock);
+}
+
+// this assumes that groups never run dry
+void assert_num_groups_correct() {
+    pthread_rwlock_rdlock(&gs->glist->group_list_lock);
+    int num_groups_found = 0;
+    struct group *curr_group = gs->glist->group_head;
+    while (curr_group) {
+        num_groups_found++;
+        curr_group = curr_group->next;
+    }
+
+    if (num_groups_found + num_groups_empty != num_groups) {
+        printf("num_groups_found %d num_groups_empty %d num_groups %d\n", num_groups_found, num_groups_empty, num_groups);
+    }
+    assert(num_groups_found + num_groups_empty == num_groups);
+    pthread_rwlock_unlock(&gs->glist->group_list_lock);
+}
+#else
+
+void assert_threads_queued_correct(struct group *g) {}
+void assert_num_groups_correct() {}
+
+#endif
+
+// the below asserts are only sensical to chek if there is only one worker
+#ifdef ASSERTS_SINGLE_WORKER
+
+void assert_thread_counts_correct(struct group *g, struct core_state *core) {
+    assert(num_cores == 1);
+
+    int num_threads_queued = 0;
+    struct process *curr_p = g->runqueue_head;
+    while (curr_p) {
+        num_threads_queued++;
+        curr_p = curr_p->next;
+    }
+
+    assert(num_threads_queued == g->num_threads);
+
+    if (core->current_process && core->current_process->group == g) {
+        assert(g->num_threads == g->threads_queued + 1);
+    } else {
+        assert(g->num_threads == g->threads_queued);
+    }
+}
+
+void __assert_group_not_in_list(struct group *g) {
+    assert(num_cores == 1);
+    
+    struct group *curr_group = gs->glist->group_head;
+    while (curr_group) {
+        if (curr_group == g) {
+            assert(0);
+        }
+        curr_group = curr_group->next;
+    }
+}
+
+void __assert_group_in_list(struct group *g) {
+    assert(num_cores == 1);
+    struct group *curr_group = gs->glist->group_head;
+    while (curr_group) {
+        if (curr_group == g) {
+            return;
+        }
+        curr_group = curr_group->next;
+    }
+    assert(0);
+}
+
+void assert_group_list_status_correct(struct group *g) {
+    assert(num_cores == 1);
+
+    if (g->threads_queued > 0) {
+        assert_group_in_list(g);
+    } else {
+        assert_group_not_in_list(g);
+    }
+}
+
+
+#else
+
+void assert_p_in_group(struct process *p, struct group *g) {}
+void assert_p_not_in_group(struct process *p, struct group *g) {}
+void assert_thread_counts_correct(struct group *g, struct core_state *core) {}
+void assert_group_list_status_correct(struct group *g) {}
+
+#endif
+
+
+
+// =================
+// for group list
 // =================
 
 int grp_get_spec_virt_time(struct group *g);
@@ -266,6 +357,7 @@ void gl_add_group(struct group_list *gl, struct group *g) {
     struct group *curr_head = gl->group_head;
     g->next = curr_head; // XXX this is ok because we will check/sync on the next op
     gl->group_head = g;
+    num_groups_empty--;
     pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
@@ -283,11 +375,12 @@ void gl_del_group(struct group_list *gl, struct group *g) {
             curr_group = curr_group->next;
         }
     }
+    num_groups_empty++;
     pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
 // =================
-// SUPPORT FUNCTIONS for group
+// for group
 // =================
 
 int grp_get_spec_virt_time(struct group *g) {
@@ -384,9 +477,14 @@ void grp_dec_nthread(struct group *g) {
 
 
 
-// ================
+
+
+// =========================================================================
+// =========================================================================
 // MAIN FUNCTIONS
-// ================
+// =========================================================================
+// =========================================================================
+
 
 
 // Make p runnable.
@@ -470,6 +568,13 @@ void yield(struct core_state *core, struct group_list *gl, struct process *p, in
 }
 
 
+// =========================================================================
+// =========================================================================
+// RUN FUNCTIONS
+// =========================================================================
+// =========================================================================
+
+
 void *run_core(void* core_num_ptr) {
     int core_id = (int)core_num_ptr;
     struct core_state *mycore = &(gs->cores[core_id]);
@@ -500,6 +605,10 @@ void *run_core(void* core_num_ptr) {
 	    mycore->sched_cycles += safe_read_tsc() - ts;
 	    mycore->nsched += 1;
 
+        if (mycore->current_process) {
+            assert_threads_queued_correct(mycore->current_process->group);
+        }
+        assert_num_groups_correct();
 	    struct process *next_running_process = mycore->current_process;
 	    trace_schedule(next_running_process ? next_running_process->process_id : -1, next_running_process ? next_running_process->group->group_id : -1, prev_running_process ? prev_running_process->group->group_id : -1, core_id);
 
@@ -522,7 +631,7 @@ void *run_core(void* core_num_ptr) {
 		    enqueue(gs->glist, p, 1);
 		    mycore->enq_cycles += safe_read_tsc() - ts;
 		    mycore->nenq += 1;
-		    // trace_enqueue(p->process_id, p->group->group_id, core_id);
+		    trace_enqueue(p->process_id, p->group->group_id, core_id);
 		    usleep(tick_length);
 		    break;
 	    case 2: // Yield core
@@ -535,7 +644,7 @@ void *run_core(void* core_num_ptr) {
 		    yield(mycore, gs->glist, p, tick_length);
 		    mycore->yield_cycles += safe_read_tsc() - ts;
 		    mycore->nyield += 1;
-		    // trace_yield(p->process_id, p->group->group_id, core_id);
+		    trace_yield(p->process_id, p->group->group_id, core_id);
 		    p->next = pool;
 		    pool = p;
 		    usleep((int)(tick_length / 2));
@@ -560,6 +669,7 @@ void main(int argc, char *argv[]) {
     num_cores = atoi(argv[1]);
     tick_length = atoi(argv[2]);
     num_groups = atoi(argv[3]);
+    num_groups_empty = num_groups;
 
     gs = malloc(sizeof(struct global_state));
     gs->glist = (struct group_list *) malloc(sizeof(struct group_list));

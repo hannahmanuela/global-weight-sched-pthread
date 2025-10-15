@@ -539,12 +539,14 @@ void dequeue(struct group_list *gl, struct process *p) {
     bool now_empty = p->group->threads_queued == 0;
     pthread_rwlock_unlock(&p->group->group_lock);
 
+    if (!now_empty) {
+        return;
+    }
+
     // there's a potential race with enq here
     // removing the group is ok b/c enq will have added a second copy of the group for a bit
     // but setting the virt time is not ok, need to re-check
-    if (now_empty) {
-        gl_del_group(gl, p->group);
-	}
+    gl_del_group(gl, p->group);
 
     int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
 

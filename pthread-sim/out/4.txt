@@ -1,6 +1,6 @@
-results for 4 cores 1000 us tick, 10 groups
-0 cycles: sched 710394(11839.90) enq 42724(2136.20) yield 404494 (16853.92)
-1 cycles: sched 655696(10087.63) enq 28464(2033.14) yield 266747 (10669.88)
-2 cycles: sched 873090(12839.56) enq 19699(1641.58) yield 250018 (11364.45)
-3 cycles: sched 808042(13032.94) enq 28290(1664.12) yield 254508 (10180.32)
-failed glist trylock min 7 time 4 list 0
+results for 4 cores 4000 us tick, 10 groups
+0 cycles: sched 11956507(7326.29) enq 827253(1569.74) yield 4024959 (7453.63)
+1 cycles: sched 12857416(7946.49) enq 1056189(1981.59) yield 4385910 (7945.49)
+2 cycles: sched 12258764(7470.30) enq 839819(1618.15) yield 3876625 (7165.67)
+3 cycles: sched 12047645(7418.50) enq 858419(1635.08) yield 4056594 (7243.92)
+failed glist trylock min 58 time 0 list 0

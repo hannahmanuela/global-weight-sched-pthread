@@ -1,4 +1,4 @@
-results for 2 cores 1000 us tick, 10 groups
-0 cycles: sched 817391(11677.01) enq 45544(3795.33) yield 192620 (10137.89)
-1 cycles: sched 631941(10359.69) enq 34246(2140.38) yield 309118 (11448.81)
-failed glist trylock min 3 time 1 list 0
+results for 2 cores 4000 us tick, 10 groups
+0 cycles: sched 11843943(7333.71) enq 963276(1780.55) yield 4013956 (7378.60)
+1 cycles: sched 13229892(8116.50) enq 1184840(2309.63) yield 4499003 (7906.86)
+failed glist trylock min 6 time 0 list 0

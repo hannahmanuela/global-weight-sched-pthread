@@ -14,9 +14,11 @@ USER_BIN := scx_h
 # LIBBPF_OBJ ?= -lbpf
 # PKGS ?= libbpf
 
-.PHONY: all clean
+.PHONY: bpf test clean
 
-all: $(USER_BIN)
+all: bpf test
+
+bpf: $(USER_BIN)
 
 $(BPFELF): $(BPFSRC)
 	$(BPF_CLANG) $(BPF_CFLAGS) -c $< -o $@
@@ -27,6 +29,9 @@ $(BPF_SKEL_HDR): $(BPFELF)
 
 $(USER_BIN): $(USER_SRC) $(BPF_SKEL_HDR)
 	$(CC) -g -O2 -Wall -I. -Iinclude -Ilibbpf/include -o $@ $(USER_SRC) -Llibbpf/lib64 -Wl,-rpath,libbpf/lib64 -lbpf
+
+test:
+	g++ -std=c++17 -o test_policy/test test_policy/test.cpp
 
 clean:
 	rm -f $(BPFELF) $(BPF_SKEL_HDR) $(USER_BIN)

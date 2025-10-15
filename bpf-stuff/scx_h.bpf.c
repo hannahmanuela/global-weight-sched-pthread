@@ -23,6 +23,7 @@ UEI_DEFINE(uei);
 // DEFINES
 // =======================================================
 
+#define SHARED_DSQ 0
 #define MY_SLICE ((__u64)4 * 1000000) // 4ms
 
 // =======================================================
@@ -31,12 +32,11 @@ UEI_DEFINE(uei);
 
 struct cgroup_info {
     u64 spec_virt_time;    // speculative virtual time
-    u64 virt_lag;          // lag when group becomes inactive
-    u64 last_virt_time;    // last virtual time when group was active
+    // u64 virt_lag;          // lag when group becomes inactive
+    // u64 last_virt_time;    // last virtual time when group was active
     u32 num_threads;       // total number of threads in group
     u32 threads_queued;    // number of runnable threads
     u32 weight;            // group weight
-    u32 queued;            // whether group is in the scheduling tree
 
     u32 group_dsq;
 };
@@ -64,7 +64,6 @@ struct {
 #define GLOBAL_VTIME_IDX 0 // global virtual time
 #define GLOBAL_MIN_VTIME_IDX 1 // minimum virtual time
 #define GLOBAL_TOTAL_WEIGHT_IDX 2 // total weight (sum of groups)
-#define GLOBAL_ACTIVE_GROUPS_IDX 3 // num active groups
 
 // =======================================================
 // HELPER FUNCTIONS
@@ -116,44 +115,20 @@ static void set_global_total_weight(u64 weight)
     bpf_map_update_elem(&global_state, &idx, &weight, BPF_ANY);
 }
 
-static u64 get_global_active_groups(void)
-{
-    u32 idx = GLOBAL_ACTIVE_GROUPS_IDX;
-    u64 *groups = bpf_map_lookup_elem(&global_state, &idx);
-    return groups ? *groups : 0;
-}
-
-static void set_global_active_groups(u64 groups)
-{
-    u32 idx = GLOBAL_ACTIVE_GROUPS_IDX;
-    bpf_map_update_elem(&global_state, &idx, &groups, BPF_ANY);
-}
 
 static struct cgroup_info *get_cgroup_info(struct cgroup *cgrp)
 {
     return bpf_cgrp_storage_get(&cgroup_info, cgrp, 0, 0);
 }
 
-static struct task_info *get_task_info(struct task_struct *p)
-{
-    return bpf_task_storage_get(&task_info, p, 0, 0);
-}
 
 // Calculate average virtual time across all active groups
 static u64 get_average_vtime(struct cgroup *exclude_cgrp)
 {
-    u64 total_vtime = 0;
-    u64 num_groups = 0;
-    u64 active_groups = get_global_active_groups();
-    
     // For simplicity, use the global virtual time as the average
     // In a more sophisticated implementation, we would iterate through
     // all active groups and calculate the true average
-    if (active_groups > 0) {
-        return get_global_vtime();
-    }
-    
-    return 0;
+    return get_global_vtime();
 }
 
 // =======================================================
@@ -171,23 +146,6 @@ s32 BPF_STRUCT_OPS(h_init_task, struct task_struct *p, struct scx_init_task_args
     if (!gi)
         return -ENOMEM;
     
-    // Set initial group values if this is the first task
-    if (gi->num_threads == 0) {
-        gi->spec_virt_time = global_vtime;
-        gi->virt_lag = 0;
-        gi->last_virt_time = global_vtime;
-        gi->queued = 0;
-
-        scx_bpf_create_dsq(gi->group_dsq, -1);
-    }
-    
-    gi->num_threads++;
-
-    bpf_printk("INIT_TASK Task %d, vtime=%llu cgrp %d weight %d", p->pid, global_vtime, cgrp->kn->id, p->scx.weight);
-    
-    // Update global total weight
-    set_global_total_weight(get_global_total_weight() + p->scx.weight);
-    
     return 0;
 }
 
@@ -195,18 +153,16 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(h_cgroup_init, struct cgroup *cgrp, struct scx_cgro
 {
     struct cgroup_info *gi;
     
-    bpf_printk("CGROUP_INIT Grp id %d, weight=%d", cgrp->kn->id, args->weight);
     gi = bpf_cgrp_storage_get(&cgroup_info, cgrp, 0, BPF_LOCAL_STORAGE_GET_F_CREATE);
     if (!gi)
         return -ENOMEM;
     
+    u64 global_vtime = get_global_vtime();
+
+    // everything else is initialized to 0
     gi->weight = args->weight;
-    gi->spec_virt_time = 0;
-    gi->virt_lag = 0;
-    gi->last_virt_time = 0;
-    gi->num_threads = 0;
-    gi->threads_queued = 0;
-    gi->queued = 0;
+    gi->spec_virt_time = global_vtime;
+    gi->group_dsq = 0; // Use shared DSQ for now
     
     return 0;
 }
@@ -221,13 +177,11 @@ void BPF_STRUCT_OPS(h_cgroup_set_weight, struct cgroup *cgrp, u32 weight)
     }
 
     gi->weight = weight;
-
-    bpf_printk("CGROUP_SET_WEIGHT Grp id %d, weight=%d", cgrp->kn->id, weight);
 }
 
-void BPF_STRUCT_OPS(h_cgroup_move, struct cgroup *from, struct cgroup *to)
+void BPF_STRUCT_OPS(h_cgroup_move, struct task_struct *p, struct cgroup *from, struct cgroup *to)
 {
-    struct cgroup_info *from_gi, to_gi;
+    struct cgroup_info *from_gi, *to_gi;
     from_gi = get_cgroup_info(from);
     to_gi = get_cgroup_info(to);
     if (!from_gi || !to_gi) {
@@ -239,18 +193,94 @@ void BPF_STRUCT_OPS(h_cgroup_move, struct cgroup *from, struct cgroup *to)
     to_gi->num_threads += 1;
 }
 
-void BPF_STRUCT_OPS(h_enable, struct task_struct *p)
+// kinda like the old enqueue, runs when task becomes ready to run
+void BPF_STRUCT_OPS(h_runnable, struct task_struct *p)
 {
-    struct task_info *ti = get_task_info(p);
+    // add it to the group's rq
     struct cgroup_info *gi;
     struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
-    u64 global_vtime = get_global_vtime();
     
-    if (!ti) {
-        bpf_printk("ERROR: No task info for task %d", p->pid);
+    // this gives incantation vibes
+    if (!cgrp) {
+        if (cgrp) bpf_cgroup_release(cgrp);
+        return;
+    }
+    gi = get_cgroup_info(cgrp);
+    if (!gi) {
         bpf_cgroup_release(cgrp);
         return;
     }
+
+    // set the cgroups' vtime if the threads_queued was 0?
+    if (gi->threads_queued == 0) {
+        u64 initial_vtime = get_average_vtime(cgrp);
+        gi->spec_virt_time = initial_vtime;
+
+        set_global_total_weight(get_global_total_weight() + gi->weight);
+    }
+
+    // add it to the group's rq
+    gi->threads_queued++;
+    // Note: scx_bpf_dsq_insert should not be called from runnable callback
+    // The actual enqueueing will happen in the enqueue callback
+
+    bpf_printk("RUNNABLE Task %d, vtime=%llu cgrp %d cgrp weight %d", p->pid, p->scx.dsq_vtime, 
+        cgrp->kn->id, gi->weight);
+
+    // this is also an incantation
+    bpf_cgroup_release(cgrp);
+}
+
+// ------------------------------------------------------------
+// line of things I've looked at 
+
+void BPF_STRUCT_OPS(h_quiescent, struct task_struct *p, u64 deq_flags)
+{
+    struct cgroup_info *gi;
+    struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
+    if (!cgrp) {
+        if (cgrp) bpf_cgroup_release(cgrp);
+        return;
+    }
+    gi = get_cgroup_info(cgrp);
+    if (!gi) {
+        bpf_cgroup_release(cgrp);
+        return;
+    }
+    
+    // Calculate task lag
+    // u64 global_vtime = get_global_vtime();
+    // u64 task_lag = p->scx.dsq_vtime - global_vtime;
+    // ti->vlag = task_lag;
+    // ti->last_vruntime = p->scx.dsq_vtime;
+    // ti->runnable = 0;
+    
+    // Update group queued count
+    if (gi->threads_queued > 0) {
+        gi->threads_queued--;
+    } else {
+        bpf_printk("ERROR: threads_queued is 0 but now task %d is blocking cgrp %d\n", p->pid, cgrp->kn->id);
+    }
+
+
+    // If no more runnable tasks in group, calculate group lag
+    if (gi->threads_queued == 0) {
+        u64 curr_avg_vtime = get_average_vtime(NULL);
+        // gi->virt_lag = curr_avg_vtime - gi->spec_virt_time;
+        // gi->last_virt_time = gi->spec_virt_time;
+
+        set_global_total_weight(get_global_total_weight() - gi->weight);
+    }
+    
+    bpf_cgroup_release(cgrp);
+}
+
+
+void BPF_STRUCT_OPS(h_enable, struct task_struct *p)
+{
+    struct cgroup_info *gi;
+    struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
+    u64 global_vtime = get_global_vtime();
     
     gi = get_cgroup_info(cgrp);
     if (!gi) {
@@ -258,10 +288,6 @@ void BPF_STRUCT_OPS(h_enable, struct task_struct *p)
         bpf_cgroup_release(cgrp);
         return;
     }
-    
-    // Set task vruntime to current global vtime
-    ti->vruntime = global_vtime;
-    ti->runnable = 1;
     
     // Update group queued count
     gi->threads_queued++;
@@ -271,16 +297,15 @@ void BPF_STRUCT_OPS(h_enable, struct task_struct *p)
         u64 initial_vtime = get_average_vtime(cgrp);
         
         // Handle lag from previous inactivity
-        if (gi->virt_lag > 0) {
-            if (gi->last_virt_time > initial_vtime) {
-                initial_vtime = gi->last_virt_time;
-            }
-        } else if (gi->virt_lag < 0) {
-            initial_vtime -= gi->virt_lag;
-        }
+        // if (gi->virt_lag > 0) {
+        //     if (gi->last_virt_time > initial_vtime) {
+        //         initial_vtime = gi->last_virt_time;
+        //     }
+        // } else if (gi->virt_lag < 0) {
+        //     initial_vtime -= gi->virt_lag;
+        // }
         
         gi->spec_virt_time = initial_vtime;
-        gi->queued = 1;
     }
     
     bpf_cgroup_release(cgrp);
@@ -288,11 +313,10 @@ void BPF_STRUCT_OPS(h_enable, struct task_struct *p)
 
 void BPF_STRUCT_OPS(h_disable, struct task_struct *p)
 {
-    struct task_info *ti = get_task_info(p);
     struct cgroup_info *gi;
     struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
     
-    if (!ti || !cgrp) {
+    if (!cgrp) {
         if (cgrp) bpf_cgroup_release(cgrp);
         return;
     }
@@ -310,22 +334,19 @@ void BPF_STRUCT_OPS(h_disable, struct task_struct *p)
     // If no more runnable tasks in group, calculate lag
     if (gi->threads_queued == 0) {
         u64 curr_avg_vtime = get_average_vtime(NULL);
-        gi->virt_lag = curr_avg_vtime - gi->spec_virt_time;
-        gi->last_virt_time = gi->spec_virt_time;
-        gi->queued = 0;
+        // gi->virt_lag = curr_avg_vtime - gi->spec_virt_time;
+        // gi->last_virt_time = gi->spec_virt_time;
     }
     
-    ti->runnable = 0;
     bpf_cgroup_release(cgrp);
 }
 
 s32 BPF_STRUCT_OPS(h_exit_task, struct task_struct *p)
 {
-    struct task_info *ti = get_task_info(p);
     struct cgroup_info *gi;
     struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
     
-    if (!ti || !cgrp) {
+    if (!cgrp) {
         if (cgrp) bpf_cgroup_release(cgrp);
         return 0;
     }
@@ -337,11 +358,16 @@ s32 BPF_STRUCT_OPS(h_exit_task, struct task_struct *p)
     }
     
     // Update group thread count
-    if (gi->num_threads > 0)
+    if (gi->num_threads > 0) {
         gi->num_threads--;
+    } else {
+        bpf_printk("ERROR: num_threads is 0 but now task %d is exiting cgrp %d\n", p->pid, cgrp->kn->id);
+    }
     
     // Update global total weight
-    set_global_total_weight(get_global_total_weight() - p->scx.weight);
+    if (gi->num_threads == 0) {
+        set_global_total_weight(get_global_total_weight() - gi->weight);
+    }
     
     bpf_cgroup_release(cgrp);
     return 0;
@@ -353,20 +379,18 @@ s32 BPF_STRUCT_OPS(h_select_cpu, struct task_struct *p, s32 prev_cpu, u64 wake_f
     s32 cpu;
     
     cpu = scx_bpf_select_cpu_dfl(p, prev_cpu, wake_flags, &is_idle);
-    if (is_idle) {
-        scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, MY_SLICE, 0);
-    }
+    // Note: scx_bpf_dsq_insert should not be called from select_cpu callback
+    // The task will be enqueued via the enqueue callback
     
     return cpu;
 }
 
 void BPF_STRUCT_OPS(h_enqueue, struct task_struct *p, u64 enq_flags)
 {
-    struct task_info *ti = get_task_info(p);
     struct cgroup_info *gi;
     struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
     
-    if (!ti || !cgrp) {
+    if (!cgrp) {
         if (cgrp) bpf_cgroup_release(cgrp);
         return;
     }
@@ -385,24 +409,30 @@ void BPF_STRUCT_OPS(h_enqueue, struct task_struct *p, u64 enq_flags)
     if (time_before(vtime, global_vtime - MY_SLICE))
         vtime = global_vtime - MY_SLICE;
     
-    scx_bpf_dsq_insert_vtime(p, SHARED_DSQ, MY_SLICE, vtime, enq_flags);
+    // For now, use the shared DSQ instead of per-group DSQs
+    // TODO: Implement proper per-group DSQ scheduling
+    scx_bpf_dsq_insert(p, SHARED_DSQ, MY_SLICE, enq_flags);
     
     bpf_cgroup_release(cgrp);
 }
 
 void BPF_STRUCT_OPS(h_dispatch, s32 cpu, struct task_struct *prev)
 {
+
+    // TODO: pick the min group
+
     // Move a task from shared DSQ to local DSQ
+    // scx_bpf_dsq_move_to_local(grp_to_run->group_dsq);
+    // fallback: pull from global dsq
     scx_bpf_dsq_move_to_local(SHARED_DSQ);
 }
 
 void BPF_STRUCT_OPS(h_running, struct task_struct *p)
 {
-    struct task_info *ti = get_task_info(p);
     struct cgroup_info *gi;
     struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
     
-    if (!ti || !cgrp) {
+    if (!cgrp) {
         if (cgrp) bpf_cgroup_release(cgrp);
         return;
     }
@@ -413,8 +443,8 @@ void BPF_STRUCT_OPS(h_running, struct task_struct *p)
         return;
     }
 
-    bpf_printk("RUNNING Task %d, vtime=%llu cgrp %d cgrp weight %d p weight %d", p->pid, p->scx.dsq_vtime, 
-        cgrp->kn->id, gi->weight, p->scx.weight);
+    bpf_printk("RUNNING Task %d, vtime=%llu cgrp %d cgrp weight %d", p->pid, p->scx.dsq_vtime, 
+        cgrp->kn->id, gi->weight);
     
     // Update global virtual time to match the running task
     u64 global_vtime = get_global_vtime();
@@ -426,11 +456,10 @@ void BPF_STRUCT_OPS(h_running, struct task_struct *p)
 
 void BPF_STRUCT_OPS(h_stopping, struct task_struct *p, bool runnable)
 {
-    struct task_info *ti = get_task_info(p);
     struct cgroup_info *gi;
     struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
     
-    if (!ti || !cgrp) {
+    if (!cgrp) {
         if (cgrp) bpf_cgroup_release(cgrp);
         return;
     }
@@ -440,62 +469,17 @@ void BPF_STRUCT_OPS(h_stopping, struct task_struct *p, bool runnable)
         bpf_cgroup_release(cgrp);
         return;
     }
-    
-    // Calculate actual execution time and update virtual time
-    u64 exec_time = MY_SLICE - p->scx.slice;
-    u64 weighted_exec_time = safe_div_u64(exec_time, p->scx.weight);
-    
-    // Update task vruntime
-    ti->vruntime += weighted_exec_time;
-    p->scx.dsq_vtime += weighted_exec_time;
     
     // Update group speculative virtual time
-    u64 group_weighted_time = safe_div_u64(exec_time, gi->weight);
-    gi->spec_virt_time += group_weighted_time;
+    // TODO: make this collapse rather than add
+    u64 time_left = p->scx.slice;
+    u64 group_weighted_time = safe_div_u64(time_left, gi->weight);
+    gi->spec_virt_time -= group_weighted_time;
     
     // Update global virtual time
+    u64 exec_time = MY_SLICE - p->scx.slice;
     u64 global_weighted_time = safe_div_u64(exec_time, get_global_total_weight());
     set_global_vtime(get_global_vtime() + global_weighted_time);
-    
-    bpf_cgroup_release(cgrp);
-}
-
-void BPF_STRUCT_OPS(h_quiescent, struct task_struct *p, u64 deq_flags)
-{
-    struct task_info *ti = get_task_info(p);
-    struct cgroup_info *gi;
-    struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
-    
-    if (!ti || !cgrp) {
-        if (cgrp) bpf_cgroup_release(cgrp);
-        return;
-    }
-    
-    gi = get_cgroup_info(cgrp);
-    if (!gi) {
-        bpf_cgroup_release(cgrp);
-        return;
-    }
-    
-    // Calculate task lag
-    u64 global_vtime = get_global_vtime();
-    u64 task_lag = p->scx.dsq_vtime - global_vtime;
-    
-    ti->vlag = task_lag;
-    ti->last_vruntime = p->scx.dsq_vtime;
-    ti->runnable = 0;
-    
-    // Update group queued count
-    if (gi->threads_queued > 0)
-        gi->threads_queued--;
-    
-    // If no more runnable tasks in group, calculate group lag
-    if (gi->threads_queued == 0) {
-        u64 curr_avg_vtime = get_average_vtime(NULL);
-        gi->virt_lag = curr_avg_vtime - gi->spec_virt_time;
-        gi->last_virt_time = gi->spec_virt_time;
-        gi->queued = 0;
-    }
     
     bpf_cgroup_release(cgrp);
 }
@@ -514,6 +498,7 @@ SCX_OPS_DEFINE(h_ops,
         .init_task		= (void *)h_init_task,
         .select_cpu		= (void *)h_select_cpu,
         .enqueue		= (void *)h_enqueue,
+        .runnable		= (void *)h_runnable,
         .dispatch		= (void *)h_dispatch,
         .running		= (void *)h_running,
         .stopping		= (void *)h_stopping,

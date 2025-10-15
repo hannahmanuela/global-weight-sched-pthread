@@ -14,7 +14,7 @@
 #include <sys/resource.h>
 
 // #define TRACE
-// #define ASSERTS
+#define ASSERTS
 // #define ASSERTS_SINGLE_WORKER
 
 // #define TIME_TO_RUN 10000000LL
@@ -23,10 +23,12 @@
 int num_groups = 100;
 int num_cores = 27;
 int tick_length = 1000;
+int num_threads_p_group = 3;
 uint8_t num_groups_empty = 0;
 
 // lock invariant (to avoid deadlocks): 
-//  - can't lock global list while holding a group lock
+//  - always lock global list before group lock, if you're going to lock both 
+//      (no locking a group while holding the list lock)
 
 // there are only global datastructures here
 
@@ -60,8 +62,11 @@ struct group {
 struct core_state {
 	int core_id;
 	struct process *current_process;
+    long sched_us;
 	long sched_cycles;
+    long enq_us;
 	long enq_cycles;
+    long yield_us;
 	long yield_cycles;
 	int nsched;
 	int nenq;
@@ -76,7 +81,6 @@ struct group_list {
     int heap_capacity;
 
 	uint64_t nfail_get_min;
-	uint64_t nfail_min_group;
 	uint64_t nfail_time;
 	uint64_t nfail_list;
 } __attribute__((aligned(64)));
@@ -154,9 +158,9 @@ int safe_read_tsc() {
 void print_core(struct core_state *c) {
 	printf("%ld cycles: sched %ld(%0.2f) enq %ld(%0.2f) yield %ld (%0.2f)\n",
 	       c - gs->cores,
-	       c->sched_cycles, 1.0*c->sched_cycles/c->nsched,
-	       c->enq_cycles, 1.0*c->enq_cycles/c->nenq,
-	       c->yield_cycles, 1.0*c->yield_cycles/c->nyield);
+	       c->sched_us, 1.0*c->sched_us/c->nsched,
+	       c->enq_us, 1.0*c->enq_us/c->nenq,
+	       c->yield_us, 1.0*c->yield_us/c->nyield);
 }
 
 void trace_schedule(int process_id, int group_id, int prev_group_id, int core_id) {
@@ -410,14 +414,16 @@ static inline void gl_heap_fix_index(struct group_list *gl, int idx) {
     gl_heap_sift_up(gl, idx);
 }
 
-// peek min group without removing; returns with group locked
+void gl_update_group_svt(struct group_list *gl, struct group *g, int diff);
+
+// peek min group without removing; 
+// returns with group and list locked
 static struct group* gl_peek_min_group(struct group_list *gl) {
     pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_get_min);
     struct group *g = gl->heap_size > 0 ? gl->heap[0] : NULL;
     if (g) {
-        pthread_rwlock_wrlock_fail(&g->group_lock, &gl->nfail_min_group);
+        pthread_rwlock_wrlock(&g->group_lock);
     }
-    pthread_rwlock_unlock(&gl->group_list_lock);
     return g;
 }
 
@@ -472,19 +478,17 @@ void gl_add_group(struct group_list *gl, struct group *g) {
     pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
+// delete group from heap; caller must hold group_list_lock
 void gl_del_group(struct group_list *gl, struct group *g) {
-    pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
     if (g->heap_index != -1) {
         gl_heap_remove_at(gl, g->heap_index);
         num_groups_empty++;
     }
-    pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
 // Update group's spec_virt_time and safely reheapify if the group is in the heap.
-// Caller is allowed to hold the group lock on entry; to respect the lock invariant
-// (never take the global list lock while holding a group lock), this function may
-// temporarily release and then reacquire the group lock if reheapification is needed.
+// caller must hold group_list_lock and group_lock
+// keeps both lock held
 void gl_update_group_svt(struct group_list *gl, struct group *g, int diff) {
     int initial_heap_index;
     // We might be called with the group lock held; do the update and capture heap index
@@ -497,18 +501,11 @@ void gl_update_group_svt(struct group_list *gl, struct group *g, int diff) {
     }
 
     // Respect lock invariant: release group lock before taking the global list lock
-    pthread_rwlock_unlock(&g->group_lock);
-    pthread_rwlock_wrlock_fail(&gl->group_list_lock, &gl->nfail_list);
-
     // The group's index may have changed; read the current index under list lock
     int current_index = g->heap_index;
     if (current_index != -1) {
         gl_heap_fix_index(gl, current_index);
     }
-    pthread_rwlock_unlock(&gl->group_list_lock);
-
-    // Reacquire group lock before returning to preserve caller's expectation
-    pthread_rwlock_wrlock(&g->group_lock);
 }
 
 
@@ -579,8 +576,13 @@ void grp_collapse_spec_virt_time(struct group_list *gl, struct group *g, int tim
 // add p to its group. caller must hold group lock
 void grp_add_process(struct process *p, int is_new) {
 	struct process *curr_head = p->group->runqueue_head;
-	p->next = curr_head;
-	p->group->runqueue_head = p;
+    if (!curr_head) {
+        p->group->runqueue_head = p;
+        p->next = NULL;
+    } else {
+        p->next = curr_head;
+	    p->group->runqueue_head = p;
+    }
 	if (is_new) {
 		p->group->num_threads += 1;
 	}
@@ -644,14 +646,22 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
     
 }
 
-// Assumes caller holds p's group lock
+// Assumes caller holds list lock as well as p's group lock
 // returns with no locks
 void dequeue(struct group_list *gl, struct process *p) {
 
+    struct group *grp_bf = p->group;
     grp_del_process(p);
+    assert(p->group == grp_bf);
 
     bool now_empty = p->group->threads_queued == 0;
+
+    if (now_empty) {
+        gl_del_group(gl, p->group);
+    }
+
     pthread_rwlock_unlock(&p->group->group_lock);
+    pthread_rwlock_unlock(&gl->group_list_lock);
 
     if (!now_empty) {
         return;
@@ -660,8 +670,6 @@ void dequeue(struct group_list *gl, struct process *p) {
     // there's a potential race with enq here
     // removing the group is ok b/c enq will have added a second copy of the group for a bit
     // but setting the virt time is not ok, need to re-check
-    gl_del_group(gl, p->group);
-
     int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
 
 	pthread_rwlock_wrlock(&p->group->group_lock);
@@ -689,16 +697,25 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
     core->current_process = NULL;
 
-    struct group *min_group = gl_peek_min_group(gl);
-    if (min_group == NULL)
-	    return;
+    struct group *min_group = gl_peek_min_group(gl); // returns with both locks held
+    if (min_group == NULL) {
+        pthread_rwlock_unlock(&gl->group_list_lock);
+        return;
+    }
 
-    // select the next process
     int time_expecting = (int)tick_length / min_group->weight;
     gl_update_group_svt(gl, min_group, time_expecting);
 
+    // select the next process
     struct process *next_p = min_group->runqueue_head;
-    dequeue(gl, next_p);
+    if (!(next_p->group == min_group)) {
+        pthread_rwlock_unlock(&gl->group_list_lock);
+        printf("next_p->group: %d != min_group: %d\n", next_p->group->group_id, min_group->group_id);
+        print_global_state();
+        assert(0);
+    }
+    dequeue(gl, next_p); // unlocks the group lock
+    
 
     core->current_process = next_p; // core owns p
     next_p->next = NULL;
@@ -733,6 +750,8 @@ void *run_core(void* core_num_ptr) {
     struct timespec start_wall, end_wall;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start_wall);
 
+    struct timeval start, end;
+
     int cont = 1;
     while (cont) {
 	    clock_gettime(CLOCK_MONOTONIC_RAW, &end_wall);
@@ -743,10 +762,13 @@ void *run_core(void* core_num_ptr) {
 
 	    struct process *prev_running_process = mycore->current_process;
 
+        gettimeofday(&start, NULL);
 	    int ts = safe_read_tsc();
 	    schedule(mycore, gs->glist, tick_length, 1);
         // print_global_state();
-	    mycore->sched_cycles += safe_read_tsc() - ts;
+        mycore->sched_cycles += safe_read_tsc() - ts;
+        gettimeofday(&end, NULL);
+        mycore->sched_us += (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
 	    mycore->nsched += 1;
 
         if (mycore->current_process) {
@@ -773,10 +795,14 @@ void *run_core(void* core_num_ptr) {
 		    }
 		    pool = p->next;
 		    p->next = NULL;
+            
+            gettimeofday(&start, NULL);
 		    int ts = safe_read_tsc();
 		    enqueue(gs->glist, p, 1);
             // print_global_state();
-		    mycore->enq_cycles += safe_read_tsc() - ts;
+            mycore->enq_cycles += safe_read_tsc() - ts;
+            gettimeofday(&end, NULL);
+            mycore->enq_us += (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
 		    mycore->nenq += 1;
 
             assert_p_in_group(p, p->group);
@@ -788,10 +814,13 @@ void *run_core(void* core_num_ptr) {
 		    if (!p) {
 			    continue;
 		    }
+            gettimeofday(&start, NULL);
 		    ts = safe_read_tsc();
 		    // XXX should 1/2 tick_length?
 		    yield(mycore, gs->glist, p, tick_length);
-		    mycore->yield_cycles += safe_read_tsc() - ts;
+            mycore->yield_cycles += safe_read_tsc() - ts;
+            gettimeofday(&end, NULL);
+            mycore->yield_us += (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
 		    mycore->nyield += 1;
 
             // print_global_state();
@@ -815,7 +844,6 @@ void main(int argc, char *argv[]) {
     // sched_param.sched_priority = 99;
     // sched_setscheduler(0, SCHED_FIFO, &sched_param);
 
-    int num_threads_p_group = 20;
     if (argc != 4) {
 	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_groups>\n");
 	    exit(1);
@@ -830,7 +858,6 @@ void main(int argc, char *argv[]) {
     gs->glist->heap = NULL;
     gs->glist->heap_size = 0;
     gs->glist->heap_capacity = 0;
-    gs->glist->nfail_min_group = 0;
     gs->glist->nfail_get_min = 0;
     gs->glist->nfail_time = 0;
     gs->glist->nfail_list = 0;
@@ -839,6 +866,9 @@ void main(int argc, char *argv[]) {
     for (int i = 0; i < num_cores; i++) {
         gs->cores[i].core_id = i;
         gs->cores[i].current_process = NULL;
+        gs->cores[i].sched_us = 0;
+        gs->cores[i].enq_us = 0;
+        gs->cores[i].yield_us = 0;
         gs->cores[i].sched_cycles = 0;
         gs->cores[i].enq_cycles = 0;
         gs->cores[i].yield_cycles = 0;
@@ -869,7 +899,7 @@ void main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
 	    print_core(&(gs->cores[i]));
     }
-    printf("failed glist trylock getMin %ld minGroup %ld time %ld list %ld\n", gs->glist->nfail_get_min, gs->glist->nfail_min_group, gs->glist->nfail_time, gs->glist->nfail_list);
+    printf("failed glist trylock getMin %ld time %ld list %ld\n", gs->glist->nfail_get_min, gs->glist->nfail_time, gs->glist->nfail_list);
 
 }
 #endif // UNIT_TEST

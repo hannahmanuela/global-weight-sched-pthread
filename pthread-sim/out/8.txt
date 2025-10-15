@@ -1,10 +1,10 @@
 results for 8 cores 1000 us tick, 100 groups
-0 cycles: sched 5553116(9088.57) enq 269343(1455.91) yield 2072192 (10207.84)
-1 cycles: sched 6812578(11241.88) enq 357742(1892.81) yield 2257316 (11343.30)
-2 cycles: sched 5437628(9169.69) enq 278250(1456.81) yield 2144233 (9746.51)
-3 cycles: sched 5914833(9940.90) enq 288972(1520.91) yield 2212964 (10013.41)
-4 cycles: sched 5589354(9269.24) enq 282659(1457.01) yield 1893840 (9613.40)
-5 cycles: sched 5726750(9592.55) enq 290245(1535.69) yield 2272728 (10425.36)
-6 cycles: sched 5469869(9116.45) enq 293420(1504.72) yield 1978620 (9843.88)
-7 cycles: sched 6521935(10570.40) enq 366479(1980.97) yield 1821686 (9689.82)
-failed glist trylock getMin 205 minGroup 18 time 0 list 113
+0 cycles: sched 7580(12.74) enq 905(4.84) yield 1894 (8.81)
+1 cycles: sched 7740(12.77) enq 1160(6.30) yield 2303 (11.52)
+2 cycles: sched 7344(12.41) enq 1177(5.94) yield 1791 (8.96)
+3 cycles: sched 7654(12.80) enq 1164(6.19) yield 1930 (9.37)
+4 cycles: sched 7664(12.75) enq 1075(5.72) yield 1997 (9.98)
+5 cycles: sched 7117(11.94) enq 981(5.08) yield 1645 (8.18)
+6 cycles: sched 7336(12.09) enq 1167(6.27) yield 1869 (9.63)
+7 cycles: sched 7438(12.36) enq 939(5.37) yield 2031 (9.15)
+failed glist trylock getMin 409 time 39 list 146

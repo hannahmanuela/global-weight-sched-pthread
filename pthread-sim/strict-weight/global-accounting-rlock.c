@@ -15,10 +15,10 @@
 
 // #define TRACE
 #define ASSERTS
-// #define ASSERTS_SINGLE_WORKER
+#define ASSERTS_SINGLE_WORKER
 
 // #define TIME_TO_RUN 10000000LL
-#define TIME_TO_RUN 100000LL
+#define TIME_TO_RUN 10000000LL
 
 int num_groups = 100;
 int num_cores = 27;
@@ -229,6 +229,32 @@ void assert_num_groups_correct() {}
 // the below asserts are only sensical to chek if there is only one worker
 #ifdef ASSERTS_SINGLE_WORKER
 
+void assert_p_in_group(struct process *p, struct group *g) {
+    assert(num_cores == 1);
+    
+    struct process *curr_p = g->runqueue_head;
+    while (curr_p) {
+        if (curr_p->process_id == p->process_id) {
+            return;
+        }
+        curr_p = curr_p->next;
+    }
+    assert(0);
+}
+
+void assert_p_not_in_group(struct process *p, struct group *g) {
+    assert(num_cores == 1);
+    
+    struct process *curr_p = g->runqueue_head;
+    while (curr_p) {
+        if (curr_p->process_id == p->process_id) {
+            assert(0);
+        }
+        curr_p = curr_p->next;
+    }
+   return;
+}
+
 void assert_thread_counts_correct(struct group *g, struct core_state *core) {
     assert(num_cores == 1);
 
@@ -239,7 +265,7 @@ void assert_thread_counts_correct(struct group *g, struct core_state *core) {
         curr_p = curr_p->next;
     }
 
-    assert(num_threads_queued == g->num_threads);
+    assert(num_threads_queued == g->threads_queued);
 
     if (core->current_process && core->current_process->group == g) {
         assert(g->num_threads == g->threads_queued + 1);
@@ -276,9 +302,9 @@ void assert_group_list_status_correct(struct group *g) {
     assert(num_cores == 1);
 
     if (g->threads_queued > 0) {
-        assert_group_in_list(g);
+        __assert_group_in_list(g);
     } else {
-        assert_group_not_in_list(g);
+        __assert_group_not_in_list(g);
     }
 }
 
@@ -605,7 +631,9 @@ void *run_core(void* core_num_ptr) {
 	    mycore->sched_cycles += safe_read_tsc() - ts;
 	    mycore->nsched += 1;
 
+        assert_thread_counts_correct(mycore->current_process->group, mycore);
         if (mycore->current_process) {
+            assert_group_list_status_correct(mycore->current_process->group);
             assert_threads_queued_correct(mycore->current_process->group);
         }
         assert_num_groups_correct();
@@ -631,6 +659,8 @@ void *run_core(void* core_num_ptr) {
 		    enqueue(gs->glist, p, 1);
 		    mycore->enq_cycles += safe_read_tsc() - ts;
 		    mycore->nenq += 1;
+
+            assert_p_in_group(p, p->group);
 		    trace_enqueue(p->process_id, p->group->group_id, core_id);
 		    usleep(tick_length);
 		    break;
@@ -644,6 +674,8 @@ void *run_core(void* core_num_ptr) {
 		    yield(mycore, gs->glist, p, tick_length);
 		    mycore->yield_cycles += safe_read_tsc() - ts;
 		    mycore->nyield += 1;
+
+            assert_p_not_in_group(p, p->group);
 		    trace_yield(p->process_id, p->group->group_id, core_id);
 		    p->next = pool;
 		    pool = p;

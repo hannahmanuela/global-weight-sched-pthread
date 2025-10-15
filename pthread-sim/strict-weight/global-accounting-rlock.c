@@ -14,11 +14,11 @@
 #include <sys/resource.h>
 
 // #define TRACE
-#define ASSERTS
+// #define ASSERTS
 // #define ASSERTS_SINGLE_WORKER
 
 // #define TIME_TO_RUN 10000000LL
-#define TIME_TO_RUN 10000LL
+#define TIME_TO_RUN 1000000LL
 
 int num_groups = 100;
 int num_cores = 27;

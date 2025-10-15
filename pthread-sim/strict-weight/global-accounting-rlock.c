@@ -650,22 +650,20 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 // returns with no locks
 void dequeue(struct group_list *gl, struct process *p) {
 
-    struct group *grp_bf = p->group;
     grp_del_process(p);
-    assert(p->group == grp_bf);
 
     bool now_empty = p->group->threads_queued == 0;
 
-    if (now_empty) {
-        gl_del_group(gl, p->group);
+    if (!now_empty) {
+        pthread_rwlock_unlock(&p->group->group_lock);
+        pthread_rwlock_unlock(&gl->group_list_lock);
+        return;
     }
+
+    gl_del_group(gl, p->group);
 
     pthread_rwlock_unlock(&p->group->group_lock);
     pthread_rwlock_unlock(&gl->group_list_lock);
-
-    if (!now_empty) {
-        return;
-    }
 
     // there's a potential race with enq here
     // removing the group is ok b/c enq will have added a second copy of the group for a bit

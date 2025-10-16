@@ -599,7 +599,7 @@ void unregister_group(struct group_list *gl, struct group *g) {
     pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
-// Assumes caller holds list lock as well as p's group lock
+// Assumes caller holds p's group lock
 // returns with no locks
 void dequeue(struct group_list *gl, struct process *p) {
 

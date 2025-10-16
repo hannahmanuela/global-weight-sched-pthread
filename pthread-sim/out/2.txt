@@ -1,4 +1,7 @@
 results for 2 cores 1000 us tick, 100 groups
-0 cycles: sched 3983(6.56) enq 326(1.78) yield 1248 (6.12)
-1 cycles: sched 4174(6.95) enq 351(1.96) yield 1224 (5.56)
-failed glist trylock getMin 13 time 0 list 5
+0 cycles: sched 2157(3.54) enq 166(0.97) yield 785 (3.54)
+1 cycles: sched 2378(3.95) enq 238(1.26) yield 728 (3.62)
+
+Lock timing statistics:
+Group list write lock: avg 407 cycles (707638 total cycles, 1735 operations)
+Group list read lock: avg 191 cycles (30582 total cycles, 160 operations)

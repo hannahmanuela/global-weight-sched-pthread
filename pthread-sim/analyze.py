@@ -168,59 +168,59 @@ def create_plot(data, output_file="lock_failures_plot.png"):
     # Show the plot
     plt.show()
 
-def parse_operation_avgs_from_line(line):
+def parse_operation_metrics_from_line(line):
     """
-    Parse a single "cycles:" line to extract per-operation average cycle counts.
+    Parse a single "cycles:" line to extract per-operation average cycles and microseconds.
 
     Expected format examples:
-        "0 cycles: sched 5157678(8455.21) enq 274464(1508.04) yield 1767400 (8579.61)"
+        "0 cycles: sched 2157(3.54) enq 166(0.97) yield 785(3.54)"
 
     Returns:
-        dict: op_name -> avg_cycles (float)
+        dict: op_name -> { 'avg_cycles': float, 'avg_us': float }
     """
-    # Only process lines that look like "<coreNum> cycles: ..."
     if not re.match(r"^\d+\s+cycles:\s+", line):
         return {}
 
-    # Remove leading "<num> cycles:" header
     line_after_header = re.sub(r"^\d+\s+cycles:\s+", "", line.strip())
 
     tokens = line_after_header.split()
-    op_avgs = {}
+    op_metrics = {}
 
-    # Expect repeating groups: <opName> <sum(avg)> where avg is inside parentheses
     i = 0
     while i < len(tokens):
         op = tokens[i]
-        # Next token may be like "12345(678.90)" OR "12345" followed by "(678.90)"
         if i + 1 >= len(tokens):
             break
         next_tok = tokens[i + 1]
 
-        avg_value = None
-        # Pattern case 1: sum(avg) in one token
-        m = re.match(r"^\d+\(([-+]?[0-9]*\.?[0-9]+)\)$", next_tok)
+        avg_cycles = None
+        avg_us = None
+
+        # Case 1: "1234(5.67)"
+        m = re.match(r"^(\d+)\(([-+]?[0-9]*\.?[0-9]+)\)$", next_tok)
         if m:
-            avg_value = float(m.group(1))
+            avg_cycles = float(m.group(1))
+            avg_us = float(m.group(2))
             i += 2
         else:
-            # Pattern case 2: sum and then a separate "(avg)" token
+            # Case 2: "1234" "(5.67)"
             if i + 2 < len(tokens):
-                m2 = re.match(r"^\(([-+]?[0-9]*\.?[0-9]+)\)$", tokens[i + 2])
-                if re.match(r"^\d+$", next_tok) and m2:
-                    avg_value = float(m2.group(1))
+                m_cycles = re.match(r"^(\d+)$", next_tok)
+                m_us = re.match(r"^\(([-+]?[0-9]*\.?[0-9]+)\)$", tokens[i + 2])
+                if m_cycles and m_us:
+                    avg_cycles = float(m_cycles.group(1))
+                    avg_us = float(m_us.group(1))
                     i += 3
                 else:
-                    # Unable to parse this op group; advance 1 to avoid infinite loop
                     i += 1
                     continue
             else:
                 i += 1
                 continue
 
-        op_avgs[op] = avg_value
+        op_metrics[op] = { 'avg_cycles': avg_cycles, 'avg_us': avg_us }
 
-    return op_avgs
+    return op_metrics
 
 def analyze_operation_avgs_directory(out_dir):
     """
@@ -239,32 +239,32 @@ def analyze_operation_avgs_directory(out_dir):
 
     txt_files = list(out_path.glob("*.txt"))
 
-    # Collect all averages per op across all cores and files
-    op_to_avgs = {}
+    # Collect all averages per op across all cores and files (microseconds)
+    op_to_us_avgs = {}
 
     for file_path in txt_files:
         try:
             with open(file_path, 'r') as f:
                 for line in f:
-                    op_avgs = parse_operation_avgs_from_line(line)
-                    if not op_avgs:
+                    metrics = parse_operation_metrics_from_line(line)
+                    if not metrics:
                         continue
-                    for op, avg in op_avgs.items():
-                        op_to_avgs.setdefault(op, []).append(avg)
+                    for op, vals in metrics.items():
+                        op_to_us_avgs.setdefault(op, []).append(vals['avg_us'])
         except Exception as e:
             print(f"Error reading {file_path}: {e}")
 
-    # Compute mean of averages per op
-    op_mean_avgs = {op: float(np.mean(vals)) for op, vals in op_to_avgs.items() if vals}
+    # Compute mean of averages per op (microseconds)
+    op_mean_avgs = {op: float(np.mean(vals)) for op, vals in op_to_us_avgs.items() if vals}
 
     if op_mean_avgs:
-        print("\nOperation average cycles across all cores/files:")
+        print("\nOperation average microseconds across all cores/files:")
         for op, avg in sorted(op_mean_avgs.items()):
-            print(f"  {op}: {avg:.2f}")
+            print(f"  {op}: {avg:.2f} us")
 
     return op_mean_avgs
 
-def create_operation_avg_plot(op_mean_avgs, output_file="operation_avg_cycles_plot.png"):
+def create_operation_avg_plot(op_mean_avgs, output_file="operation_avg_us_plot.png"):
     """
     Create and save a bar chart of average cycles per operation (averaged across cores).
 
@@ -288,8 +288,8 @@ def create_operation_avg_plot(op_mean_avgs, output_file="operation_avg_cycles_pl
     fig, ax = plt.subplots(figsize=(12, 8))
     ax.bar(ops, values, color=colors, alpha=0.85)
     ax.set_xlabel('Operation', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Average Cycles', fontsize=12, fontweight='bold')
-    ax.set_title('Average Cycles per Operation (Averaged Across Cores)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Average Microseconds', fontsize=12, fontweight='bold')
+    ax.set_title('Average Microseconds per Operation (Averaged Across Cores)', fontsize=14, fontweight='bold')
     ax.grid(True, axis='y', alpha=0.3)
     plt.xticks(rotation=30, ha='right')
     plt.tight_layout()
@@ -299,7 +299,7 @@ def create_operation_avg_plot(op_mean_avgs, output_file="operation_avg_cycles_pl
 
 def analyze_operation_avgs_per_file(out_dir):
     """
-    Compute per-file (core-count) average cycles per operation.
+    Compute per-file (core-count) average microseconds per operation, and also keep cycles for denominator use.
 
     For each file, we average the per-core averages of each operation,
     resulting in: cores -> { op: mean_avg_cycles }.
@@ -313,7 +313,8 @@ def analyze_operation_avgs_per_file(out_dir):
         return {}
 
     txt_files = list(out_path.glob("*.txt"))
-    per_file_op_avgs = {}
+    per_file_op_us_avgs = {}
+    per_file_op_cycle_avgs = {}
 
     for file_path in txt_files:
         # Extract number of cores from filename (e.g., "2.txt" -> 2)
@@ -323,34 +324,37 @@ def analyze_operation_avgs_per_file(out_dir):
             print(f"Warning: Could not extract core count from filename {file_path.name}")
             continue
 
-        op_to_vals = {}
+        op_to_us_vals = {}
+        op_to_cycle_vals = {}
         try:
             with open(file_path, 'r') as f:
                 for line in f:
-                    op_avgs = parse_operation_avgs_from_line(line)
-                    if not op_avgs:
+                    metrics = parse_operation_metrics_from_line(line)
+                    if not metrics:
                         continue
-                    for op, avg in op_avgs.items():
-                        op_to_vals.setdefault(op, []).append(avg)
+                    for op, vals in metrics.items():
+                        op_to_us_vals.setdefault(op, []).append(vals['avg_us'])
+                        op_to_cycle_vals.setdefault(op, []).append(vals['avg_cycles'])
         except Exception as e:
             print(f"Error reading {file_path}: {e}")
             continue
 
         # Mean per op for this file
-        per_file_op_avgs[cores] = {op: float(np.mean(vals)) for op, vals in op_to_vals.items() if vals}
+        per_file_op_us_avgs[cores] = {op: float(np.mean(vals)) for op, vals in op_to_us_vals.items() if vals}
+        per_file_op_cycle_avgs[cores] = {op: float(np.mean(vals)) for op, vals in op_to_cycle_vals.items() if vals}
 
-    if per_file_op_avgs:
-        print("\nPer-file operation averages:")
-        for cores, op_map in sorted(per_file_op_avgs.items()):
-            ops_str = ", ".join(f"{op}:{avg:.2f}" for op, avg in sorted(op_map.items()))
+    if per_file_op_us_avgs:
+        print("\nPer-file operation averages (us):")
+        for cores, op_map in sorted(per_file_op_us_avgs.items()):
+            ops_str = ", ".join(f"{op}:{avg:.2f}us" for op, avg in sorted(op_map.items()))
             print(f"  {cores}: {ops_str}")
 
-    return per_file_op_avgs
+    return per_file_op_us_avgs, per_file_op_cycle_avgs
 
-def create_operation_avg_plot_by_file(per_file_op_avgs, output_file="operation_avg_cycles_plot.png"):
+def create_operation_avg_plot_by_file(per_file_op_avgs, output_file="operation_avg_us_plot.png"):
     """
     Create and save a plot where the x-axis is the file name (core count),
-    and each operation is a colored line showing average cycles per core count.
+    and each operation is a colored line showing average microseconds per core count.
 
     Args:
         per_file_op_avgs (dict[int, dict[str, float]]): cores -> { op: avg }
@@ -375,8 +379,8 @@ def create_operation_avg_plot_by_file(per_file_op_avgs, output_file="operation_a
         ax.plot(cores, y_vals, marker='o', linewidth=2, markersize=8, color=colors[op], label=op, alpha=0.85)
 
     ax.set_xlabel('Cores (from filename)', fontsize=12, fontweight='bold')
-    ax.set_ylabel('Average Cycles', fontsize=12, fontweight='bold')
-    ax.set_title('Average Cycles per Operation by Core Count', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Average Microseconds', fontsize=12, fontweight='bold')
+    ax.set_title('Average Microseconds per Operation by Core Count', fontsize=14, fontweight='bold')
     ax.legend(fontsize=11)
     ax.grid(True, alpha=0.3)
     ax.set_xticks(cores)
@@ -393,6 +397,226 @@ def create_operation_avg_plot_by_file(per_file_op_avgs, output_file="operation_a
     print(f"Plot saved as {output_file}")
     plt.show()
 
+def parse_lock_wait_stats(file_path):
+    """
+    Parse the lock timing statistics section to extract avg wait cycles for write/read locks.
+
+    Returns:
+        dict: { 'write_avg_cycles': float or 0.0, 'read_avg_cycles': float or 0.0 }
+    """
+    write_avg = 0.0
+    read_avg = 0.0
+    try:
+        with open(file_path, 'r') as f:
+            for line in f:
+                m_w = re.search(r"Group list write lock:\s*avg\s*(\d+)\s*cycles", line)
+                if m_w:
+                    write_avg = float(m_w.group(1))
+                m_r = re.search(r"Group list read lock:\s*avg\s*(\d+)\s*cycles", line)
+                if m_r:
+                    read_avg = float(m_r.group(1))
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+    return { 'write_avg_cycles': write_avg, 'read_avg_cycles': read_avg }
+
+def compute_wait_percentages(out_dir):
+    """
+    For each file (core count), compute the percentage of cycles per operation spent waiting
+    for locks, split into read and write, using stacked components.
+
+    We define baseline avg cycles per operation as the mean of per-operation avg cycles
+    from the "cycles:" lines in that file.
+
+    Returns:
+        dict[int, dict[str, float]]: cores -> { 'read_pct': float, 'write_pct': float }
+    """
+    out_path = Path(out_dir)
+    txt_files = list(out_path.glob("*.txt"))
+    percentages = {}
+
+    for file_path in txt_files:
+        try:
+            cores = int(file_path.stem)
+        except ValueError:
+            continue
+
+        # Gather avg cycles per op
+        avg_cycles_values = []
+        try:
+            with open(file_path, 'r') as f:
+                for line in f:
+                    metrics = parse_operation_metrics_from_line(line)
+                    if not metrics:
+                        continue
+                    for vals in metrics.values():
+                        avg_cycles_values.append(vals['avg_cycles'])
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+            continue
+
+        baseline_cycles = float(np.mean(avg_cycles_values)) if avg_cycles_values else 0.0
+
+        waits = parse_lock_wait_stats(file_path)
+        write_avg = waits['write_avg_cycles']
+        read_avg = waits['read_avg_cycles']
+
+        if baseline_cycles <= 0.0:
+            read_pct = 0.0
+            write_pct = 0.0
+        else:
+            read_pct = max(0.0, min(1.0, read_avg / baseline_cycles))
+            write_pct = max(0.0, min(1.0, write_avg / baseline_cycles))
+
+        percentages[cores] = { 'read_pct': read_pct, 'write_pct': write_pct }
+
+    if percentages:
+        print("\nPer-core wait percentages (of cycles per op):")
+        for cores, p in sorted(percentages.items()):
+            print(f"  {cores}: read {p['read_pct']*100:.1f}%, write {p['write_pct']*100:.1f}%")
+
+    return percentages
+
+def create_wait_stacked_bar(percentages_by_core, output_file="wait_pct_stacked_by_core.png"):
+    """
+    Create a stacked bar chart per core showing percentage of cycles per operation spent waiting
+    for read vs write lock.
+    """
+    if not percentages_by_core:
+        print("No wait percentage data to plot")
+        return
+
+    cores = sorted(percentages_by_core.keys())
+    read_pcts = [percentages_by_core[c]['read_pct'] * 100.0 for c in cores]
+    write_pcts = [percentages_by_core[c]['write_pct'] * 100.0 for c in cores]
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.bar(cores, read_pcts, label='Read wait %')
+    ax.bar(cores, write_pcts, bottom=read_pcts, label='Write wait %')
+
+    ax.set_xlabel('Cores (from filename)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Percent of cycles per operation spent waiting', fontsize=12, fontweight='bold')
+    ax.set_title('Lock Wait Percentage by Core (Stacked Read/Write)', fontsize=14, fontweight='bold')
+    ax.set_xticks(cores)
+    ax.set_xticklabels([str(c) for c in cores])
+    ax.set_ylim(0, 100)
+    ax.grid(True, axis='y', alpha=0.3)
+
+    ax.legend(fontsize=11)
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    print(f"Plot saved as {output_file}")
+    plt.show()
+
+def load_waits_by_core(out_dir):
+    """
+    Load read/write avg wait cycles for each core (file).
+
+    Returns:
+        dict[int, dict[str, float]]: cores -> { 'read_avg': float, 'write_avg': float }
+    """
+    out_path = Path(out_dir)
+    txt_files = list(out_path.glob("*.txt"))
+    waits_by_core = {}
+    for file_path in txt_files:
+        try:
+            cores = int(file_path.stem)
+        except ValueError:
+            continue
+        waits = parse_lock_wait_stats(file_path)
+        waits_by_core[cores] = {
+            'read_avg': waits['read_avg_cycles'],
+            'write_avg': waits['write_avg_cycles'],
+        }
+    return waits_by_core
+
+def create_wait_grouped_stacked_by_core(per_file_op_cycle_avgs, waits_by_core, output_file="wait_grouped_cycles_by_core.png"):
+    """
+    For each core, draw one bar per operation where bar height is avg cycles for that op.
+    Each bar is stacked: write-wait, read-wait, other (remaining cycles).
+    """
+    if not per_file_op_cycle_avgs:
+        print("No per-op cycle averages to plot")
+        return
+
+    cores = sorted(per_file_op_cycle_avgs.keys())
+    # Determine union of ops across all cores
+    ops = sorted({op for c in cores for op in per_file_op_cycle_avgs[c].keys()})
+
+    # Visual layout params
+    num_ops = len(ops)
+    bar_width = 0.7 / max(1, num_ops)  # total group width ~0.7
+
+    # Colors
+    write_color = '#d62728'  # red-ish
+    read_color = '#1f77b4'   # blue-ish
+    other_color = '#2ca02c'  # green-ish
+
+    fig, ax = plt.subplots(figsize=(14, 8))
+
+    # X positions per core group
+    x_indices = np.arange(len(cores))
+
+    xtick_positions = []
+    xtick_labels = []
+
+    for op_idx, op in enumerate(ops):
+        # Compute stacked components for each core
+        total_vals = []
+        write_vals = []
+        read_vals = []
+        other_vals = []
+
+        for core in cores:
+            total = float(per_file_op_cycle_avgs.get(core, {}).get(op, 0.0))
+            waits = waits_by_core.get(core, {'read_avg': 0.0, 'write_avg': 0.0})
+            write_wait = min(waits['write_avg'], total) if total > 0 else 0.0
+            remaining = total - write_wait
+            read_wait = min(waits['read_avg'], remaining) if remaining > 0 else 0.0
+            other = max(total - (write_wait + read_wait), 0.0)
+
+            total_vals.append(total)
+            write_vals.append(write_wait)
+            read_vals.append(read_wait)
+            other_vals.append(other)
+
+        # Bar positions offset per op within each core group
+        positions = x_indices - 0.35 + (op_idx + 0.5) * bar_width
+
+        # Draw stacked bars: first write, then read, then other on top
+        ax.bar(positions, write_vals, width=bar_width, color=write_color, label='Write wait' if op_idx == 0 else None)
+        ax.bar(positions, read_vals, width=bar_width, bottom=write_vals, color=read_color, label='Read wait' if op_idx == 0 else None)
+        ax.bar(positions, other_vals, width=bar_width, bottom=np.array(write_vals) + np.array(read_vals), color=other_color, label='Other' if op_idx == 0 else None)
+
+        # Operation labels above each group's middle can clutter; rely on legend and x-ticks
+        for pos, core in zip(positions, cores):
+            xtick_positions.append(pos)
+            xtick_labels.append(f"{core}\n{op}")
+
+    ax.set_xlabel('Cores (from filename)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Average cycles per operation', fontsize=12, fontweight='bold')
+    ax.set_title('Per-Core Per-Operation Cycles with Wait Breakdown', fontsize=14, fontweight='bold')
+    # Label each bar by core and operation (two-line label)
+    ax.set_xticks(xtick_positions)
+    ax.set_xticklabels(xtick_labels)
+    ax.grid(True, axis='y', alpha=0.3)
+
+    # Build a second legend for ops using proxy artists (thin lines) to avoid clutter; instead, annotate on x-axis?
+    # To keep it simple, show only wait categories in legend.
+    handles, labels = ax.get_legend_handles_labels()
+    # Deduplicate labels
+    uniq = []
+    seen = set()
+    for h, l in zip(handles, labels):
+        if l and l not in seen:
+            uniq.append((h, l))
+            seen.add(l)
+    ax.legend([h for h, _ in uniq], [l for _, l in uniq], fontsize=11)
+
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    print(f"Plot saved as {output_file}")
+    plt.show()
+
 def main():
     """Main function to run the analysis."""
     # Get the directory containing this script
@@ -400,26 +624,16 @@ def main():
     out_dir = script_dir / "out"
     
     print(f"Analyzing output files in: {out_dir}")
-    
-    # Analyze the output files
-    data = analyze_output_directory(out_dir)
-    
-    if not data:
-        print("No valid data found. Exiting.")
-        return
-    
-    print(f"\nFound data for {len(data)} core configurations:")
-    for cores, failures in data.items():
-        print(f"  {cores} cores: {failures}")
-    
-    # Create and save the lock failures plot
-    output_file = script_dir / "lock_failures_plot.png"
-    create_plot(data, str(output_file))
 
-    # Compute and plot per-operation average cycles with x-axis as filename (cores)
-    per_file_op_avgs = analyze_operation_avgs_per_file(out_dir)
-    op_plot_file = script_dir / "operation_avg_cycles_plot.png"
-    create_operation_avg_plot_by_file(per_file_op_avgs, str(op_plot_file))
+    # Compute and plot per-operation average microseconds with x-axis as filename (cores)
+    per_file_op_us_avgs, per_file_op_cycle_avgs = analyze_operation_avgs_per_file(out_dir)
+    op_plot_file = script_dir / "operation_avg_us_plot.png"
+    create_operation_avg_plot_by_file(per_file_op_us_avgs, str(op_plot_file))
+
+    # Compute and plot grouped stacked bars per core per op (in cycles)
+    waits_by_core = load_waits_by_core(out_dir)
+    grouped_plot_file = script_dir / "wait_grouped_cycles_by_core.png"
+    create_wait_grouped_stacked_by_core(per_file_op_cycle_avgs, waits_by_core, str(grouped_plot_file))
 
 if __name__ == "__main__":
     main()

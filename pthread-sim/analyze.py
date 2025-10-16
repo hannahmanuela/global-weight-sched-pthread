@@ -529,6 +529,76 @@ def load_waits_by_core(out_dir):
         }
     return waits_by_core
 
+def analyze_lock_avgs_per_file(out_dir):
+    """
+    Analyze all output files to collect average lock wait cycles (read/write) per core-count file.
+
+    Returns:
+        dict[int, dict[str, float]]: cores -> { 'read': float, 'write': float }
+    """
+    out_path = Path(out_dir)
+    txt_files = list(out_path.glob("*.txt"))
+    per_file_lock_avgs = {}
+
+    for file_path in txt_files:
+        try:
+            cores = int(file_path.stem)
+        except ValueError:
+            continue
+        waits = parse_lock_wait_stats(file_path)
+        per_file_lock_avgs[cores] = {
+            'read': waits.get('read_avg_cycles', 0.0),
+            'write': waits.get('write_avg_cycles', 0.0),
+        }
+
+    if per_file_lock_avgs:
+        print("\nPer-file lock avg wait cycles:")
+        for cores, vals in sorted(per_file_lock_avgs.items()):
+            print(f"  {cores}: read {vals['read']:.1f} cycles, write {vals['write']:.1f} cycles")
+
+    return per_file_lock_avgs
+
+def create_lock_avg_cycles_plot_by_file(per_file_lock_avgs, output_file="lock_avg_cycles_plot.png"):
+    """
+    Create a line plot where x-axis is core count (from filename) and y-axis is average
+    lock wait cycles, one line for read and one for write.
+    """
+    if not per_file_lock_avgs:
+        print("No lock averages to plot")
+        return
+
+    cores = sorted(per_file_lock_avgs.keys())
+    read_vals = [per_file_lock_avgs[c].get('read', 0.0) for c in cores]
+    write_vals = [per_file_lock_avgs[c].get('write', 0.0) for c in cores]
+
+    # Colors from the matplotlib color cycle
+    color_cycle = plt.rcParams['axes.prop_cycle'].by_key().get('color', [])
+    read_color = color_cycle[0] if color_cycle else '#1f77b4'
+    write_color = color_cycle[1] if len(color_cycle) > 1 else '#d62728'
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.plot(cores, read_vals, marker='o', linewidth=2, markersize=8, color=read_color, label='Read lock avg cycles', alpha=0.85)
+    ax.plot(cores, write_vals, marker='o', linewidth=2, markersize=8, color=write_color, label='Write lock avg cycles', alpha=0.85)
+
+    ax.set_xlabel('Cores (from filename)', fontsize=12, fontweight='bold')
+    ax.set_ylabel('Average Lock Wait Cycles', fontsize=12, fontweight='bold')
+    ax.set_title('Average Lock Wait Cycles by Core Count', fontsize=14, fontweight='bold')
+    ax.legend(fontsize=11)
+    ax.grid(True, alpha=0.3)
+    ax.set_xticks(cores)
+    ax.set_xticklabels([str(c) for c in cores])
+
+    try:
+        max_val = max(read_vals + write_vals)
+    except ValueError:
+        max_val = 0.0
+    ax.set_ylim(0, max_val * 1.1 if max_val > 0 else 1)
+
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    print(f"Plot saved as {output_file}")
+    plt.show()
+
 def create_wait_grouped_stacked_by_core(per_file_op_cycle_avgs, waits_by_core, output_file="wait_grouped_cycles_by_core.png"):
     """
     For each core, draw one bar per operation where bar height is avg cycles for that op.
@@ -630,10 +700,10 @@ def main():
     op_plot_file = script_dir / "operation_avg_us_plot.png"
     create_operation_avg_plot_by_file(per_file_op_us_avgs, str(op_plot_file))
 
-    # Compute and plot grouped stacked bars per core per op (in cycles)
-    waits_by_core = load_waits_by_core(out_dir)
-    grouped_plot_file = script_dir / "wait_grouped_cycles_by_core.png"
-    create_wait_grouped_stacked_by_core(per_file_op_cycle_avgs, waits_by_core, str(grouped_plot_file))
+    # Instead of grouped stacked bars, plot lock avg wait cycles vs core count
+    per_file_lock_avgs = analyze_lock_avgs_per_file(out_dir)
+    lock_plot_file = script_dir / "lock_avg_cycles_plot.png"
+    create_lock_avg_cycles_plot_by_file(per_file_lock_avgs, str(lock_plot_file))
 
 if __name__ == "__main__":
     main()

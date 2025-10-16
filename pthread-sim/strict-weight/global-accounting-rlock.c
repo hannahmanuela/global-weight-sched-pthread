@@ -14,7 +14,7 @@
 #include <sys/resource.h>
 #include <stdatomic.h>
 
-// #define TRACE
+#define TRACE
 // #define ASSERTS
 // #define ASSERTS_SINGLE_WORKER
 
@@ -167,33 +167,21 @@ void print_core(struct core_state *c) {
 	       c->yield_us, 1.0*c->yield_us/c->nyield);
 }
 
-void trace_schedule(int process_id, int group_id, int prev_group_id, int core_id) {
+void trace_schedule(long cycles, long us) {
 #ifdef TRACE
-    pthread_mutex_lock(&log_lock);
-    FILE *f = fopen("event_log.txt", "a");
-    fprintf(f, "scheduled process %d of group %d on core %d, group changed %d\n", process_id, group_id, core_id, group_id != prev_group_id);
-    fclose(f);
-    pthread_mutex_unlock(&log_lock);
+    printf("sched,%ld,%ld\n", cycles, us);
 #endif
 }
 
-void trace_yield(int process_id, int group_id, int core_id) {
+void trace_yield(long cycles, long us) {
 #ifdef TRACE
-    pthread_mutex_lock(&log_lock);
-    FILE *f = fopen("event_log.txt", "a");
-    fprintf(f, "dequeued process %d of group %d from core %d\n", process_id, group_id, core_id);
-    fclose(f);
-    pthread_mutex_unlock(&log_lock);
+    printf("yield,%ld,%ld\n", cycles, us);
 #endif
 }
 
-void trace_enqueue(int process_id, int group_id, int core_id) {
+void trace_enqueue(long cycles, long us) {
 #ifdef TRACE
-    pthread_mutex_lock(&log_lock);
-    FILE *f = fopen("event_log.txt", "a");
-    fprintf(f, "enqueued process %d of group %d on core %d\n", process_id, group_id, core_id);
-    fclose(f);
-    pthread_mutex_unlock(&log_lock);
+    printf("enq,%ld,%ld\n", cycles, us);
 #endif
 }
 
@@ -712,9 +700,11 @@ void *run_core(void* core_num_ptr) {
 	    int ts = safe_read_tsc();
 	    schedule(mycore, gs->glist, tick_length, 1);
         // print_global_state();
-        mycore->sched_cycles += safe_read_tsc() - ts;
+        long sched_cycles = safe_read_tsc() - ts;
+        mycore->sched_cycles += sched_cycles;
         gettimeofday(&end, NULL);
-        mycore->sched_us += (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+        long sched_us = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+        mycore->sched_us += sched_us;
 	    mycore->nsched += 1;
 
         if (mycore->current_process) {
@@ -722,7 +712,7 @@ void *run_core(void* core_num_ptr) {
             // assert_threads_queued_correct(mycore->current_process->group);
         }
 	    struct process *next_running_process = mycore->current_process;
-	    trace_schedule(next_running_process ? next_running_process->process_id : -1, next_running_process ? next_running_process->group->group_id : -1, prev_running_process ? prev_running_process->group->group_id : -1, core_id);
+	    trace_schedule(sched_cycles, sched_us);
 
 	    usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
@@ -744,13 +734,15 @@ void *run_core(void* core_num_ptr) {
 		    int ts = safe_read_tsc();
 		    enqueue(gs->glist, p, 1);
             // print_global_state();
-            mycore->enq_cycles += safe_read_tsc() - ts;
+            long enq_cycles = safe_read_tsc() - ts;
+            mycore->enq_cycles += enq_cycles;
             gettimeofday(&end, NULL);
-            mycore->enq_us += (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+            long enq_us = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+            mycore->enq_us += enq_us;
 		    mycore->nenq += 1;
 
             assert_p_in_group(p, p->group);
-		    trace_enqueue(p->process_id, p->group->group_id, core_id);
+		    trace_enqueue(enq_cycles, enq_us);
 		    usleep(tick_length);
 		    break;
 	    case 2: // Yield core
@@ -762,15 +754,17 @@ void *run_core(void* core_num_ptr) {
 		    ts = safe_read_tsc();
 		    // XXX should 1/2 tick_length?
 		    yield(mycore, gs->glist, p, tick_length);
-            mycore->yield_cycles += safe_read_tsc() - ts;
+            long yield_cycles = safe_read_tsc() - ts;
+            mycore->yield_cycles += yield_cycles;
             gettimeofday(&end, NULL);
-            mycore->yield_us += (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+            long yield_us = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
+            mycore->yield_us += yield_us;
 		    mycore->nyield += 1;
 
             // print_global_state();
 
             assert_p_not_in_group(p, p->group);
-		    trace_yield(p->process_id, p->group->group_id, core_id);
+		    trace_yield(yield_cycles, yield_us);
 		    p->next = pool;
 		    pool = p;
 		    usleep((int)(tick_length / 2));
@@ -839,25 +833,23 @@ void main(int argc, char *argv[]) {
         // usleep(200);
     }
 
-    printf("results for %d cores %d us tick, %d groups\n",  num_cores, tick_length, num_groups);
     for (int i = 0; i < num_cores; i++) {
         pthread_join(threads[i], NULL);
-	    print_core(&(gs->cores[i]));
     }
     // TODO: um I don't unregister the groups for now
 
     // Print lock timing statistics
-    printf("\nLock timing statistics:\n");
-    if (gs->glist->num_times_wr_group_list_locked > 0) {
-        printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-               gs->glist->wait_for_wr_group_list_lock_cycles / gs->glist->num_times_wr_group_list_locked,
-               gs->glist->wait_for_wr_group_list_lock_cycles, gs->glist->num_times_wr_group_list_locked);
-    }
-    if (gs->glist->num_times_rd_group_list_locked > 0) {
-        printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-               gs->glist->wait_for_rd_group_list_lock_cycles / gs->glist->num_times_rd_group_list_locked,
-               gs->glist->wait_for_rd_group_list_lock_cycles, gs->glist->num_times_rd_group_list_locked);
-    }
+    // printf("\nLock timing statistics:\n");
+    // if (gs->glist->num_times_wr_group_list_locked > 0) {
+    //     printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+    //            gs->glist->wait_for_wr_group_list_lock_cycles / gs->glist->num_times_wr_group_list_locked,
+    //            gs->glist->wait_for_wr_group_list_lock_cycles, gs->glist->num_times_wr_group_list_locked);
+    // }
+    // if (gs->glist->num_times_rd_group_list_locked > 0) {
+    //     printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+    //            gs->glist->wait_for_rd_group_list_lock_cycles / gs->glist->num_times_rd_group_list_locked,
+    //            gs->glist->wait_for_rd_group_list_lock_cycles, gs->glist->num_times_rd_group_list_locked);
+    // }
 
 }
 #endif // UNIT_TEST

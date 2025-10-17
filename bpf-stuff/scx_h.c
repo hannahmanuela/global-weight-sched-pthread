@@ -71,6 +71,7 @@ restart:
 
     while (!exit_req && !UEI_EXITED(skel, uei)) {
         sleep(1);
+        printf("running\n");
     }
 
     bpf_link__destroy(link);

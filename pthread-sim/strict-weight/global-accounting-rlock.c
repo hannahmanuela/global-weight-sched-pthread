@@ -68,9 +68,9 @@ struct core_state {
 	long enq_cycles;
     long yield_us;
 	long yield_cycles;
-	int nsched;
-	int nenq;
-	int nyield;
+	long nsched;
+	long nenq;
+	long nyield;
 } __attribute__((aligned(64)));
 
 struct group_list {
@@ -160,11 +160,11 @@ void timed_pthread_rwlock_rdlock_group_list(pthread_rwlock_t *lock) {
 }
 
 void print_core(struct core_state *c) {
-	printf("%ld cycles: sched %ld(%0.2f) enq %ld(%0.2f) yield %ld (%0.2f)\n",
+	printf("%ld %us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)\n",
 	       c - gs->cores,
-	       c->sched_us, 1.0*c->sched_us/c->nsched,
-	       c->enq_us, 1.0*c->enq_us/c->nenq,
-	       c->yield_us, 1.0*c->yield_us/c->nyield);
+	       c->nsched, 1.0*c->sched_us/c->nsched, 1.0*c->sched_cycles/c->nsched,
+	       c->nenq, 1.0*c->enq_us/c->nenq, 1.0*c->enq_us/c->nenq,
+	       c->nyield, 1.0*c->yield_us/c->nyield, 1.0*c->yield_us/c->nyield);
 }
 
 void trace_schedule(long cycles, long us) {

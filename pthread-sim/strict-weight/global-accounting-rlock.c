@@ -14,7 +14,7 @@
 #include <sys/resource.h>
 #include <stdatomic.h>
 
-#define TRACE
+//#define TRACE
 // #define ASSERTS
 // #define ASSERTS_SINGLE_WORKER
 
@@ -135,9 +135,9 @@ struct group *create_group(int id, int weight) {
 // for run_core
 // ================
 
-int safe_read_tsc() {
+long safe_read_tsc() {
     _mm_lfence();
-    int ret_val = _rdtsc();
+    long ret_val = _rdtsc();
     _mm_lfence();
     return ret_val;
 }
@@ -697,7 +697,7 @@ void *run_core(void* core_num_ptr) {
 	    struct process *prev_running_process = mycore->current_process;
 
         gettimeofday(&start, NULL);
-	    int ts = safe_read_tsc();
+	    long ts = safe_read_tsc();
 	    schedule(mycore, gs->glist, tick_length, 1);
         // print_global_state();
         long sched_cycles = safe_read_tsc() - ts;
@@ -731,7 +731,7 @@ void *run_core(void* core_num_ptr) {
 		    p->next = NULL;
             
             gettimeofday(&start, NULL);
-		    int ts = safe_read_tsc();
+		    long ts = safe_read_tsc();
 		    enqueue(gs->glist, p, 1);
             // print_global_state();
             long enq_cycles = safe_read_tsc() - ts;
@@ -835,21 +835,22 @@ void main(int argc, char *argv[]) {
 
     for (int i = 0; i < num_cores; i++) {
         pthread_join(threads[i], NULL);
+	print_core(&gs->cores[i]);
     }
     // TODO: um I don't unregister the groups for now
 
-    // Print lock timing statistics
-    // printf("\nLock timing statistics:\n");
-    // if (gs->glist->num_times_wr_group_list_locked > 0) {
-    //     printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-    //            gs->glist->wait_for_wr_group_list_lock_cycles / gs->glist->num_times_wr_group_list_locked,
-    //            gs->glist->wait_for_wr_group_list_lock_cycles, gs->glist->num_times_wr_group_list_locked);
-    // }
-    // if (gs->glist->num_times_rd_group_list_locked > 0) {
-    //     printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-    //            gs->glist->wait_for_rd_group_list_lock_cycles / gs->glist->num_times_rd_group_list_locked,
-    //            gs->glist->wait_for_rd_group_list_lock_cycles, gs->glist->num_times_rd_group_list_locked);
-    // }
+    //Print lock timing statistics
+    printf("\nLock timing statistics:\n");
+    if (gs->glist->num_times_wr_group_list_locked > 0) {
+        printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+               gs->glist->wait_for_wr_group_list_lock_cycles / gs->glist->num_times_wr_group_list_locked,
+               gs->glist->wait_for_wr_group_list_lock_cycles, gs->glist->num_times_wr_group_list_locked);
+    }
+    if (gs->glist->num_times_rd_group_list_locked > 0) {
+        printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+               gs->glist->wait_for_rd_group_list_lock_cycles / gs->glist->num_times_rd_group_list_locked,
+               gs->glist->wait_for_rd_group_list_lock_cycles, gs->glist->num_times_rd_group_list_locked);
+    }
 
 }
 #endif // UNIT_TEST

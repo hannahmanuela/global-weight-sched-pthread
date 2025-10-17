@@ -668,109 +668,110 @@ void yield(struct core_state *core, struct group_list *gl, struct process *p, in
 // =========================================================================
 // =========================================================================
 
+long us_since(struct timeval *start) {
+	struct timeval end;
+	gettimeofday(&end, NULL);
+	long us = (end.tv_sec * 1000000 + end.tv_usec) - (start->tv_sec * 1000000 + start->tv_usec);
+	return us;
+}
+
+#define SCHED 0
+#define ENQ 1
+#define YIELD 2
+
+void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, struct process *p) {
+	struct timeval start;
+	gettimeofday(&start, NULL);
+	long ts = safe_read_tsc();
+	switch(op) {
+	case SCHED:
+		schedule(mycore, gs->glist, tick_length, 1);
+		break;
+	case ENQ:
+	        enqueue(gs->glist, p, 1);
+		break;
+	case YIELD:
+		yield(mycore, gs->glist, p, tick_length);
+		break;
+	}
+	long op_cycles = safe_read_tsc() - ts;
+	long op_us = us_since(&start);
+	*cycles += op_cycles;
+	*us += op_us;
+	*n += 1;
+}
+
+// randomly choose to: "run" for the full tick, "enq" a new process, or "deq" something
+void choose(struct core_state *mycore, struct process **pool) {
+	int choice = rand() % 3;
+	switch(choice) {
+	case 0: // Run for full tick
+		return;
+	case 1: // Make a process runnable
+		// pick an exisitng process from the pool?
+		struct process *p = *pool;
+		if (!p) {
+			return;
+		}
+		*pool = p->next;
+		p->next = NULL;
+
+		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
+
+		assert_p_in_group(p, p->group);
+		//trace_enqueue(enq_cycles, enq_us);
+		usleep(tick_length);
+		break;
+	case 2: // Yield core
+		p = mycore->current_process;
+		if (!p) {
+			return;
+		}
+		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, p);
+		// XXX should 1/2 tick_length?
+		// print_global_state();
+
+		assert_p_not_in_group(p, p->group);
+		// trace_yield(yield_cycles, yield_us);
+		p->next = *pool;
+		*pool = p;
+		usleep((int)(tick_length / 2));
+	}
+}
 
 void *run_core(void* core_num_ptr) {
-    int core_id = (int)core_num_ptr;
-    struct core_state *mycore = &(gs->cores[core_id]);
+	int core_id = (int)core_num_ptr;
+	struct core_state *mycore = &(gs->cores[core_id]);
 
-    struct process *pool = NULL;
+	struct process *pool = NULL;
 
-    // pin to an actual core
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(core_id, &cpuset);
-    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+	// pin to an actual core
+	cpu_set_t cpuset;
+	CPU_ZERO(&cpuset);
+	CPU_SET(core_id, &cpuset);
+	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 
-    struct timespec start_wall, end_wall;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start_wall);
+	struct timeval start_exp;
+	gettimeofday(&start_exp, NULL);
 
-    struct timeval start, end;
+	int cont = 1;
+	while (us_since(&start_exp) < TIME_TO_RUN) {
+		struct process *prev_running_process = mycore->current_process;
 
-    int cont = 1;
-    while (cont) {
-	    clock_gettime(CLOCK_MONOTONIC_RAW, &end_wall);
-	    long long wall_us = (end_wall.tv_sec - start_wall.tv_sec) * 1000000LL + (end_wall.tv_nsec - start_wall.tv_nsec) / 1000;
-	    if (wall_us > TIME_TO_RUN) {
-		    cont = 0;
-	    }
+		// print_global_state();
 
-	    struct process *prev_running_process = mycore->current_process;
+		doop(mycore, SCHED, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
+		if (mycore->current_process) {
+			assert_thread_counts_correct(mycore->current_process->group, mycore);
+			// assert_threads_queued_correct(mycore->current_process->group);
+		}
+		struct process *next_running_process = mycore->current_process;
+		// trace_schedule(sched_cycles, sched_us);
 
-        gettimeofday(&start, NULL);
-	    long ts = safe_read_tsc();
-	    schedule(mycore, gs->glist, tick_length, 1);
-        // print_global_state();
-        long sched_cycles = safe_read_tsc() - ts;
-        mycore->sched_cycles += sched_cycles;
-        gettimeofday(&end, NULL);
-        long sched_us = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
-        mycore->sched_us += sched_us;
-	    mycore->nsched += 1;
+		usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
-        if (mycore->current_process) {
-            assert_thread_counts_correct(mycore->current_process->group, mycore);
-            // assert_threads_queued_correct(mycore->current_process->group);
-        }
-	    struct process *next_running_process = mycore->current_process;
-	    trace_schedule(sched_cycles, sched_us);
-
-	    usleep(tick_length);   // XXX should this be in choice == 0 branch?
-
-	    // randomly choose to: "run" for the full tick, "enq" a new process, or "deq" something
-	    int choice = rand() % 3;
-	    switch(choice) {
-	    case 0: // Run for full tick
-		    continue;
-	    case 1: // Make a process runnable
-		    // pick an exisitng process from the pool?
-		    struct process *p = pool;
-		    if (!p) {
-			    continue;
-		    }
-		    pool = p->next;
-		    p->next = NULL;
-            
-            gettimeofday(&start, NULL);
-		    long ts = safe_read_tsc();
-		    enqueue(gs->glist, p, 1);
-            // print_global_state();
-            long enq_cycles = safe_read_tsc() - ts;
-            mycore->enq_cycles += enq_cycles;
-            gettimeofday(&end, NULL);
-            long enq_us = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
-            mycore->enq_us += enq_us;
-		    mycore->nenq += 1;
-
-            assert_p_in_group(p, p->group);
-		    trace_enqueue(enq_cycles, enq_us);
-		    usleep(tick_length);
-		    break;
-	    case 2: // Yield core
-		    p = mycore->current_process;
-		    if (!p) {
-			    continue;
-		    }
-            gettimeofday(&start, NULL);
-		    ts = safe_read_tsc();
-		    // XXX should 1/2 tick_length?
-		    yield(mycore, gs->glist, p, tick_length);
-            long yield_cycles = safe_read_tsc() - ts;
-            mycore->yield_cycles += yield_cycles;
-            gettimeofday(&end, NULL);
-            long yield_us = (end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec);
-            mycore->yield_us += yield_us;
-		    mycore->nyield += 1;
-
-            // print_global_state();
-
-            assert_p_not_in_group(p, p->group);
-		    trace_yield(yield_cycles, yield_us);
-		    p->next = pool;
-		    pool = p;
-		    usleep((int)(tick_length / 2));
-	    }
-        
-    }
+		choose(mycore, &pool);
+	}
 }
 
 

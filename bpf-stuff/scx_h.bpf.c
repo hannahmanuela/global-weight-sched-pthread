@@ -18,6 +18,8 @@ UEI_DEFINE(uei);
 // =======================================================
 
 struct cgroup_info {
+    struct bpf_rb_node	rb_node;
+
     u32 group_id;          // group id
     u64 spec_virt_time;    // speculative virtual time
     // u64 virt_lag;          // lag when group becomes inactive
@@ -25,15 +27,6 @@ struct cgroup_info {
     u32 num_threads;       // total number of threads in group
     u32 threads_queued;    // number of runnable threads
     u32 weight;            // group weight
-    u32 active_group_index; // index in active_groups array (0xFFFFFFFF if not active)
-
-    struct cgroup_info *next;
-};
-
-/* Lightweight struct for active groups list */
-struct active_group {
-    u32 group_id;
-    u64 spec_virt_time;
 };
 
 // =======================================================
@@ -53,23 +46,16 @@ struct {
     __uint(type, BPF_MAP_TYPE_ARRAY);
     __uint(key_size, sizeof(u32));
     __uint(value_size, sizeof(u64));
-    __uint(max_entries, 4);
+    __uint(max_entries, 3);
 } global_state SEC(".maps");
 
 #define GLOBAL_VTIME_IDX 0 // global virtual time
 #define GLOBAL_MIN_VTIME_IDX 1 // minimum virtual time
 #define GLOBAL_TOTAL_WEIGHT_IDX 2 // total weight (sum of groups)
-#define GLOBAL_ACTIVE_GROUPS_COUNT_IDX 3 // number of active groups
-
-/* Active groups list - using array map instead of linked list */
-struct {
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __uint(key_size, sizeof(u32));
-    __uint(value_size, sizeof(struct active_group)); // stores group_id and spec_virt_time
-    __uint(max_entries, MAX_NUM_GRPS);
-} active_groups SEC(".maps");
 
 /* Note: We removed the spin lock since BPF map operations are atomic */
+private(CG_TREE) struct bpf_spin_lock cg_tree_lock;
+private(CG_TREE) struct bpf_rb_root cg_tree __contains(cgroup_info, rb_node);
 
 // =======================================================
 // HELPER FUNCTIONS
@@ -120,132 +106,19 @@ static void set_global_total_weight(u64 weight)
     u32 idx = GLOBAL_TOTAL_WEIGHT_IDX;
     bpf_map_update_elem(&global_state, &idx, &weight, BPF_ANY);
 }
-
-static u64 get_active_groups_count(void)
-{
-    u32 idx = GLOBAL_ACTIVE_GROUPS_COUNT_IDX;
-    u64 *count = bpf_map_lookup_elem(&global_state, &idx);
-    return count ? *count : 0;
-}
-
-static void set_active_groups_count(u64 count)
-{
-    u32 idx = GLOBAL_ACTIVE_GROUPS_COUNT_IDX;
-    bpf_map_update_elem(&global_state, &idx, &count, BPF_ANY);
-}
-
 /* Helper functions for active groups management */
 
-static int add_active_group(u32 group_id, u64 spec_virt_time, struct cgroup_info *gi)
+static bool cg_node_less(struct bpf_rb_node *a, const struct bpf_rb_node *b) 
 {
-    u64 current_count = get_active_groups_count();
-    
-    // Check if we have space
-    if (current_count >= MAX_NUM_GRPS) {
-        return -1; // No space
-    }
-    
-    // Create the active group struct
-    struct active_group ag = {
-        .group_id = group_id,
-        .spec_virt_time = spec_virt_time
-    };
-    
-    // Insert at the current count index
-    u32 index = (u32)current_count;
-    if (bpf_map_update_elem(&active_groups, &index, &ag, BPF_ANY) != 0) {
-        return -1; // Failed to insert
-    }
-    
-    // Set the back pointer in cgroup_info
-    if (gi) {
-        gi->active_group_index = index;
-    }
-    
-    // Increment the count atomically
-    set_active_groups_count(current_count + 1);
-    
-    return 0; // Successfully added
-}
+    struct cgroup_info *cg_a, *cg_b;
 
-static int remove_active_group(u32 group_id, struct cgroup_info *gi)
-{
-    u64 current_count = get_active_groups_count();
-    
-    if (current_count == 0) {
-        return -1; // No groups to remove
-    }
-    
-    u32 index_to_remove;
-    
-    if (gi && gi->active_group_index != INACTIVE_GROUP_INDEX) {
-        // Use the back pointer for O(1) access
-        index_to_remove = gi->active_group_index;
-        
-        // Verify the group_id matches (safety check)
-        struct active_group *ag = bpf_map_lookup_elem(&active_groups, &index_to_remove);
-        if (!ag || ag->group_id != group_id) {
-            return -1; // Back pointer is stale or invalid
-        }
-    } else {
-        // Fallback: search for the group (shouldn't happen in normal operation)
-        for (u32 i = 0; i < current_count; i++) {
-            struct active_group *existing_ag = bpf_map_lookup_elem(&active_groups, &i);
-            if (existing_ag && existing_ag->group_id == group_id) {
-                index_to_remove = i;
-                break;
-            }
-        }
-        return -1; // Not found
-    }
-    
-    // Remove by swapping with the last element
-    if (current_count > 1) {
-        u32 last_index = (u32)(current_count - 1);
-        struct active_group *last_ag = bpf_map_lookup_elem(&active_groups, &last_index);
-        if (last_ag) {
-            // Move last element to the position we're removing
-            bpf_map_update_elem(&active_groups, &index_to_remove, last_ag, BPF_ANY);
-            
-            // Update the back pointer of the moved group
-            // We need to find the cgroup_info for the moved group
-            // This is a limitation - we'd need the cgroup to update its back pointer
-        }
-    }
-    
-    // Clear the last position
-    struct active_group zero_ag = {0};
-    u32 last_index = (u32)(current_count - 1);
-    bpf_map_update_elem(&active_groups, &last_index, &zero_ag, BPF_ANY);
-    
-    // Clear the back pointer in cgroup_info
-    if (gi) {
-        gi->active_group_index = INACTIVE_GROUP_INDEX;
-    }
-    
-    // Decrement the count
-    set_active_groups_count(current_count - 1);
-    
-    return 0; // Successfully removed
-}
+	cg_a = container_of(a, struct cgroup_info, rb_node);
+	cg_b = container_of(b, struct cgroup_info, rb_node);
 
-static int update_active_group_spec_virt_time(u32 group_id, u64 new_spec_virt_time, struct cgroup_info *gi)
-{
-    if (!gi || gi->active_group_index == INACTIVE_GROUP_INDEX) {
-        return -1; // Group is not active
-    }
-    
-    u32 index = gi->active_group_index;
-    struct active_group *ag = bpf_map_lookup_elem(&active_groups, &index);
-    if (!ag || ag->group_id != group_id) {
-        return -1; // Back pointer is stale or invalid
-    }
-    
-    // Update the spec_virt_time
-    ag->spec_virt_time = new_spec_virt_time;
-    bpf_map_update_elem(&active_groups, &index, ag, BPF_ANY);
-    
-    return 0; // Successfully updated
+    if (cg_a->threads_queued == 0) return 1;
+    if (cg_b->threads_queued == 0) return -1;
+
+	return cg_a->spec_virt_time < cg_b->spec_virt_time;
 }
 
 static struct cgroup_info *get_cgroup_info(struct cgroup *cgrp)
@@ -278,6 +151,9 @@ s32 BPF_STRUCT_OPS(h_init_task, struct task_struct *p, struct scx_init_task_args
     if (!gi)
         return -1;
     
+    gi->threads_queued += 1;
+    gi->num_threads += 1;
+    
     return 0;
 }
 
@@ -295,13 +171,14 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(h_cgroup_init, struct cgroup *cgrp, struct scx_cgro
     gi->group_id = cgrp->kn->id;
     gi->weight = args->weight;
     gi->spec_virt_time = global_vtime;
-    gi->active_group_index = INACTIVE_GROUP_INDEX; // initially inactive
     int ret = scx_bpf_create_dsq(cgrp->kn->id, -1);
     if (ret)
         return ret;
 
     // Add to active groups list
-    add_active_group(cgrp->kn->id, gi->spec_virt_time, gi);
+    bpf_spin_lock(&cg_tree_lock);
+	bpf_rbtree_add(&cg_tree, &cgroup_info->rb_node, cg_node_less);
+	bpf_spin_unlock(&cg_tree_lock);
     
     return 0;
 }
@@ -362,9 +239,6 @@ void BPF_STRUCT_OPS(h_enqueue, struct task_struct *p, u64 enq_flags)
     if (gi->threads_queued == 0) {
         u64 initial_vtime = get_average_vtime(cgrp);
         gi->spec_virt_time = initial_vtime;
-        
-        // Update the active groups list with new spec_virt_time
-        update_active_group_spec_virt_time(cgrp->kn->id, initial_vtime, gi);
 
         set_global_total_weight(get_global_total_weight() + gi->weight);
     }
@@ -427,6 +301,8 @@ static int pick_min_group() {
     u64 curr_min_svt = ~((u64)0); // max int
 
     u64 active_count = get_active_groups_count();
+
+    bpf_printk("finding min group, active count: %lld\n", active_count);
     
     // Iterate through active groups to find minimum
     for (u32 i = 0; i < MAX_NUM_GRPS; i++) {
@@ -440,8 +316,6 @@ static int pick_min_group() {
             curr_min_grp = ag->group_id;
             curr_min_svt = ag->spec_virt_time;
         }
-        
-        bpf_printk("Active group: %d, spec_virt_time: %llu\n", ag->group_id, ag->spec_virt_time);
     }
     
     return curr_min_grp;
@@ -460,6 +334,66 @@ void BPF_STRUCT_OPS(h_dispatch, s32 cpu, struct task_struct *prev)
 
     // Move a task from shared DSQ to local DSQ
     scx_bpf_dsq_move_to_local(min_group);
+}
+
+void BPF_STRUCT_OPS(h_running, struct task_struct *p)
+{
+    struct cgroup_info *gi;
+    struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
+    
+    if (!cgrp) {
+        if (cgrp) bpf_cgroup_release(cgrp);
+        return;
+    }
+    
+    gi = get_cgroup_info(cgrp);
+    if (!gi) {
+        bpf_cgroup_release(cgrp);
+        return;
+    }
+
+    bpf_printk("RUNNING Task %d, vtime=%llu cgrp %d cgrp weight %d", p->pid, p->scx.dsq_vtime, 
+        cgrp->kn->id, gi->weight);
+    
+    // Update global virtual time to match the running task
+    u64 global_vtime = get_global_vtime();
+    if (time_before(global_vtime, p->scx.dsq_vtime))
+        set_global_vtime(p->scx.dsq_vtime);
+    
+    bpf_cgroup_release(cgrp);
+}
+
+void BPF_STRUCT_OPS(h_stopping, struct task_struct *p, bool runnable)
+{
+    struct cgroup_info *gi;
+    struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
+    
+    if (!cgrp) {
+        if (cgrp) bpf_cgroup_release(cgrp);
+        return;
+    }
+    
+    gi = get_cgroup_info(cgrp);
+    if (!gi) {
+        bpf_cgroup_release(cgrp);
+        return;
+    }
+    
+    // Update group speculative virtual time
+    // TODO: make this collapse rather than add
+    u64 time_left = p->scx.slice;
+    u64 group_weighted_time = safe_div_u64(time_left, gi->weight);
+    gi->spec_virt_time -= group_weighted_time;
+    
+    // Update the active groups list with new spec_virt_time
+    update_active_group_spec_virt_time(cgrp->kn->id, gi->spec_virt_time, gi);
+    
+    // Update global virtual time
+    u64 exec_time = MY_SLICE - p->scx.slice;
+    u64 global_weighted_time = safe_div_u64(exec_time, get_global_total_weight());
+    set_global_vtime(get_global_vtime() + global_weighted_time);
+    
+    bpf_cgroup_release(cgrp);
 }
 
 // ------------------------------------------------------------
@@ -575,66 +509,6 @@ s32 BPF_STRUCT_OPS(h_select_cpu, struct task_struct *p, s32 prev_cpu, u64 wake_f
     // The task will be enqueued via the enqueue callback
     
     return cpu;
-}
-
-void BPF_STRUCT_OPS(h_running, struct task_struct *p)
-{
-    struct cgroup_info *gi;
-    struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
-    
-    if (!cgrp) {
-        if (cgrp) bpf_cgroup_release(cgrp);
-        return;
-    }
-    
-    gi = get_cgroup_info(cgrp);
-    if (!gi) {
-        bpf_cgroup_release(cgrp);
-        return;
-    }
-
-    bpf_printk("RUNNING Task %d, vtime=%llu cgrp %d cgrp weight %d", p->pid, p->scx.dsq_vtime, 
-        cgrp->kn->id, gi->weight);
-    
-    // Update global virtual time to match the running task
-    u64 global_vtime = get_global_vtime();
-    if (time_before(global_vtime, p->scx.dsq_vtime))
-        set_global_vtime(p->scx.dsq_vtime);
-    
-    bpf_cgroup_release(cgrp);
-}
-
-void BPF_STRUCT_OPS(h_stopping, struct task_struct *p, bool runnable)
-{
-    struct cgroup_info *gi;
-    struct cgroup *cgrp = __COMPAT_scx_bpf_task_cgroup(p);
-    
-    if (!cgrp) {
-        if (cgrp) bpf_cgroup_release(cgrp);
-        return;
-    }
-    
-    gi = get_cgroup_info(cgrp);
-    if (!gi) {
-        bpf_cgroup_release(cgrp);
-        return;
-    }
-    
-    // Update group speculative virtual time
-    // TODO: make this collapse rather than add
-    u64 time_left = p->scx.slice;
-    u64 group_weighted_time = safe_div_u64(time_left, gi->weight);
-    gi->spec_virt_time -= group_weighted_time;
-    
-    // Update the active groups list with new spec_virt_time
-    update_active_group_spec_virt_time(cgrp->kn->id, gi->spec_virt_time, gi);
-    
-    // Update global virtual time
-    u64 exec_time = MY_SLICE - p->scx.slice;
-    u64 global_weighted_time = safe_div_u64(exec_time, get_global_total_weight());
-    set_global_vtime(get_global_vtime() + global_weighted_time);
-    
-    bpf_cgroup_release(cgrp);
 }
 
 s32 BPF_STRUCT_OPS_SLEEPABLE(h_init)

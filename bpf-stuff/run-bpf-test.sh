@@ -8,7 +8,7 @@ fi
 
 echo 1 > /sys/kernel/debug/tracing/tracing_on
 
-./scx_h &
+./scx_flatcg &
 bpf_pid=$!
 
 sleep 0.5

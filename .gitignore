@@ -4,6 +4,8 @@
 
 # Unignore all with extensions
 !*.c
+!*.h
+*.skel.h
 !*.cpp
 !*.sh
 !*.py
@@ -13,3 +15,6 @@
 
 # Ignore virtual environment in pthread-sim
 pthread-sim/.venv/
+bpf-stuff/include
+bpf-stuff/libbpf
+bpf-stuff/vmlinux.h

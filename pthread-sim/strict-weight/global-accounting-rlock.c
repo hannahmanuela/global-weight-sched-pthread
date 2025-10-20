@@ -13,6 +13,7 @@
 #include <stdint.h> 
 #include <sys/resource.h>
 #include <stdatomic.h>
+#include "rbtree.h"
 
 //#define TRACE
 // #define ASSERTS
@@ -559,7 +560,6 @@ void grp_dec_nthread(struct group *g) {
 // Make p runnable.
 // caller should have no locks
 void enqueue(struct group_list *gl, struct process *p, int is_new) {
-
     pthread_rwlock_wrlock(&p->group->group_lock);
     bool was_empty = p->group->threads_queued == 0;
     grp_add_process(p, is_new); 
@@ -770,7 +770,7 @@ void *run_core(void* core_num_ptr) {
 
 		usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
-		choose(mycore, &pool);
+		// choose(mycore, &pool);
 	}
 }
 

@@ -310,14 +310,19 @@ static void cgrp_enqueued(struct cgroup *cgrp, struct fcg_cgrp_ctx *cgc)
 		bpf_printk("calling cap_budget from enq");
 	}
 	u64 new_cvtime, old_cvtime;
+	u64 og_delta = cgc->cvtime_delta;
 	bpf_spin_lock(&cgv_tree_lock);
 	old_cvtime = cgv_node->cvtime;
 	new_cvtime = cgrp_cap_budget(cgv_node, cgc);
 	bpf_rbtree_add(&cgv_tree, &cgv_node->rb_node, cgv_node_less);
 	bpf_spin_unlock(&cgv_tree_lock);
 	
+	s32 curr_cpu = bpf_get_smp_processor_id();
 	if (bpf_get_smp_processor_id() == 4) {
-		bpf_printk("   - after cap, added group %d back onto tree, svt was %llu, now %llu", cgid, old_cvtime, new_cvtime);
+		bpf_printk("   - after cap, added group %d back onto tree: cvtime=%llu, old svt=%llu, delta=%lld, new svt=%llu", cgid, cvtime_now, old_cvtime, og_delta, new_cvtime);
+		if (new_cvtime < cvtime_now) {
+			scx_bpf_kick_cpu(curr_cpu, SCX_KICK_PREEMPT);
+		}
 	}
 }
 

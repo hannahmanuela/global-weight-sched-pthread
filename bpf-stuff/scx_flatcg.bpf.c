@@ -306,16 +306,15 @@ static void cgrp_enqueued(struct cgroup *cgrp, struct fcg_cgrp_ctx *cgc)
 	if (bpf_get_smp_processor_id() == 4) {
 		bpf_printk("calling cap_budget from enq");
 	}
-	u64 new_cvtime;
+	u64 new_cvtime, old_cvtime;
 	bpf_spin_lock(&cgv_tree_lock);
+	old_cvtime = cgv_node->cvtime;
 	new_cvtime = cgrp_cap_budget(cgv_node, cgc);
 	bpf_rbtree_add(&cgv_tree, &cgv_node->rb_node, cgv_node_less);
 	bpf_spin_unlock(&cgv_tree_lock);
 	
-	cgc->cvtime_copy = new_cvtime;
-
 	if (bpf_get_smp_processor_id() == 4) {
-		bpf_printk("   - after cap, added group %d back onto tree w/ new svt %ld", cgid, new_cvtime);
+		bpf_printk("   - after cap, added group %d back onto tree, svt was %llu, now %llu", cgid, old_cvtime, new_cvtime);
 	}
 }
 
@@ -632,17 +631,6 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 	struct cgroup *cgrp;
 	u64 cgid;
 
-	u64 curr_grp_cvtime = ~((u64)0);
-
-	struct cgroup *curr_cgrp = bpf_cgroup_from_id(*cgidp);
-	if (curr_cgrp) {
-		struct fcg_cgrp_ctx* curr_cgc = bpf_cgrp_storage_get(&cgrp_ctx, curr_cgrp, 0, 0);
-		if (curr_cgc) {
-			curr_grp_cvtime = curr_cgc->cvtime_copy;
-		} 
-		bpf_cgroup_release(curr_cgrp);
-	}
-
 	/* pop the front cgroup and wind cvtime_now accordingly */
 	bpf_spin_lock(&cgv_tree_lock);
 
@@ -700,9 +688,9 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 	}
 
 	// somehow the print has to be here??
-	if (bpf_get_smp_processor_id() == 4) {
-		bpf_printk("DISPATCH found & deqed from min group %d with svt %llu, prev grp is %d w/ cvtime %llu", cgid, cgv_node->cvtime, *cgidp, curr_grp_cvtime);
-	}
+	// if (bpf_get_smp_processor_id() == 4) {
+	// 	bpf_printk("DISPATCH found from min group %d with svt %llu, prev grp is %d w/ cvtime %llu", cgid, cgv_node->cvtime, *cgidp, curr_grp_cvtime);
+	// }
 	
 	if (!scx_bpf_dsq_move_to_local(cgid)) {
 		bpf_cgroup_release(cgrp);
@@ -710,8 +698,11 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 		goto out_stash;
 	}
 	if (bpf_get_smp_processor_id() == 4) {
-		bpf_printk("   ... and dequeued");
+		bpf_printk("DISPATCH found & deqed from min group %d with svt %llu", cgid, cgv_node->cvtime);
 	}
+	// if (bpf_get_smp_processor_id() == 4) {
+	// 	bpf_printk("   ... and dequeued");
+	// }
 
 	/*
 	 * Successfully consumed from the cgroup. This will be our current
@@ -734,8 +725,6 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 	new_cvtime = cgv_node->cvtime;
 	bpf_rbtree_add(&cgv_tree, &cgv_node->rb_node, cgv_node_less);
 	bpf_spin_unlock(&cgv_tree_lock);
-
-	cgc->cvtime_copy = new_cvtime;
 
 	if (bpf_get_smp_processor_id() == 4) {
 		bpf_printk("  added group back onto tree w/ new svt %ld (%ld * %ld / %ld)", new_cvtime, cgrp_slice_ns, FCG_HWEIGHT_ONE, (cgc->hweight ?: 1));
@@ -764,9 +753,6 @@ out_stash:
 		bpf_spin_lock(&cgv_tree_lock);
 		bpf_rbtree_add(&cgv_tree, &cgv_node->rb_node, cgv_node_less);
 		bpf_spin_unlock(&cgv_tree_lock);
-		if (bpf_get_smp_processor_id() == 4) {
-			bpf_printk("  added group back onto tree w/ same svt %ld ", old_svt);
-		}
 		stat_inc(FCG_STAT_PNC_RACE);
 	} else {
 		cgv_node = bpf_kptr_xchg(&stash->node, cgv_node);
@@ -948,7 +934,6 @@ int BPF_STRUCT_OPS_SLEEPABLE(fcg_cgroup_init, struct cgroup *cgrp,
 
 	cgv_node->cgid = cgid;
 	cgv_node->cvtime = cvtime_now;
-	cgc->cvtime_copy = cvtime_now;
 
 	cgv_node = bpf_kptr_xchg(&stash->node, cgv_node);
 	if (cgv_node) {

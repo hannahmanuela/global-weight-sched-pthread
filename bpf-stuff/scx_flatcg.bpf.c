@@ -56,8 +56,10 @@ enum {
 
 char _license[] SEC("license") = "GPL";
 
+#define MY_SLICE 4 * 1000000
+
 const volatile u32 nr_cpus = 32;	/* !0 for veristat, set during init */
-const volatile u64 cgrp_slice_ns;
+const volatile u64 cgrp_slice_ns = 4 * 1000000;
 const volatile bool fifo_sched;
 
 u64 cvtime_now;
@@ -80,8 +82,8 @@ static void stat_inc(enum fcg_stat_idx idx)
 }
 
 struct fcg_cpu_ctx {
-	u64			cur_cgid;
-	u64			cur_at;
+	u64			cur_cgid; // cgroup id core is currently running
+	u64			cur_at; // actual timestamp of ??? when core last scheduled?
 };
 
 struct {
@@ -89,23 +91,23 @@ struct {
 	__type(key, u32);
 	__type(value, struct fcg_cpu_ctx);
 	__uint(max_entries, 1);
-} cpu_ctx SEC(".maps");
+} cpu_ctx SEC(".maps"); // cpu info, a per-cpu array
 
 struct {
 	__uint(type, BPF_MAP_TYPE_CGRP_STORAGE);
 	__uint(map_flags, BPF_F_NO_PREALLOC);
 	__type(key, int);
 	__type(value, struct fcg_cgrp_ctx);
-} cgrp_ctx SEC(".maps");
+} cgrp_ctx SEC(".maps"); // main per cgroup storage; NOT the tree
 
 struct cgv_node {
-	struct bpf_rb_node	rb_node;
-	__u64			cvtime;
-	__u64			cgid;
+	struct bpf_rb_node	rb_node; // tree node of cgroup
+	__u64			cvtime; // basically spec virt time
+	__u64			cgid; // cgroup id
 };
 
 private(CGV_TREE) struct bpf_spin_lock cgv_tree_lock;
-private(CGV_TREE) struct bpf_rb_root cgv_tree __contains(cgv_node, rb_node);
+private(CGV_TREE) struct bpf_rb_root cgv_tree __contains(cgv_node, rb_node); // this is the tree
 
 struct cgv_node_stash {
 	struct cgv_node __kptr *node;
@@ -116,10 +118,10 @@ struct {
 	__uint(max_entries, 16384);
 	__type(key, __u64);
 	__type(value, struct cgv_node_stash);
-} cgv_node_stash SEC(".maps");
+} cgv_node_stash SEC(".maps"); // stash of cgroup tree nodes, not sure what this is for ???
 
 struct fcg_task_ctx {
-	u64		bypassed_at;
+	u64		bypassed_at; // when we immediately run something on an idle core, rather than via the usual pick min group, use this to back-fill svt (set to be p->se.sum_exec_runtime)
 };
 
 struct {
@@ -247,7 +249,7 @@ static void cgrp_refresh_hweight(struct cgroup *cgrp, struct fcg_cgrp_ctx *cgc)
 	}
 }
 
-static void cgrp_cap_budget(struct cgv_node *cgv_node, struct fcg_cgrp_ctx *cgc)
+static u64 cgrp_cap_budget(struct cgv_node *cgv_node, struct fcg_cgrp_ctx *cgc)
 {
 	u64 delta, cvtime, max_budget;
 
@@ -270,6 +272,8 @@ static void cgrp_cap_budget(struct cgv_node *cgv_node, struct fcg_cgrp_ctx *cgc)
 		cvtime = cvtime_now - max_budget;
 
 	cgv_node->cvtime = cvtime;
+
+	return cvtime;
 }
 
 static void cgrp_enqueued(struct cgroup *cgrp, struct fcg_cgrp_ctx *cgc)
@@ -291,16 +295,28 @@ static void cgrp_enqueued(struct cgroup *cgrp, struct fcg_cgrp_ctx *cgc)
 	}
 
 	/* NULL if the node is already on the rbtree */
+	// temporarily removes the node from the tree (cas old pointer value with null, 
+	// 	at least in the stash; avoids enq races b/c only one will succeed)
 	cgv_node = bpf_kptr_xchg(&stash->node, NULL);
 	if (!cgv_node) {
 		stat_inc(FCG_STAT_ENQ_RACE);
 		return;
 	}
 
+	if (bpf_get_smp_processor_id() == 4) {
+		bpf_printk("calling cap_budget from enq");
+	}
+	u64 new_cvtime;
 	bpf_spin_lock(&cgv_tree_lock);
-	cgrp_cap_budget(cgv_node, cgc);
+	new_cvtime = cgrp_cap_budget(cgv_node, cgc);
 	bpf_rbtree_add(&cgv_tree, &cgv_node->rb_node, cgv_node_less);
 	bpf_spin_unlock(&cgv_tree_lock);
+	
+	cgc->cvtime_copy = new_cvtime;
+
+	if (bpf_get_smp_processor_id() == 4) {
+		bpf_printk("   - after cap, added group %d back onto tree w/ new svt %ld", cgid, new_cvtime);
+	}
 }
 
 static void set_bypassed_at(struct task_struct *p, struct fcg_task_ctx *taskc)
@@ -336,7 +352,7 @@ s32 BPF_STRUCT_OPS(fcg_select_cpu, struct task_struct *p, s32 prev_cpu, u64 wake
 	if (is_idle) {
 		set_bypassed_at(p, taskc);
 		stat_inc(FCG_STAT_LOCAL);
-		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL, 0);
+		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, MY_SLICE, 0);
 	}
 
 	return cpu;
@@ -373,11 +389,11 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
 	// 	 */
 	// 	if (p->nr_cpus_allowed == 1 && (p->flags & PF_KTHREAD)) {
 	// 		stat_inc(FCG_STAT_LOCAL);
-	// 		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, SCX_SLICE_DFL,
+	// 		scx_bpf_dsq_insert(p, SCX_DSQ_LOCAL, MY_SLICE,
 	// 				   enq_flags);
 	// 	} else {
 	// 		stat_inc(FCG_STAT_GLOBAL);
-	// 		scx_bpf_dsq_insert(p, FALLBACK_DSQ, SCX_SLICE_DFL,
+	// 		scx_bpf_dsq_insert(p, FALLBACK_DSQ, MY_SLICE,
 	// 				   enq_flags);
 	// 	}
 	// 	return;
@@ -389,7 +405,7 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
 		goto out_release;
 
 	if (fifo_sched) {
-		scx_bpf_dsq_insert(p, cgrp->kn->id, SCX_SLICE_DFL, enq_flags);
+		scx_bpf_dsq_insert(p, cgrp->kn->id, MY_SLICE, enq_flags);
 	} else {
 		u64 tvtime = p->scx.dsq_vtime;
 
@@ -397,11 +413,12 @@ void BPF_STRUCT_OPS(fcg_enqueue, struct task_struct *p, u64 enq_flags)
 		 * Limit the amount of budget that an idling task can accumulate
 		 * to one slice.
 		 */
-		if (time_before(tvtime, cgc->tvtime_now - SCX_SLICE_DFL))
-			tvtime = cgc->tvtime_now - SCX_SLICE_DFL;
+		if (time_before(tvtime, cgc->tvtime_now - MY_SLICE))
+			tvtime = cgc->tvtime_now - MY_SLICE;
 
+		// if (cgrp->kn->id == 2186675 || cgrp->kn->id ==2186599 )
 		bpf_printk("ENQ pid %d to grp %d", p->pid, cgrp->kn->id);
-		scx_bpf_dsq_insert_vtime(p, cgrp->kn->id, SCX_SLICE_DFL,
+		scx_bpf_dsq_insert_vtime(p, cgrp->kn->id, MY_SLICE,
 					 tvtime, enq_flags);
 	}
 
@@ -555,7 +572,7 @@ void BPF_STRUCT_OPS(fcg_stopping, struct task_struct *p, bool runnable)
 	 */
 	if (!fifo_sched)
 		p->scx.dsq_vtime +=
-			(SCX_SLICE_DFL - p->scx.slice) * 100 / p->scx.weight;
+			(MY_SLICE - p->scx.slice) * 100 / p->scx.weight;
 
 	taskc = bpf_task_storage_get(&task_ctx, p, 0, 0);
 	if (!taskc) {
@@ -615,6 +632,17 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 	struct cgroup *cgrp;
 	u64 cgid;
 
+	u64 curr_grp_cvtime = ~((u64)0);
+
+	struct cgroup *curr_cgrp = bpf_cgroup_from_id(*cgidp);
+	if (curr_cgrp) {
+		struct fcg_cgrp_ctx* curr_cgc = bpf_cgrp_storage_get(&cgrp_ctx, curr_cgrp, 0, 0);
+		if (curr_cgc) {
+			curr_grp_cvtime = curr_cgc->cvtime_copy;
+		} 
+		bpf_cgroup_release(curr_cgrp);
+	}
+
 	/* pop the front cgroup and wind cvtime_now accordingly */
 	bpf_spin_lock(&cgv_tree_lock);
 
@@ -641,6 +669,15 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 
 	cgv_node = container_of(rb_node, struct cgv_node, rb_node);
 	cgid = cgv_node->cgid;
+	
+	// if (curr_grp_cvtime < cgv_node->cvtime) {
+	// 	// just move one over, if it fails go with the found min
+	// 	if (scx_bpf_dsq_move_to_local(*cgidp)) {
+	// 		// need to clean up 
+	// 	}
+
+	// }
+
 
 	if (time_before(cvtime_now, cgv_node->cvtime))
 		cvtime_now = cgv_node->cvtime;
@@ -662,13 +699,18 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 		goto out_free;
 	}
 
+	// somehow the print has to be here??
 	if (bpf_get_smp_processor_id() == 4) {
-		bpf_printk("DISPATCH picked min group %d with svt %llu and w delta %lld", cgid, cgv_node->cvtime, cgc->cvtime_delta);
+		bpf_printk("DISPATCH found & deqed from min group %d with svt %llu, prev grp is %d w/ cvtime %llu", cgid, cgv_node->cvtime, *cgidp, curr_grp_cvtime);
 	}
+	
 	if (!scx_bpf_dsq_move_to_local(cgid)) {
 		bpf_cgroup_release(cgrp);
 		stat_inc(FCG_STAT_PNC_EMPTY);
 		goto out_stash;
+	}
+	if (bpf_get_smp_processor_id() == 4) {
+		bpf_printk("   ... and dequeued");
 	}
 
 	/*
@@ -685,11 +727,19 @@ static bool try_pick_next_cgroup(u64 *cgidp)
 	 * according to the actual consumption. This prevents lowpri thundering
 	 * herd from saturating the machine.
 	 */
+	u64 new_cvtime = 0;
 	bpf_spin_lock(&cgv_tree_lock);
 	cgv_node->cvtime += cgrp_slice_ns * FCG_HWEIGHT_ONE / (cgc->hweight ?: 1);
 	cgrp_cap_budget(cgv_node, cgc);
+	new_cvtime = cgv_node->cvtime;
 	bpf_rbtree_add(&cgv_tree, &cgv_node->rb_node, cgv_node_less);
 	bpf_spin_unlock(&cgv_tree_lock);
+
+	cgc->cvtime_copy = new_cvtime;
+
+	if (bpf_get_smp_processor_id() == 4) {
+		bpf_printk("  added group back onto tree w/ new svt %ld (%ld * %ld / %ld)", new_cvtime, cgrp_slice_ns, FCG_HWEIGHT_ONE, (cgc->hweight ?: 1));
+	}
 
 	*cgidp = cgid;
 	stat_inc(FCG_STAT_PNC_NEXT);
@@ -710,9 +760,13 @@ out_stash:
 	__sync_val_compare_and_swap(&cgc->queued, 1, 0);
 
 	if (scx_bpf_dsq_nr_queued(cgid)) {
+		u64 old_svt = cgv_node->cvtime;
 		bpf_spin_lock(&cgv_tree_lock);
 		bpf_rbtree_add(&cgv_tree, &cgv_node->rb_node, cgv_node_less);
 		bpf_spin_unlock(&cgv_tree_lock);
+		if (bpf_get_smp_processor_id() == 4) {
+			bpf_printk("  added group back onto tree w/ same svt %ld ", old_svt);
+		}
 		stat_inc(FCG_STAT_PNC_RACE);
 	} else {
 		cgv_node = bpf_kptr_xchg(&stash->node, cgv_node);
@@ -775,9 +829,8 @@ void BPF_STRUCT_OPS(fcg_dispatch, s32 cpu, struct task_struct *prev)
 		 * and we can't keep the lock held. Oh well...
 		 */
 		bpf_spin_lock(&cgv_tree_lock);
-		__sync_fetch_and_add(&cgc->cvtime_delta,
-				     (cpuc->cur_at + cgrp_slice_ns - now) *
-				     FCG_HWEIGHT_ONE / (cgc->hweight ?: 1));
+		u64 to_add = (cpuc->cur_at + cgrp_slice_ns - now) * FCG_HWEIGHT_ONE / (cgc->hweight ?: 1);
+		u64 old_val = __sync_fetch_and_add(&cgc->cvtime_delta, to_add);
 		bpf_spin_unlock(&cgv_tree_lock);
 		if (bpf_get_smp_processor_id() == 4) {
 			bpf_printk("DISPATCH updating svt for grp %d, added only to delta (now %lld)", cpuc->cur_cgid, cgc->cvtime_delta);
@@ -895,6 +948,7 @@ int BPF_STRUCT_OPS_SLEEPABLE(fcg_cgroup_init, struct cgroup *cgrp,
 
 	cgv_node->cgid = cgid;
 	cgv_node->cvtime = cvtime_now;
+	cgc->cvtime_copy = cvtime_now;
 
 	cgv_node = bpf_kptr_xchg(&stash->node, cgv_node);
 	if (cgv_node) {

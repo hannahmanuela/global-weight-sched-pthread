@@ -34,7 +34,10 @@
  * However, the gain comes at the cost of not being able to properly handle
  * thundering herd of cgroups. For example, if many cgroups which are nested
  * behind a low priority parent cgroup wake up around the same time, they may be
- * able to consume more CPU cycles than they are entitled to. In many use cases,
+ * able to consume more CPU cycles than they are entitled to. 
+ * TODO: Hannah - why is that the case, given that they do the speculatively add to vtime thing?
+ * 
+ * In many use cases,
  * this isn't a real concern especially given the performance gain. Also, there
  * are ways to mitigate the problem further by e.g. introducing an extra
  * scheduling layer on cgroup delegation boundaries.

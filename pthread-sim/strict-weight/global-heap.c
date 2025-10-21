@@ -15,6 +15,9 @@
 #include <stdatomic.h>
 
 #include "heap.h"
+#include "group.h"
+#include "group_list.h"
+#include "util.h"
 
 //#define TRACE
 // #define ASSERTS
@@ -28,38 +31,7 @@ int num_cores = 27;
 int tick_length = 1000;
 int num_threads_p_group = 3;
 
-// lock invariant (to avoid deadlocks): 
-//  - always lock global list before group lock, if you're going to lock both 
-//      (no locking a group while holding the list lock)
-
 // there are only global datastructures here
-
-struct process {
-	int process_id;
-	struct group *group;
-	struct process *next;
-} __attribute__((aligned(64)));
-
-struct group {
-	int group_id;
-	int weight;
-
-	pthread_rwlock_t group_lock;
-	uint64_t nfail;
-
-	int num_threads; // the total number of threads in the system
-	int threads_queued; // the number of threads runnable and in the q (ie not running)
-	int spec_virt_time; // updated when the group is scheduled, assuming full tick
-
-	int virt_lag; // only has a value when a group is dequeued
-	// only has a value when a group is dequeued, and if virt_lag is positive
-	// use this to implement delay deq: if g has positie lag when deqed, that lag isn't added on if it is enqed after the lag time has passed
-	int last_virt_time; 
-
-	struct process *runqueue_head;
-	struct group *next;
-	struct heap_elem heap_elem;
-} __attribute__((aligned(64)));
 
 struct core_state {
 	int core_id;
@@ -73,16 +45,6 @@ struct core_state {
 	long nsched;
 	long nenq;
 	long nyield;
-} __attribute__((aligned(64)));
-
-struct group_list {
-	pthread_rwlock_t group_list_lock;
-	struct heap *heap;
-	long wait_for_wr_group_list_lock_cycles;
-	long num_times_wr_group_list_locked;
-	atomic_long wait_for_rd_group_list_lock_cycles;
-	atomic_long num_times_rd_group_list_locked;
-
 } __attribute__((aligned(64)));
 
 struct global_state {
@@ -134,29 +96,6 @@ struct group *create_group(int id, int weight) {
 // for run_core
 // ================
 
-long safe_read_tsc() {
-	_mm_lfence();
-	long ret_val = _rdtsc();
-	_mm_lfence();
-	return ret_val;
-}
-
-// Wrapper functions for pthread_rwlock operations with timing
-void timed_pthread_rwlock_wrlock_group_list(pthread_rwlock_t *lock) {
-	int start_tsc = safe_read_tsc();
-	pthread_rwlock_wrlock(lock);
-	int end_tsc = safe_read_tsc();
-	gs->glist->wait_for_wr_group_list_lock_cycles += (end_tsc - start_tsc);
-	gs->glist->num_times_wr_group_list_locked++;
-}
-
-void timed_pthread_rwlock_rdlock_group_list(pthread_rwlock_t *lock) {
-	int start_tsc = safe_read_tsc();
-	pthread_rwlock_rdlock(lock);
-	int end_tsc = safe_read_tsc();
-	atomic_fetch_add_explicit(&gs->glist->wait_for_rd_group_list_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
-	atomic_fetch_add_explicit(&gs->glist->num_times_rd_group_list_locked, 1, memory_order_relaxed);
-}
 
 void print_core(struct core_state *c) {
 	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)\n",
@@ -184,20 +123,6 @@ void trace_enqueue(long cycles, long us) {
 #endif
 }
 
-void print_elem(struct heap_elem *e) {
-	struct group *g = (struct group *) e->elem;
-	pthread_rwlock_rdlock(&g->group_lock);
-	printf("(%d: %d, %d, %d)%s", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, e->heap_index == gs->glist->heap->heap_size - 1 ? "\n" : ", ");
-	pthread_rwlock_unlock(&g->group_lock);
-}
-
-void print_global_state() {
-	timed_pthread_rwlock_rdlock_group_list(&gs->glist->group_list_lock);
-	printf("Global heap size: %d \n", gs->glist->heap->heap_size  );
-	printf("Heap contents by (group_id: svt, num_threads, num_queued): ");
-	heap_iter(gs->glist->heap, print_elem);
-	pthread_rwlock_unlock(&gs->glist->group_list_lock);
-}
 
 
 // =================
@@ -284,19 +209,11 @@ void assert_thread_counts_correct(struct group *g, struct core_state *core) {}
 #endif
 
 
-
-// =================
-// for group list
-// =================
-
-int grp_get_spec_virt_time(struct group *g);
-
 // -----------------
 // heap helpers
 // -----------------
 
-
-static inline int gl_cmp_group(void *e0, void *e1) {
+int gl_cmp_group(void *e0, void *e1) {
 	struct group *a = (struct group *) e0;
 	struct group *b = (struct group *) e1;
 	if (a->threads_queued == 0) return 1;
@@ -310,74 +227,17 @@ static inline int gl_cmp_group(void *e0, void *e1) {
 	return 0;
 }
 
-
-void gl_update_group_svt(struct group_list *gl, struct group *g, int diff);
-
-// peek min group without removing; 
-// returns with group and list locked
-static struct group* gl_peek_min_group(struct group_list *gl) {
-    timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
-    struct group *g = (struct group *) heap_min(gl->heap);
-    if (g && g->threads_queued == 0) {
-        g = NULL;
-    }
-    if (g) {
-        pthread_rwlock_wrlock(&g->group_lock);
-    }
-    return g;
-}
-
-
-// compute avg_spec_virt_time for groups in gl, ignoring group_to_ignore
-// caller should have no locks
-int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
-	int total_spec_virt_time = 0;
-	int count = 0;
-	timed_pthread_rwlock_rdlock_group_list(&gl->group_list_lock);
-	for (struct heap_elem *e = heap_first(gl->heap); e != NULL; e = heap_next(gl->heap, e)) {
-		struct group *g = (struct group *) e->elem;
-		assert(g != NULL);
-		if (g == group_to_ignore) continue;
-		total_spec_virt_time += grp_get_spec_virt_time(g);
-		count++;
-	}
-	pthread_rwlock_unlock(&gl->group_list_lock);
-	if (count == 0) return 0;
-	return total_spec_virt_time / count;
-}
-
-
-// add group to heap; caller must hold group_list_lock
-void gl_add_group(struct group_list *gl, struct group *g) {
-	heap_push(gl->heap, &g->heap_elem);
-}
-
-// delete group from heap; caller must hold group_list_lock
-void gl_del_group(struct group_list *gl, struct group *g) {
-	assert(g->heap_elem.heap_index == -1);
-	heap_remove_at(gl->heap, &g->heap_elem);
-}
-
-// Update group's spec_virt_time and safely reheapify if the group is in the heap.
-// caller must hold group_list_lock and group_lock
-// keeps both lock held
-void gl_update_group_svt(struct group_list *gl, struct group *g, int diff) {
-	g->spec_virt_time += diff;
-	heap_fix_index(gl->heap, &g->heap_elem);
-}
-
-
 // =================
 // for group
 // =================
 
 int grp_get_spec_virt_time(struct group *g) {
-    pthread_rwlock_rdlock(&g->group_lock);
-    int curr_spec_virt_time = g->spec_virt_time;
-    if (g->threads_queued == 0) { // deq sets threads_queued before removing the group from the list
-        curr_spec_virt_time = INT_MAX;
-    }
-    pthread_rwlock_unlock(&g->group_lock);
+	pthread_rwlock_rdlock(&g->group_lock);
+	int curr_spec_virt_time = g->spec_virt_time;
+	if (g->threads_queued == 0) { // deq sets threads_queued before removing the group from the list
+		curr_spec_virt_time = INT_MAX;
+	}
+	pthread_rwlock_unlock(&g->group_lock);
 	return curr_spec_virt_time;
 }
 
@@ -415,18 +275,10 @@ void grp_collapse_spec_virt_time(struct group_list *gl, struct group *g, int tim
     if (time_had_expected  != virt_time_gotten) {
         // need to edit the spec time to use time actually got
         int diff = virt_time_gotten - time_had_expected;
-
         pthread_rwlock_wrlock(&g->group_lock);
         g->spec_virt_time += diff;
-        int idx = heap_elem_idx(&g->heap_elem);
         pthread_rwlock_unlock(&g->group_lock);
-
-        // If the group is currently in the heap, fix its position
-        if (idx != -1) {
-            timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
-            heap_fix_index(gl->heap, &g->heap_elem);
-            pthread_rwlock_unlock(&gl->group_list_lock);
-        }
+	gl_fix_group(gl, g);
     }
 }
 
@@ -496,17 +348,6 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
     
 }
 
-void register_group(struct group_list *gl, struct group *g) {
-	timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
-	gl_add_group(gl, g);
-	pthread_rwlock_unlock(&gl->group_list_lock);
-}
-
-void unregister_group(struct group_list *gl, struct group *g) {
-	timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
-	gl_del_group(gl, g);
-	pthread_rwlock_unlock(&gl->group_list_lock);
-}
 
 // Assumes caller holds p's group lock
 // returns with no locks
@@ -650,7 +491,7 @@ void choose(struct core_state *mycore, struct process **pool) {
 		}
 		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, p);
 		// XXX should 1/2 tick_length?
-		// print_global_state();
+		// gl_print(gs->glist);
 
 		assert_p_not_in_group(p, p->group);
 		// trace_yield(yield_cycles, yield_us);
@@ -679,7 +520,7 @@ void *run_core(void* core_num_ptr) {
 	while (us_since(&start_exp) < TIME_TO_RUN) {
 		struct process *prev_running_process = mycore->current_process;
 
-		// print_global_state();
+		// gl_print(gs->glist);
 
 		doop(mycore, SCHED, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
 		if (mycore->current_process) {
@@ -741,10 +582,10 @@ void main(int argc, char *argv[]) {
             struct process *p = create_process(i*num_threads_p_group+j, g);
             enqueue(gs->glist, p, 1);
         }
-        register_group(gs->glist, g);
+        gl_register_group(gs->glist, g);
     }
 
-    // print_global_state();
+    // gl_print(gs->glist);
 
     pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 
@@ -760,21 +601,8 @@ void main(int argc, char *argv[]) {
     // TODO: um I don't unregister the groups for now
 
     //Print lock timing statistics
-    printf("\nLock timing statistics:\n");
-    if (gs->glist->num_times_wr_group_list_locked > 0) {
-        printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-               gs->glist->wait_for_wr_group_list_lock_cycles / gs->glist->num_times_wr_group_list_locked,
-               gs->glist->wait_for_wr_group_list_lock_cycles, gs->glist->num_times_wr_group_list_locked);
-    }
-    if (gs->glist->num_times_rd_group_list_locked > 0) {
-        printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-               gs->glist->wait_for_rd_group_list_lock_cycles / gs->glist->num_times_rd_group_list_locked,
-               gs->glist->wait_for_rd_group_list_lock_cycles, gs->glist->num_times_rd_group_list_locked);
-    }
-
+    gl_stats(gs->glist);
 }
-
-
 
 
 

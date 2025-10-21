@@ -14,7 +14,7 @@
 struct group_list *gl_new() {
     struct group_list *glist = (struct group_list *) malloc(sizeof(struct group_list));
     glist = (struct group_list *) malloc(sizeof(struct group_list));
-    glist->heap = heap_new(gl_cmp_group);
+    glist->heap = heap_new(grp_cmp);
     glist->wait_for_wr_group_list_lock_cycles = 0;
     glist->num_times_wr_group_list_locked = 0;
     atomic_init(&glist->wait_for_rd_group_list_lock_cycles, 0);

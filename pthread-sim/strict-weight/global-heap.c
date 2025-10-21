@@ -209,11 +209,11 @@ void assert_thread_counts_correct(struct group *g, struct core_state *core) {}
 #endif
 
 
-// -----------------
-// heap helpers
-// -----------------
+// =================
+// for group
+// =================
 
-int gl_cmp_group(void *e0, void *e1) {
+int grp_cmp(void *e0, void *e1) {
 	struct group *a = (struct group *) e0;
 	struct group *b = (struct group *) e1;
 	if (a->threads_queued == 0) return 1;
@@ -227,10 +227,6 @@ int gl_cmp_group(void *e0, void *e1) {
 	return 0;
 }
 
-// =================
-// for group
-// =================
-
 int grp_get_spec_virt_time(struct group *g) {
 	pthread_rwlock_rdlock(&g->group_lock);
 	int curr_spec_virt_time = g->spec_virt_time;
@@ -243,7 +239,7 @@ int grp_get_spec_virt_time(struct group *g) {
 
 // set spec_virt_time for new group g
 // caller should have no locks
-void set_grp_spec_virt_time(struct group_list *gl, struct group *g) {
+void grp_set_spec_virt_time(struct group_list *gl, struct group *g) {
 	int initial_virt_time = gl_avg_spec_virt_time(gl, g); 
 	pthread_rwlock_wrlock(&g->group_lock);
 	if (g->virt_lag > 0) {
@@ -343,7 +339,7 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	p->group->threads_queued += 1;
 	pthread_rwlock_unlock(&p->group->group_lock);
 	if (was_empty) {
-		set_grp_spec_virt_time(gl, p->group); 
+		grp_set_spec_virt_time(gl, p->group); 
 	}
     
 }

@@ -528,7 +528,7 @@ void *run_core(void* core_num_ptr) {
 
 		usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
-		// choose(mycore, &pool);
+		choose(mycore, &pool);
 	}
 }
 

@@ -347,7 +347,6 @@ int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) 
 
 // add group to heap; caller must hold group_list_lock
 void gl_add_group(struct group_list *gl, struct group *g) {
-	assert(g->heap_elem.heap_index == -1);
 	heap_push(gl->heap, &g->heap_elem);
 }
 

@@ -1,3 +1,5 @@
+#include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "heap.h"
@@ -25,6 +27,13 @@ void *heap_min(struct heap *h) {
 
 void *heap_lookup(struct heap *heap, int idx) {
 	return heap->heap_size > 0 ? heap->heap[idx]->elem : NULL;
+}
+
+void heap_print(struct heap *heap, void (*print)(struct heap_elem *)) {
+	printf("heap %d\n", heap->heap_size);
+	for (int i = 0; i < heap->heap_size; i++) {
+		print(heap->heap[i]);
+	}
 }
 
 static inline void heap_swap(struct heap *h, int i, int j) {
@@ -84,6 +93,7 @@ void heap_fix_index(struct heap *h, struct heap_elem *e) {
 
 // push group into heap; caller must hold group_list_lock
 void heap_push(struct heap *h, struct heap_elem *e) {
+    assert(e->heap_index == -1);
     heap_ensure_capacity(h);
     e->heap_index = h->heap_size;
     h->heap[h->heap_size++] = e;
@@ -92,6 +102,7 @@ void heap_push(struct heap *h, struct heap_elem *e) {
 
 // remove group at index; caller must hold group_list_lock
 void heap_remove_at(struct heap *h, struct heap_elem *e) {
+    assert(e->heap_index != -1);
     int last = h->heap_size - 1;
     if (e->heap_index < 0 || e->heap_index >= h->heap_size) return;
     if (e->heap_index != last) {
@@ -99,9 +110,9 @@ void heap_remove_at(struct heap *h, struct heap_elem *e) {
     }
     struct heap_elem *removed = h->heap[last];
     h->heap_size--;
-    removed->heap_index = -1;
     if (e->heap_index < h->heap_size) {
         heap_sift_down(h, e->heap_index);
         heap_sift_up(h, e->heap_index);
     }
+    removed->heap_index = -1;
 }

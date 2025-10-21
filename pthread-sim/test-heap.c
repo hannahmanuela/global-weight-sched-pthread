@@ -7,32 +7,60 @@
 
 #include "strict-weight/heap.h"
 
-// Peek min using gl_peek_min_group and immediately unlock held locks
-static struct group* peek_min_and_unlock(struct group_list *gl) {
-    struct group *g = gl_peek_min_group(gl); // returns with list and group locks held
-    if (g) {
-        pthread_rwlock_unlock(&g->group_lock);
-    }
-    pthread_rwlock_unlock(&gl->group_list_lock);
-    return g;
+struct group {
+	int spec_virt_time;
+	int weight;
+	int queued;
+	int id;
+	struct heap_elem elem;
+};
+	
+void heap_elem_print(struct heap_elem *e) {
+	struct group *g = (struct group *) e->elem;
+	printf("%d id %d svt %d w %d q %d\n", e->heap_index, g->id, g->spec_virt_time, g->weight, g->queued);
 }
 
+
 static struct group* make_group(int id, int svt, int weight) {
-    struct group *g = create_group(id, weight);
-    g->spec_virt_time = svt;
-    g->threads_queued = 1; // mark as present in heap
-    return g;
+	struct group *g = malloc(sizeof(struct group));
+	g->id = id;
+	g->spec_virt_time = svt;
+	g->queued = 1; // mark as present in heap
+	heap_elem_init(&g->elem, g);
+	return g;
 }
+
+int avg_spec_virt_time(struct heap *heap, struct group *ignore) {
+	int total_spec_virt_time = 0;
+        int count = 0;
+        for (int i = 0; i < heap->heap_size; i++) {
+                struct group *g = (struct group *) heap_lookup(heap, i);
+		if (g == ignore) continue;
+                total_spec_virt_time += g->spec_virt_time;
+                count++;
+        }
+        if (count == 0) return 0;
+        return total_spec_virt_time / count;
+}
+
+int cmp_elem(void *e0, void *e1) {
+        struct group *a = (struct group *) e0;
+        struct group *b = (struct group *) e1;
+        if (a->queued == 0) return 1;
+        if (b->queued == 0) return -1;
+        // Compare by spec_virt_time; lower is higher priority
+        if (a->spec_virt_time < b->spec_virt_time) return -1;
+        if (a->spec_virt_time > b->spec_virt_time) return 1;
+        // tie-breaker by group_id for determinism
+        if (a->id < b->id) return -1;
+        if (a->id > b->id) return 1;
+	return 0;
+}
+
 
 int main() {
     // minimal global init
-    gs = malloc(sizeof(struct global_state));
-    gs->glist = (struct group_list*) malloc(sizeof(struct group_list));
-    gs->glist->heap = NULL;
-    gs->glist->heap_size = 0;
-    gs->glist->heap_capacity = 0;
-    pthread_rwlock_init(&gs->glist->group_list_lock, NULL);
-    num_groups = 5;
+    struct heap *heap = heap_new(cmp_elem);
 
     struct group *g3 = make_group(3, 30, 10);
     struct group *g1 = make_group(1, 10, 10);
@@ -40,79 +68,73 @@ int main() {
     struct group *g2 = make_group(2, 20, 10);
 
     // push in arbitrary order
-    gl_add_group(gs->glist, g3);
-    gl_add_group(gs->glist, g1);
-    gl_add_group(gs->glist, g4);
-    gl_add_group(gs->glist, g2);
+    heap_push(heap, &g3->elem);
+    heap_push(heap, &g1->elem);
+    heap_push(heap, &g4->elem);
+    heap_push(heap, &g2->elem);
 
-    assert(gs->glist->heap_size == 4);
+
+    assert(heap->heap_size == 4);
     
     // avg should ignore none and be (10+20+30+40)/4 = 25
-    int avg = gl_avg_spec_virt_time(gs->glist, NULL);
+    int avg = avg_spec_virt_time(heap, NULL);
     assert(avg == 25);
 
     // peek mins in order without removing: expect current min is g1
     struct group *m;
-    m = peek_min_and_unlock(gs->glist); assert(m == g1);
+    m = (struct group *) heap_min(heap);
+    assert(m == g1);
 
-    // remove all then re-add and test avg with ignore (single-threaded: no explicit list lock)
-    gl_del_group(gs->glist, g1);
-    gl_del_group(gs->glist, g2);
-    gl_del_group(gs->glist, g3);
-    gl_del_group(gs->glist, g4);
+    // remove all then re-add and test avg with ignore
+    heap_remove_at(heap, &g1->elem);
+    heap_remove_at(heap, &g2->elem);
+    heap_remove_at(heap, &g3->elem);
+    heap_remove_at(heap, &g4->elem);
 
-    gl_add_group(gs->glist, g1);
-    gl_add_group(gs->glist, g2);
-    gl_add_group(gs->glist, g3);
-    gl_add_group(gs->glist, g4);
-    avg = gl_avg_spec_virt_time(gs->glist, g4);
+    heap_push(heap, &g1->elem);
+    heap_push(heap, &g2->elem);
+    heap_push(heap, &g3->elem);
+    heap_push(heap, &g4->elem);
+    avg = avg_spec_virt_time(heap, g4);
     assert(avg == (10+20+30)/3);
 
     // Ensure gl_peek_min_group never returns a group with threads_queued == 0
     // Case 1: mark g1 empty and reheapify; expect next min is g2 (non-empty)
-    pthread_rwlock_wrlock(&g2->group_lock);
-    g2->threads_queued = 0;
-    pthread_rwlock_unlock(&g2->group_lock);
+    g2->queued = 0;
+    heap_fix_index(heap, &g2->elem);
 
-    gl_heap_fix_index(gs->glist, g2->heap_index);
-
-    m = peek_min_and_unlock(gs->glist); assert(m != NULL);
-    pthread_rwlock_rdlock(&m->group_lock);
-    int tq = m->threads_queued;
-    pthread_rwlock_unlock(&m->group_lock);
+    m = heap_min(heap);
+    assert(m != NULL);
+    int tq = m->queued;
     assert(tq > 0);
     assert(m == g1); // g1(10) is the min among non-empty (g1,g3,g4)
 
     // Case 2: mark g3 empty as well; expect min is g1 (still non-empty)
-    pthread_rwlock_wrlock(&g3->group_lock);
-    g3->threads_queued = 0;
-    pthread_rwlock_unlock(&g3->group_lock);
-    gl_heap_fix_index(gs->glist, g3->heap_index);
+    g3->queued = 0;
+    heap_fix_index(heap, &g3->elem);
 
-    m = peek_min_and_unlock(gs->glist); assert(m != NULL);
-    pthread_rwlock_rdlock(&m->group_lock); tq = m->threads_queued; pthread_rwlock_unlock(&m->group_lock);
+    m = heap_min(heap);
+    assert(m != NULL);
+    tq = m->queued;
     assert(tq > 0);
     // Non-empty set is {g1, g4}; min by SVT is g1(10)
     assert(m == g1);
 
     // Case 3: mark g1 empty too; only g4 remains non-empty => peek must return g4
-    pthread_rwlock_wrlock(&g1->group_lock);
-    g1->threads_queued = 0;
-    pthread_rwlock_unlock(&g1->group_lock);
-    gl_heap_fix_index(gs->glist, g1->heap_index);
+    g1->queued = 0;
+    heap_fix_index(heap, &g1->elem);
 
-    m = peek_min_and_unlock(gs->glist); assert(m == g4);
-    pthread_rwlock_rdlock(&m->group_lock); tq = m->threads_queued; pthread_rwlock_unlock(&m->group_lock);
+    m = heap_min(heap);
+    assert(m == g4);
+    tq = m->queued;
     assert(tq > 0);
 
     // Case 4: mark all empty; now peek may return any, but it must not crash
-    pthread_rwlock_wrlock(&g4->group_lock);
-    g4->threads_queued = 0;
-    pthread_rwlock_unlock(&g4->group_lock);
-    gl_heap_fix_index(gs->glist, g4->heap_index);
+    g4->queued = 0;
+    heap_fix_index(heap, &g4->elem);
 
-    m = peek_min_and_unlock(gs->glist);
-    assert(m == NULL);
+    m = heap_min(heap);
+    assert(m->queued == 0);
 
     printf("heap tests passed\n");
     return 0;

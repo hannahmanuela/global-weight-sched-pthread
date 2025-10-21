@@ -35,9 +35,9 @@ int num_threads_p_group = 3;
 // there are only global datastructures here
 
 struct process {
-    int process_id;
-    struct group *group;
-    struct process *next;
+	int process_id;
+	struct group *group;
+	struct process *next;
 } __attribute__((aligned(64)));
 
 struct group {
@@ -64,11 +64,11 @@ struct group {
 struct core_state {
 	int core_id;
 	struct process *current_process;
-    long sched_us;
+	long sched_us;
 	long sched_cycles;
-    long enq_us;
+	long enq_us;
 	long enq_cycles;
-    long yield_us;
+	long yield_us;
 	long yield_cycles;
 	long nsched;
 	long nenq;

@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "heap.h"
 #include "group.h"
@@ -9,6 +10,18 @@
 // lock invariant (to avoid deadlocks): 
 //  - always lock global list before group lock, if you're going to lock both 
 //      (no locking a group while holding the list lock)
+
+struct group_list *gl_new() {
+    struct group_list *glist = (struct group_list *) malloc(sizeof(struct group_list));
+    glist = (struct group_list *) malloc(sizeof(struct group_list));
+    glist->heap = heap_new(gl_cmp_group);
+    glist->wait_for_wr_group_list_lock_cycles = 0;
+    glist->num_times_wr_group_list_locked = 0;
+    atomic_init(&glist->wait_for_rd_group_list_lock_cycles, 0);
+    atomic_init(&glist->num_times_rd_group_list_locked, 0);
+    pthread_rwlock_init(&glist->group_list_lock, NULL);
+    return glist;
+}
 
 // Wrapper functions for pthread_rwlock operations with timing
 static void timed_pthread_rwlock_wrlock_group_list(struct group_list *glist, pthread_rwlock_t *lock) {

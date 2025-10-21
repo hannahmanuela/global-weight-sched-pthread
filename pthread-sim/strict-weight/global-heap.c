@@ -551,17 +551,9 @@ void main(int argc, char *argv[]) {
     num_cores = atoi(argv[1]);
     tick_length = atoi(argv[2]);
     num_groups = atoi(argv[3]);
-
     gs = malloc(sizeof(struct global_state));
-    gs->glist = (struct group_list *) malloc(sizeof(struct group_list));
-    gs->glist->heap = NULL;
-    gs->glist->heap = heap_new(gl_cmp_group);
-    gs->glist->wait_for_wr_group_list_lock_cycles = 0;
-    gs->glist->num_times_wr_group_list_locked = 0;
-    atomic_init(&gs->glist->wait_for_rd_group_list_lock_cycles, 0);
-    atomic_init(&gs->glist->num_times_rd_group_list_locked, 0);
+    gs->glist = gl_new();
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
-    pthread_rwlock_init(&gs->glist->group_list_lock, NULL);
     for (int i = 0; i < num_cores; i++) {
         gs->cores[i].core_id = i;
         gs->cores[i].current_process = NULL;

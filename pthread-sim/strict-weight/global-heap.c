@@ -360,9 +360,8 @@ void gl_del_group(struct group_list *gl, struct group *g) {
 // caller must hold group_list_lock and group_lock
 // keeps both lock held
 void gl_update_group_svt(struct group_list *gl, struct group *g, int diff) {
-    g->spec_virt_time += diff;
-    assert(g->heap_elem.heap_index != -1);
-    heap_fix_index(gl->heap, &g->heap_elem);
+	g->spec_virt_time += diff;
+	heap_fix_index(gl->heap, &g->heap_elem);
 }
 
 
@@ -433,44 +432,41 @@ void grp_collapse_spec_virt_time(struct group_list *gl, struct group *g, int tim
 // add p to its group. caller must hold group lock
 void grp_add_process(struct process *p, int is_new) {
 	struct process *curr_head = p->group->runqueue_head;
-    if (!curr_head) {
-        p->group->runqueue_head = p;
-        p->next = NULL;
-    } else {
-        p->next = curr_head;
-	    p->group->runqueue_head = p;
-    }
+	if (!curr_head) {
+		p->group->runqueue_head = p;
+		p->next = NULL;
+	} else {
+		p->next = curr_head;
+		p->group->runqueue_head = p;
+	}
 }
 
 // remove p from its group. caller must hold group lock
 void grp_del_process(struct process *p) {
 	struct process *curr_p = p->group->runqueue_head;
-    if (curr_p->process_id == p->process_id) {
-        p->group->runqueue_head = curr_p->next;
-    } else {
-        struct process *prev = curr_p;
-        curr_p = curr_p->next;
-        while (curr_p) {
-            if (curr_p->process_id == p->process_id) {
-                prev->next = curr_p->next;
-                break;
-            }
-            prev = curr_p;
-            curr_p = curr_p->next;
-        }
-    }
-    p->next = NULL;
+	if (curr_p->process_id == p->process_id) {
+		p->group->runqueue_head = curr_p->next;
+	} else {
+		struct process *prev = curr_p;
+		curr_p = curr_p->next;
+		while (curr_p) {
+			if (curr_p->process_id == p->process_id) {
+				prev->next = curr_p->next;
+				break;
+			}
+			prev = curr_p;
+			curr_p = curr_p->next;
+		}
+	}
+	p->next = NULL;
 }
 
 void grp_dec_nthread(struct group *g) {
-    pthread_rwlock_wrlock(&g->group_lock);
-    g->num_threads -= 1;
-    assert(g->num_threads >= g->threads_queued);
-    pthread_rwlock_unlock(&g->group_lock);
+	pthread_rwlock_wrlock(&g->group_lock);
+	g->num_threads -= 1;
+	assert(g->num_threads >= g->threads_queued);
+	pthread_rwlock_unlock(&g->group_lock);
 }
-
-
-
 
 
 // =========================================================================
@@ -484,57 +480,56 @@ void grp_dec_nthread(struct group *g) {
 // Make p runnable.
 // caller should have no locks
 void enqueue(struct group_list *gl, struct process *p, int is_new) {
-    pthread_rwlock_wrlock(&p->group->group_lock);
-    bool was_empty = p->group->threads_queued == 0;
-    grp_add_process(p, is_new); 
-    if (is_new) {
+	pthread_rwlock_wrlock(&p->group->group_lock);
+	bool was_empty = p->group->threads_queued == 0;
+	grp_add_process(p, is_new); 
+	if (is_new) {
 		p->group->num_threads += 1;
 	}
 	p->group->threads_queued += 1;
-    pthread_rwlock_unlock(&p->group->group_lock);
-
-    if (was_empty) {
-        set_grp_spec_virt_time(gl, p->group); 
-    }
+	pthread_rwlock_unlock(&p->group->group_lock);
+	if (was_empty) {
+		set_grp_spec_virt_time(gl, p->group); 
+	}
     
 }
 
 void register_group(struct group_list *gl, struct group *g) {
-    timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
-    gl_add_group(gl, g);
-    pthread_rwlock_unlock(&gl->group_list_lock);
+	timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
+	gl_add_group(gl, g);
+	pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
 void unregister_group(struct group_list *gl, struct group *g) {
-    timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
-    gl_del_group(gl, g);
-    pthread_rwlock_unlock(&gl->group_list_lock);
+	timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
+	gl_del_group(gl, g);
+	pthread_rwlock_unlock(&gl->group_list_lock);
 }
 
 // Assumes caller holds p's group lock
 // returns with no locks
 void dequeue(struct group_list *gl, struct process *p) {
 
-    grp_del_process(p);
+	grp_del_process(p);
 
-    bool now_empty = p->group->threads_queued == 0;
+	bool now_empty = p->group->threads_queued == 0;
 
-    pthread_rwlock_unlock(&p->group->group_lock);
+	pthread_rwlock_unlock(&p->group->group_lock);
     
-    if (!now_empty) {
-        return;
-    }
+	if (!now_empty) {
+		return;
+	}
 
-    // there's a potential race with enq here
-    // enq will have set the threads_queued to 1, so re-check before setting
-    // unlocking the group before getting gl_avg_spec_virt_time is required because of the lock order
-    int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
+	// there's a potential race with enq here
+	// enq will have set the threads_queued to 1, so re-check before setting
+	// unlocking the group before getting gl_avg_spec_virt_time is required because of the lock order
+	int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, NULL);
 
 	pthread_rwlock_wrlock(&p->group->group_lock);
-    if (p->group->threads_queued > 0) { // someone else enq'd while we were deq'ing, don't overwrite the virt time
-        pthread_rwlock_unlock(&p->group->group_lock);
-        return;
-    }
+	if (p->group->threads_queued > 0) { // someone else enq'd while we were deq'ing, don't overwrite the virt time
+		pthread_rwlock_unlock(&p->group->group_lock);
+		return;
+	}
 	int spec_virt_time = p->group->spec_virt_time;
 	p->group->virt_lag = curr_avg_spec_virt_time - spec_virt_time;
 	p->group->last_virt_time = spec_virt_time;
@@ -542,47 +537,47 @@ void dequeue(struct group_list *gl, struct process *p) {
 }
 
 void schedule(struct core_state *core, struct group_list *gl, int time_passed, int should_re_enq) {
-    struct process *running_process = core->current_process; 
-    struct group *prev_running_group = NULL;
+	struct process *running_process = core->current_process; 
+	struct group *prev_running_group = NULL;
 
-    if (running_process) {
-        grp_collapse_spec_virt_time(gl, running_process->group, time_passed);
-    }
+	if (running_process) {
+		grp_collapse_spec_virt_time(gl, running_process->group, time_passed);
+	}
 
-    if (should_re_enq && running_process) {
-	    enqueue(gl, running_process, 0);
-    }
+	if (should_re_enq && running_process) {
+		enqueue(gl, running_process, 0);
+	}
 
-    core->current_process = NULL;
+	core->current_process = NULL;
 
-    struct group *min_group = gl_peek_min_group(gl); // returns with both locks held
-    if (min_group == NULL) {
-        pthread_rwlock_unlock(&gl->group_list_lock);
-        return;
-    }
+	struct group *min_group = gl_peek_min_group(gl); // returns with both locks held
+	if (min_group == NULL) {
+		pthread_rwlock_unlock(&gl->group_list_lock);
+		return;
+	}
     
 
-    int time_expecting = (int)tick_length / min_group->weight;
-    gl_update_group_svt(gl, min_group, time_expecting);
-    min_group->threads_queued -= 1;
+	int time_expecting = (int)tick_length / min_group->weight;
+	gl_update_group_svt(gl, min_group, time_expecting);
+	min_group->threads_queued -= 1;
 
-    assert(min_group->threads_queued >= 0);
+	assert(min_group->threads_queued >= 0);
 
-    pthread_rwlock_unlock(&gl->group_list_lock);
+	pthread_rwlock_unlock(&gl->group_list_lock);
 
-    // select the next process
-    struct process *next_p = min_group->runqueue_head;
-    dequeue(gl, next_p); // unlocks the group lock
+	// select the next process
+	struct process *next_p = min_group->runqueue_head;
+	dequeue(gl, next_p); // unlocks the group lock
     
 
-    core->current_process = next_p; // core owns p
-    next_p->next = NULL;
+	core->current_process = next_p; // core owns p
+	next_p->next = NULL;
 }
 
 // NOTE: assume we hold no locks
 void yield(struct core_state *core, struct group_list *gl, struct process *p, int time_gotten) {
 	grp_dec_nthread(p->group);
-    schedule(core, gl, time_gotten, 0);
+	schedule(core, gl, time_gotten, 0);
 }
 
 

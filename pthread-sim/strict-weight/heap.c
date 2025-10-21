@@ -86,6 +86,7 @@ void heap_ensure_capacity(struct heap *h) {
 
 // reheapify a group at its current index after its key changed; caller must hold group_list_lock
 void heap_fix_index(struct heap *h, struct heap_elem *e) {
+    assert(e->heap_index != -1);
 	if (e->heap_index < 0 || e->heap_index >= h->heap_size) return;
 	heap_sift_down(h, e->heap_index);
 	heap_sift_up(h, e->heap_index);

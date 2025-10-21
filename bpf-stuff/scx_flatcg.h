@@ -55,7 +55,7 @@ struct fcg_cgrp_ctx {
 	s64			cvtime_delta; 
 	// tasks (max) vtime; used in cgroup_move, init_task
 	u64			tvtime_now; 
-
+	u64 		cvtime_copy;
 };
 
 #endif /* __SCX_EXAMPLE_FLATCG_H */

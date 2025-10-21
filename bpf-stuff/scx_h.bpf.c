@@ -24,6 +24,14 @@ enum {
 };
 
 // =======================================================
+// GLOBAL VARS
+// =======================================================
+
+static __u64 global_num_contending_grps;
+static __u64 global_curr_sum_svt;
+
+
+// =======================================================
 // DATA STRUCTURES
 // =======================================================
 
@@ -82,7 +90,7 @@ struct {
 	__uint(max_entries, 16384);
 	__type(key, __u64);
 	__type(value, struct cgrp_node_stash);
-} cgrp_node_stash SEC(".maps"); // stash of cgroup tree nodes, TODO: not sure what this is for
+} cgrp_node_stash SEC(".maps"); // stash of cgroup tree nodes, for groups that are currently not runnable
 
 /* gets inc'd on weight tree changes to expire the cached hweights */
 u64 hweight_gen = 1;
@@ -299,6 +307,41 @@ static void update_active_weight_sums(struct cgroup *cgrp, bool runnable)
 		cgrp_refresh_hweight(cgrp, cgi);
 }
 
+
+
+// =======================================================
+// ACCOUNTING HELPER FUNCTIONS
+// =======================================================
+
+
+static inline u64 gl_avg_svt() {
+    u64 sum_svt = __atomic_load_n(&global_curr_sum_svt, __ATOMIC_ACQUIRE);
+    u64 ct = __atomic_load_n(&global_num_contending_grps, __ATOMIC_ACQUIRE);
+    if (ct == 0) {
+        return 0;
+    }
+    return sum_svt / ct;
+}
+
+static bool cg_node_less(struct bpf_rb_node *a, const struct bpf_rb_node *b)
+{
+	struct cgrp_node *cgn_a, *cgn_b;
+
+	cgn_a = container_of(a, struct cgrp_node, rb_node);
+	cgn_b = container_of(b, struct cgrp_node, rb_node);
+
+	return cgn_a->svt < cgn_b->svt;
+}
+
+
+
+
+
+
+
+
+
+
 // =======================================================
 // CGROUP BPF OPS
 // =======================================================
@@ -416,15 +459,71 @@ void BPF_STRUCT_OPS(h_cgroup_move, struct task_struct *p,
 		    struct cgroup *from, struct cgroup *to)
 {
 	struct cgrp_info *from_cgi, *to_cgi;
-	s64 delta;
+	// s64 delta;
 
 	/* find_cgrp_ctx() triggers scx_ops_error() on lookup failures */
 	if (!(from_cgi = find_cgrp_info(from)) || !(to_cgi = find_cgrp_info(to)))
 		return;
 
-	delta = time_delta(p->scx.dsq_vtime, from_cgi->tvtime_now);
-	p->scx.dsq_vtime = to_cgi->tvtime_now + delta;
+	// delta = time_delta(p->scx.dsq_vtime, from_cgi->tvtime_now);
+	// p->scx.dsq_vtime = to_cgi->tvtime_now + delta;
 }
+
+
+
+// =======================================================
+// TASK BPF OPS
+// =======================================================
+
+
+void BPF_STRUCT_OPS(h_enqueue, struct task_struct *p, u64 enq_flags)
+{
+	struct cgroup *kernel_group;
+	struct cgrp_info *cgi;
+
+	kernel_group = __COMPAT_scx_bpf_task_cgroup(p);
+
+	cgi = find_cgrp_info(kernel_group);
+	if (!cgi) {
+		goto out_release;
+	}
+
+	bpf_printk("ENQ %d to %d", p->pid, kernel_group->kn->id);
+
+	scx_bpf_dsq_insert(p, kernel_group->kn->id, MY_SLICE, enq_flags);
+
+	struct cgrp_node_stash *stash;
+	struct cgrp_node *cg_node;
+	u64 cgid = kernel_group->kn->id;
+
+	// do some sort of sync w/ pick_min_group?
+
+	// move node to tree (from the stash)
+	// what happens if you add something that already exists?
+	stash = bpf_map_lookup_elem(&cgrp_node_stash, &cgid);
+	if (!stash) {
+		scx_bpf_error("cgv_node lookup failed for cgid %llu", cgid);
+		goto out_release;
+	}
+	cg_node = bpf_kptr_xchg(&stash->node, NULL);
+	if (!cg_node) {
+		// the node is already on the tree
+		goto out_release;
+	}
+		
+	u64 curr_svt = gl_avg_svt();
+	bpf_printk("  adding to tree w/ sct %llu", curr_svt);
+
+	bpf_spin_lock(&cg_tree_lock);
+	cg_node->svt = curr_svt;
+	bpf_rbtree_add(&cg_tree, &cg_node->rb_node, cg_node_less);
+	bpf_spin_unlock(&cg_tree_lock);
+
+out_release:
+	bpf_cgroup_release(kernel_group);
+	
+}
+
 
 
 
@@ -441,7 +540,7 @@ void BPF_STRUCT_OPS(h_exit, struct scx_exit_info *ei)
 SCX_OPS_DEFINE(h_ops,
         // .init_task		= (void *)h_init_task,
         // .select_cpu		= (void *)h_select_cpu,
-        // .enqueue		= (void *)h_enqueue,
+        .enqueue		= (void *)h_enqueue,
         // .runnable		= (void *)h_runnable,
         // .dispatch		= (void *)h_dispatch,
         // .running		= (void *)h_running,

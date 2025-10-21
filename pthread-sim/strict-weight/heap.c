@@ -29,11 +29,23 @@ void *heap_lookup(struct heap *heap, int idx) {
 	return heap->heap_size > 0 ? heap->heap[idx]->elem : NULL;
 }
 
-void heap_print(struct heap *heap, void (*print)(struct heap_elem *)) {
-	printf("heap %d\n", heap->heap_size);
+void heap_iter(struct heap *heap, void (*iter)(struct heap_elem *)) {
 	for (int i = 0; i < heap->heap_size; i++) {
-		print(heap->heap[i]);
+		iter(heap->heap[i]);
 	}
+}
+
+struct heap_elem* heap_first(struct heap *h) {
+	if(h->heap_size <= 0)
+		return NULL;
+	return h->heap[0];
+}
+
+struct heap_elem* heap_next(struct heap *h, struct heap_elem *e) {
+	int i = e->heap_index + 1;
+	if(i >= h->heap_size)
+		return NULL;
+	return h->heap[i];
 }
 
 static inline void heap_swap(struct heap *h, int i, int j) {

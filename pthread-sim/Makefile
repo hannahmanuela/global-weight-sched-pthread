@@ -8,10 +8,7 @@ cas:
 	gcc -g -o strict-weight/global-accounting-cas strict-weight/global-accounting-cas.c -pthread
 
 global-heap: strict-weight/global-heap.c strict-weight/heap.c
-	gcc -O2 -o strict-weight/global-heap strict-weight/global-heap.c strict-weight/heap.c -pthread
-
-global-heap-debug:
-	gcc -g -pg -o strict-weight/global-heap strict-weight/global-accounting-rlock.c -pthread
+	gcc -O2 -g -o strict-weight/global-heap strict-weight/global-heap.c strict-weight/heap.c -pthread
 
 test-heap: test-heap.c strict-weight/heap.c
 	gcc -g -o test-heap test-heap.c strict-weight/heap.c -pthread

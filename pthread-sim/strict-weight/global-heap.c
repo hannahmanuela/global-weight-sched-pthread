@@ -135,27 +135,27 @@ struct group *create_group(int id, int weight) {
 // ================
 
 long safe_read_tsc() {
-    _mm_lfence();
-    long ret_val = _rdtsc();
-    _mm_lfence();
-    return ret_val;
+	_mm_lfence();
+	long ret_val = _rdtsc();
+	_mm_lfence();
+	return ret_val;
 }
 
 // Wrapper functions for pthread_rwlock operations with timing
 void timed_pthread_rwlock_wrlock_group_list(pthread_rwlock_t *lock) {
-    int start_tsc = safe_read_tsc();
-    pthread_rwlock_wrlock(lock);
-    int end_tsc = safe_read_tsc();
-    gs->glist->wait_for_wr_group_list_lock_cycles += (end_tsc - start_tsc);
-    gs->glist->num_times_wr_group_list_locked++;
+	int start_tsc = safe_read_tsc();
+	pthread_rwlock_wrlock(lock);
+	int end_tsc = safe_read_tsc();
+	gs->glist->wait_for_wr_group_list_lock_cycles += (end_tsc - start_tsc);
+	gs->glist->num_times_wr_group_list_locked++;
 }
 
 void timed_pthread_rwlock_rdlock_group_list(pthread_rwlock_t *lock) {
-    int start_tsc = safe_read_tsc();
-    pthread_rwlock_rdlock(lock);
-    int end_tsc = safe_read_tsc();
-    atomic_fetch_add_explicit(&gs->glist->wait_for_rd_group_list_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
-    atomic_fetch_add_explicit(&gs->glist->num_times_rd_group_list_locked, 1, memory_order_relaxed);
+	int start_tsc = safe_read_tsc();
+	pthread_rwlock_rdlock(lock);
+	int end_tsc = safe_read_tsc();
+	atomic_fetch_add_explicit(&gs->glist->wait_for_rd_group_list_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
+	atomic_fetch_add_explicit(&gs->glist->num_times_rd_group_list_locked, 1, memory_order_relaxed);
 }
 
 void print_core(struct core_state *c) {
@@ -184,17 +184,18 @@ void trace_enqueue(long cycles, long us) {
 #endif
 }
 
+void print_elem(struct heap_elem *e) {
+	struct group *g = (struct group *) e->elem;
+	pthread_rwlock_rdlock(&g->group_lock);
+	printf("(%d: %d, %d, %d)%s", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, e->heap_index == gs->glist->heap->heap_size - 1 ? "\n" : ", ");
+	pthread_rwlock_unlock(&g->group_lock);
+}
+
 void print_global_state() {
-	// pthread_rwlock_rdlock(&gs->glist->group_list_lock);
 	timed_pthread_rwlock_rdlock_group_list(&gs->glist->group_list_lock);
 	printf("Global heap size: %d \n", gs->glist->heap->heap_size  );
 	printf("Heap contents by (group_id: svt, num_threads, num_queued): ");
-	for (int i = 0; i < gs->glist->heap->heap_size; i++) {
-		struct group *g = (struct group *) heap_lookup(gs->glist->heap, i);
-		pthread_rwlock_rdlock(&g->group_lock);
-		printf("(%d: %d, %d, %d)%s", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, i == gs->glist->heap->heap_size - 1 ? "\n" : ", ");
-		pthread_rwlock_unlock(&g->group_lock);
-	}
+	heap_iter(gs->glist->heap, print_elem);
 	pthread_rwlock_unlock(&gs->glist->group_list_lock);
 }
 
@@ -333,8 +334,9 @@ int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) 
 	int total_spec_virt_time = 0;
 	int count = 0;
 	timed_pthread_rwlock_rdlock_group_list(&gl->group_list_lock);
-	for (int i = 0; i < gl->heap->heap_size; i++) {
-		struct group *g = (struct group *) heap_lookup(gl->heap, i);
+	for (struct heap_elem *e = heap_first(gl->heap); e != NULL; e = heap_next(gl->heap, e)) {
+		struct group *g = (struct group *) e->elem;
+		assert(g != NULL);
 		if (g == group_to_ignore) continue;
 		total_spec_virt_time += grp_get_spec_virt_time(g);
 		count++;
@@ -383,7 +385,7 @@ int grp_get_spec_virt_time(struct group *g) {
 // caller should have no locks
 void set_grp_spec_virt_time(struct group_list *gl, struct group *g) {
 	int initial_virt_time = gl_avg_spec_virt_time(gl, g); 
-    pthread_rwlock_wrlock(&g->group_lock);
+	pthread_rwlock_wrlock(&g->group_lock);
 	if (g->virt_lag > 0) {
 		if (g->last_virt_time > initial_virt_time) {
 			initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
@@ -391,8 +393,8 @@ void set_grp_spec_virt_time(struct group_list *gl, struct group *g) {
 	} else if (g->virt_lag < 0) {
 		initial_virt_time -= g->virt_lag; // negative lag always carries over? maybe limit it?
 	}
-    g->spec_virt_time = initial_virt_time;
-    pthread_rwlock_unlock(&g->group_lock);
+	g->spec_virt_time = initial_virt_time;
+	pthread_rwlock_unlock(&g->group_lock);
 	return;
 }
 

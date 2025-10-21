@@ -19,6 +19,14 @@ int heap_elem_idx(struct heap_elem *h) {
 	return h->heap_index;
 }
 
+void *heap_min(struct heap *h) {
+	return h->heap[0]->elem;
+}
+
+void *heap_lookup(struct heap *heap, int idx) {
+	return heap->heap_size > 0 ? heap->heap[idx]->elem : NULL;
+}
+
 static inline void heap_swap(struct heap *h, int i, int j) {
 	void *tmp = h->heap[i];
 	h->heap[i] = h->heap[j];

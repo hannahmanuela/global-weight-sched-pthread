@@ -99,9 +99,6 @@ pthread_mutex_t log_lock;
 // =========================================================================
 // =========================================================================
 
-static struct group *heap_lookup(struct heap *heap, int idx) {
-	return heap->heap_size > 0 ? (struct group *) (heap->heap[0]->elem) : NULL;
-}
 
 // ================
 // for creation
@@ -193,7 +190,7 @@ void print_global_state() {
 	printf("Global heap size: %d \n", gs->glist->heap->heap_size  );
 	printf("Heap contents by (group_id: svt, num_threads, num_queued): ");
 	for (int i = 0; i < gs->glist->heap->heap_size; i++) {
-		struct group *g = heap_lookup(gs->glist->heap, i);
+		struct group *g = (struct group *) heap_lookup(gs->glist->heap, i);
 		pthread_rwlock_rdlock(&g->group_lock);
 		printf("(%d: %d, %d, %d)%s", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, i == gs->glist->heap->heap_size - 1 ? "\n" : ", ");
 		pthread_rwlock_unlock(&g->group_lock);
@@ -319,7 +316,7 @@ void gl_update_group_svt(struct group_list *gl, struct group *g, int diff);
 // returns with group and list locked
 static struct group* gl_peek_min_group(struct group_list *gl) {
     timed_pthread_rwlock_wrlock_group_list(&gl->group_list_lock);
-    struct group *g = heap_lookup(gl->heap, 0);
+    struct group *g = (struct group *) heap_min(gl->heap);
     if (g && g->threads_queued == 0) {
         g = NULL;
     }
@@ -337,7 +334,7 @@ int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) 
 	int count = 0;
 	timed_pthread_rwlock_rdlock_group_list(&gl->group_list_lock);
 	for (int i = 0; i < gl->heap->heap_size; i++) {
-		struct group *g = heap_lookup(gl->heap, i);
+		struct group *g = (struct group *) heap_lookup(gl->heap, i);
 		if (g == group_to_ignore) continue;
 		total_spec_virt_time += grp_get_spec_virt_time(g);
 		count++;
@@ -703,7 +700,6 @@ void *run_core(void* core_num_ptr) {
 }
 
 
-#ifndef UNIT_TEST
 void main(int argc, char *argv[]) {
     pthread_mutex_init(&log_lock, NULL);
 
@@ -781,7 +777,6 @@ void main(int argc, char *argv[]) {
     }
 
 }
-#endif // UNIT_TEST
 
 
 

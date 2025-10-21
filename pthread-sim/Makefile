@@ -7,14 +7,14 @@ all:
 cas:
 	gcc -g -o strict-weight/global-accounting-cas strict-weight/global-accounting-cas.c -pthread
 
-rlock:
-	gcc -O2 -o strict-weight/global-accounting-rlock strict-weight/global-accounting-rlock.c strict-weight/heap.c -pthread
+global-heap:
+	gcc -O2 -o strict-weight/global-heap strict-weight/global-heap.c strict-weight/heap.c -pthread
 
-rlock-debug:
-	gcc -g -pg -o strict-weight/global-accounting-rlock strict-weight/global-accounting-rlock.c -pthread
+global-heap-debug:
+	gcc -g -pg -o strict-weight/global-heap strict-weight/global-accounting-rlock.c -pthread
 
 test-heap:
-	gcc -g -o test-heap test-heap.c -pthread
+	gcc -g -o test-heap test-heap.c strict-weight/heap.c -pthread
 
 clean:
 	rm strict-weight/distr-weight

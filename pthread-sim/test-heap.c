@@ -5,9 +5,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#define UNIT_TEST
-
-#include "strict-weight/global-accounting-rlock.c"
+#include "strict-weight/heap.h"
 
 // Peek min using gl_peek_min_group and immediately unlock held locks
 static struct group* peek_min_and_unlock(struct group_list *gl) {

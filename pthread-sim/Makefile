@@ -17,6 +17,7 @@ test-heap:
 	gcc -g -o test-heap test-heap.c strict-weight/heap.c -pthread
 
 clean:
-	rm strict-weight/distr-weight
-	rm strict-weight/global-accounting
-	rm strict-weight/global-accounting-cas
+	rm strict-weight/global-heap-debug
+	rm strict-weight/global-heap
+	rm strict-weight/test-heap
+	rm strict-weight/global-account-cas

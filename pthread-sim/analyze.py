@@ -138,6 +138,66 @@ def plot_distributions(rows: List[Tuple[int, str, int, float]], output_path: str
     plt.close()
 
 
+def plot_averages(rows: List[Tuple[int, str, int, float]], output_path: str) -> None:
+    import pandas as pd
+    import seaborn as sns
+
+    if not rows:
+        raise RuntimeError("No data found to plot. Make sure out/*.txt files exist and are non-empty.")
+
+    df = pd.DataFrame(rows, columns=["cores", "operation", "cycles", "microseconds"])  # type: ignore
+
+    # Order categories to match distribution plot
+    unique_cores = sorted(df["cores"].unique().tolist())
+    preferred_ops = ["enq", "sched", "yield"]
+    ops_present = df["operation"].unique().tolist()
+    op_order = [op for op in preferred_ops if op in ops_present]
+    for op in ops_present:
+        if op not in op_order:
+            op_order.append(op)
+
+    # Aggregate means
+    means = (
+        df.groupby(["cores", "operation"], as_index=False)["microseconds"].mean()
+    )
+
+    means["cores"] = pd.Categorical(means["cores"], categories=unique_cores, ordered=True)
+    means["operation"] = pd.Categorical(means["operation"], categories=op_order, ordered=True)
+
+    width_per_group = 0.7
+    fig_width = max(8.0, width_per_group * len(unique_cores) * (max(1, len(op_order)) / 2))
+    fig_height = 6.0
+
+    plt.figure(figsize=(fig_width, fig_height))
+    sns.set_style("whitegrid")
+
+    # Line plot with dots at means
+    sns.lineplot(
+        data=means,
+        x="cores",
+        y="microseconds",
+        hue="operation",
+        marker="o",
+        linewidth=2.0,
+        markersize=7,
+    )
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    if labels:
+        by_label = {}
+        for h, l in zip(handles, labels):
+            if l not in by_label:
+                by_label[l] = h
+        plt.legend(by_label.values(), by_label.keys(), title="operation", bbox_to_anchor=(1.02, 1), loc="upper left")
+
+    plt.xlabel("cores")
+    plt.ylabel("microseconds")
+    plt.title("Operation time averages by cores (microseconds)")
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=200)
+    plt.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Plot distributions of operation times (microseconds) grouped by cores and operation.")
     parser.add_argument(
@@ -150,12 +210,19 @@ def main() -> None:
         default=os.path.join(os.path.dirname(__file__), "operation_us_distributions.png"),
         help="Path to save the plot PNG (default: pthread-sim/operation_us_distributions.png)",
     )
+    parser.add_argument(
+        "--averages-output",
+        default=os.path.join(os.path.dirname(__file__), "operation_us_averages.png"),
+        help="Path to save the averages line plot PNG (default: pthread-sim/operation_us_averages.png)",
+    )
     args = parser.parse_args()
 
     ensure_deps()
     rows = collect_rows(args.out_dir)
     plot_distributions(rows, args.output)
+    plot_averages(rows, args.averages_output)
     print(f"Saved plot to: {args.output}")
+    print(f"Saved plot to: {args.averages_output}")
 
 
 if __name__ == "__main__":

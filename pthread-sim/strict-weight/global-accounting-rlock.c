@@ -14,7 +14,7 @@
 #include <sys/resource.h>
 #include <stdatomic.h>
 
-//#define TRACE
+#define TRACE
 // #define ASSERTS
 // #define ASSERTS_SINGLE_WORKER
 
@@ -699,6 +699,14 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	*cycles += op_cycles;
 	*us += op_us;
 	*n += 1;
+    switch(op) {
+	case SCHED:
+		trace_schedule(op_cycles, op_us);
+	case ENQ:
+	    trace_enqueue(op_cycles, op_us);
+	case YIELD:
+		trace_yield(op_cycles, op_us);
+	}
 }
 
 // randomly choose to: "run" for the full tick, "enq" a new process, or "deq" something
@@ -765,8 +773,6 @@ void *run_core(void* core_num_ptr) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		struct process *next_running_process = mycore->current_process;
-		// trace_schedule(sched_cycles, sched_us);
 
 		usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
@@ -831,12 +837,12 @@ void main(int argc, char *argv[]) {
 
     for (int i = 0; i < num_cores; i ++) {
         pthread_create(&threads[i], NULL, run_core, (void*)i);
-        // usleep(200);
+        usleep(20);
     }
 
     for (int i = 0; i < num_cores; i++) {
         pthread_join(threads[i], NULL);
-	print_core(&gs->cores[i]);
+	    print_core(&gs->cores[i]);
     }
     // TODO: um I don't unregister the groups for now
 

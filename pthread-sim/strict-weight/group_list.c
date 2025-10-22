@@ -40,7 +40,7 @@ struct group* gl_get_min_group(struct group_list *gl) {
 	struct lock_heap *lh = mh_heap(gl->mheap, 0);
 	lh_lock_timed(lh);
 	struct group *g = (struct group *) heap_min(lh->heap);
-	g->lh = lh;
+	g->lh = lh;   // XXX unnecessary; do this at register/unregister
 	if (g && g->threads_queued == 0) {
 		g = NULL;
 	}

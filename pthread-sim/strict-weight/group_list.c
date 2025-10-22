@@ -30,29 +30,32 @@ void lh_lock(struct lock_heap *lh) {
 	pthread_rwlock_wrlock(&lh->heap_lock);
 }
 
+void lh_rdlock(struct lock_heap *lh) {
+	pthread_rwlock_rdlock(&lh->heap_lock);
+}
+
+// Wrapper functions for pthread_rwlock operations with timing
+static void lh_lock_timed(struct lock_heap *lh) {
+	int start_tsc = safe_read_tsc();
+	lh_lock(lh);
+	int end_tsc = safe_read_tsc();
+	lh->wait_for_wr_heap_lock_cycles += (end_tsc - start_tsc);
+	lh->num_times_wr_heap_locked++;
+}
+
+static void lh_rdlock_timed(struct lock_heap *lh) {
+	int start_tsc = safe_read_tsc();
+	lh_rdlock(lh);
+	int end_tsc = safe_read_tsc();
+	atomic_fetch_add_explicit(&lh->wait_for_rd_heap_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
+	atomic_fetch_add_explicit(&lh->num_times_rd_heap_locked, 1, memory_order_relaxed);
+}
+
 struct group_list *gl_new() {
 	struct group_list *glist = (struct group_list *) malloc(sizeof(struct group_list));
 	glist = (struct group_list *) malloc(sizeof(struct group_list));
 	glist->lheap = lh_new();
 	return glist;
-}
-
-
-// Wrapper functions for pthread_rwlock operations with timing
-static void timed_pthread_rwlock_wrlock_group_list(struct group_list *glist, pthread_rwlock_t *lock) {
-	int start_tsc = safe_read_tsc();
-	pthread_rwlock_wrlock(lock);
-	int end_tsc = safe_read_tsc();
-	glist->lheap->wait_for_wr_heap_lock_cycles += (end_tsc - start_tsc);
-	glist->lheap->num_times_wr_heap_locked++;
-}
-
-static void timed_pthread_rwlock_rdlock_group_list(struct group_list *glist, pthread_rwlock_t *lock) {
-	int start_tsc = safe_read_tsc();
-	pthread_rwlock_rdlock(lock);
-	int end_tsc = safe_read_tsc();
-	atomic_fetch_add_explicit(&glist->lheap->wait_for_rd_heap_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
-	atomic_fetch_add_explicit(&glist->lheap->num_times_rd_heap_locked, 1, memory_order_relaxed);
 }
 
 static void print_elem(struct heap_elem *e) {
@@ -63,12 +66,12 @@ static void print_elem(struct heap_elem *e) {
 }
 
 void gl_print(struct group_list *gl) {
-	timed_pthread_rwlock_rdlock_group_list(gl, &gl->lheap->heap_lock);
+	lh_rdlock_timed(gl->lheap);
 	printf("Global heap size: %d \n", gl->lheap->heap->heap_size  );
 	printf("Heap contents by (group_id: svt, num_threads, num_queued): ");
 	heap_iter(gl->lheap->heap, print_elem);
 	printf("\n");
-	pthread_rwlock_unlock(&gl->lheap->heap_lock);
+	lh_unlock(gl->lheap);
 }
 
 void gl_stats(struct group_list *glist) {
@@ -89,7 +92,7 @@ void gl_stats(struct group_list *glist) {
 // peek min group without removing; 
 // returns with group and list locked
 struct group* gl_peek_min_group(struct group_list *gl, struct lock_heap **lh) {
-	timed_pthread_rwlock_wrlock_group_list(gl, &gl->lheap->heap_lock);
+	lh_lock_timed(gl->lheap);
 	struct group *g = (struct group *) heap_min(gl->lheap->heap);
 	*lh = gl->lheap;
 	if (g && g->threads_queued == 0) {
@@ -107,7 +110,7 @@ struct group* gl_peek_min_group(struct group_list *gl, struct lock_heap **lh) {
 int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
 	int total_spec_virt_time = 0;
 	int count = 0;
-	timed_pthread_rwlock_rdlock_group_list(gl, &gl->lheap->heap_lock);
+	lh_rdlock_timed(gl->lheap);
 	for (struct heap_elem *e = heap_first(gl->lheap->heap); e != NULL; e = heap_next(gl->lheap->heap, e)) {
 		struct group *g = (struct group *) e->elem;
 		assert(g != NULL);
@@ -115,7 +118,7 @@ int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) 
 		total_spec_virt_time += grp_get_spec_virt_time(g);
 		count++;
 	}
-	pthread_rwlock_unlock(&gl->lheap->heap_lock);
+	lh_unlock(gl->lheap);
 	if (count == 0) return 0;
 	return total_spec_virt_time / count;
 }
@@ -141,24 +144,24 @@ void gl_update_group_svt(struct group_list *gl, struct group *g, int diff) {
 }
 
 void gl_fix_group(struct group_list *gl, struct group *g) {
-	timed_pthread_rwlock_wrlock_group_list(gl, &gl->lheap->heap_lock);
+	lh_lock_timed(gl->lheap);
         pthread_rwlock_wrlock(&g->group_lock);
         // If the group is currently in the heap, fix its position
         if (g->heap_elem.heap_index != -1) {
 		heap_fix_index(gl->lheap->heap, &g->heap_elem);
         }
         pthread_rwlock_unlock(&g->group_lock);
-        pthread_rwlock_unlock(&gl->lheap->heap_lock);
+        lh_unlock(gl->lheap);
 }
 
 void gl_register_group(struct group_list *gl, struct group *g) {
-	timed_pthread_rwlock_wrlock_group_list(gl, &gl->lheap->heap_lock);
+	lh_lock_timed(gl->lheap);
 	gl_add_group(gl, g);
-	pthread_rwlock_unlock(&gl->lheap->heap_lock);
+	lh_unlock(gl->lheap);
 }
 
 void gl_unregister_group(struct group_list *gl, struct group *g) {
-	timed_pthread_rwlock_wrlock_group_list(gl, &gl->lheap->heap_lock);
+	lh_lock_timed(gl->lheap);
 	gl_del_group(gl, g);
-	pthread_rwlock_unlock(&gl->lheap->heap_lock);
+	lh_unlock(gl->lheap);
 }

@@ -52,6 +52,7 @@ void mh_del_group(struct mheap *mh, struct group *g) {
 	lh_unlock(g->lh);
 }
 
+// to sanity check; run with 1 core
 void mh_check_min_group(struct mheap *mh, struct group *g0) {
 	struct group *min;
 	int n = 0;

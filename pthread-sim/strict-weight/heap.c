@@ -8,7 +8,10 @@ struct heap *heap_new(int cmp(void *, void *)) {
 	struct heap *h = malloc(sizeof(struct heap));
 	h->cmp_elem = cmp;
 	h->heap_size = 0;
-	h->heap_capacity = 0;
+	h->heap = malloc(sizeof(struct heap_elem));
+	h->heap[0]->heap_index = -1;
+	h->heap[0]->elem = NULL;
+	h->heap_capacity = 1;
 	return h;
 }
 
@@ -22,9 +25,6 @@ int heap_elem_idx(struct heap_elem *h) {
 }
 
 void *heap_min(struct heap *h) {
-	if(h->heap_size == 0) {
-		return NULL;
-	}
 	return h->heap[0]->elem;
 } 
 
@@ -131,4 +131,5 @@ void heap_remove_at(struct heap *h, struct heap_elem *e) {
         heap_sift_up(h, e->heap_index);
     }
     removed->heap_index = -1;
+    removed->elem = NULL;
 }

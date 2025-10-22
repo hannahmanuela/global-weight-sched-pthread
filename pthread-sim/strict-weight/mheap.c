@@ -78,9 +78,8 @@ retry:
 	}
 	struct lock_heap *lh_i = mh_heap(mh, i);
 	struct lock_heap *lh_j = mh_heap(mh, j);
-	// XXX use atomics
-	struct group *g_i = (struct group *) heap_min(lh_i->heap);
-	struct group *g_j = (struct group *) heap_min(lh_j->heap);
+	struct group *g_i = (struct group *) lh_min_atomic(lh_i);
+	struct group *g_j = (struct group *) lh_min_atomic(lh_j);
 	if (g_i == NULL && g_j == NULL) {
 		return NULL;
 	}

@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 
 #include "util.h"
 #include "lheap.h"
@@ -35,6 +36,11 @@ void lh_unlock(struct lock_heap *lh) {
 
 void lh_lock(struct lock_heap *lh) {
 	pthread_rwlock_wrlock(&lh->heap_lock);
+}
+
+void *lh_min_atomic(struct lock_heap *lh)  {
+	struct heap_elem *e = __atomic_load_n(&(lh->heap->heap[0]), __ATOMIC_ACQUIRE);
+	return e->elem;
 }
 
 // if l = 0,  successful lock

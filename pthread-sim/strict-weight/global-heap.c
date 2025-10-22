@@ -538,15 +538,16 @@ void main(int argc, char *argv[]) {
     // sched_param.sched_priority = 99;
     // sched_setscheduler(0, SCHED_FIFO, &sched_param);
 
-    if (argc != 4) {
-	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_groups>\n");
+    if (argc != 5) {
+	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_groups> <num_heaps>\n");
 	    exit(1);
     }
     num_cores = atoi(argv[1]);
     tick_length = atoi(argv[2]);
     num_groups = atoi(argv[3]);
+
     gs = malloc(sizeof(struct global_state));
-    gs->glist = gl_new();
+    gs->glist = gl_new(atoi(argv[4]));
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
     for (int i = 0; i < num_cores; i++) {
         gs->cores[i].core_id = i;

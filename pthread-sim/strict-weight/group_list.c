@@ -12,10 +12,10 @@
 //  - always lock global list before group lock, if you're going to lock both 
 //      (no locking a group while holding the list lock)
 
-struct group_list *gl_new() {
+struct group_list *gl_new(int nqueue) {
 	struct group_list *glist = (struct group_list *) malloc(sizeof(struct group_list));
 	glist = (struct group_list *) malloc(sizeof(struct group_list));
-	glist->mheap = mh_new(grp_cmp, 1);
+	glist->mheap = mh_new(grp_cmp, nqueue);
 	return glist;
 }
 

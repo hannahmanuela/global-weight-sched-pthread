@@ -64,7 +64,6 @@ struct group *mh_min_group(struct mheap *mh) {
 			lh_unlock(lh);
 			return NULL;
 		}	
-		g->lh = lh;   // XXX unnecessary; do this at register/unregister	
 		return g;
 	}
 	if (i > j) {
@@ -72,6 +71,7 @@ struct group *mh_min_group(struct mheap *mh) {
 		i = j;
 		j = t;
 	}
+	// acquire locks in increasing index order
 	struct lock_heap *lh_i = mh_heap(mh, i);
 	struct lock_heap *lh_j = mh_heap(mh, j);
 	lh_lock_timed(lh_i);

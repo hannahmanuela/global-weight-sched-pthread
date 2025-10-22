@@ -392,7 +392,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 	struct lock_heap *lh;
 	struct group *min_group = gl_peek_min_group(gl, &lh); // returns with both locks held
 	if (min_group == NULL) {
-		gl_unlock(lh);
+		lh_unlock(lh);
 		return;
 	}
     
@@ -403,7 +403,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
 	assert(min_group->threads_queued >= 0);
 
-	gl_unlock(lh);
+	lh_unlock(lh);
 
 	// select the next process
 	struct process *next_p = min_group->runqueue_head;

@@ -22,6 +22,14 @@ struct lock_heap *lh_new() {
 	return lh;
 }
 
+void lh_unlock(struct lock_heap *lh) {
+	pthread_rwlock_unlock(&lh->heap_lock);
+}
+
+void lh_lock(struct lock_heap *lh) {
+	pthread_rwlock_wrlock(&lh->heap_lock);
+}
+
 struct group_list *gl_new() {
 	struct group_list *glist = (struct group_list *) malloc(sizeof(struct group_list));
 	glist = (struct group_list *) malloc(sizeof(struct group_list));
@@ -29,9 +37,6 @@ struct group_list *gl_new() {
 	return glist;
 }
 
-void gl_unlock(struct lock_heap *lh) {
-	pthread_rwlock_unlock(&lh->heap_lock);
-}
 
 // Wrapper functions for pthread_rwlock operations with timing
 static void timed_pthread_rwlock_wrlock_group_list(struct group_list *glist, pthread_rwlock_t *lock) {

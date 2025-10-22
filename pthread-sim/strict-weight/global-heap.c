@@ -15,6 +15,7 @@
 #include <stdatomic.h>
 
 #include "heap.h"
+#include "lheap.h"
 #include "group.h"
 #include "group_list.h"
 #include "util.h"

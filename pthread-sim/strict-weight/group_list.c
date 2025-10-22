@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "heap.h"
+#include "lheap.h"
 #include "group.h"
 #include "group_list.h"
 #include "util.h"
@@ -11,50 +11,10 @@
 //  - always lock global list before group lock, if you're going to lock both 
 //      (no locking a group while holding the list lock)
 
-struct lock_heap *lh_new() {
-	struct lock_heap *lh = (struct lock_heap *) malloc(sizeof(struct lock_heap));
-	lh->heap = heap_new(grp_cmp);
-	lh->wait_for_wr_heap_lock_cycles = 0;
-	lh->num_times_wr_heap_locked = 0;
-	atomic_init(&lh->wait_for_rd_heap_lock_cycles, 0);
-	atomic_init(&lh->num_times_rd_heap_locked, 0);
-	pthread_rwlock_init(&lh->heap_lock, NULL);
-	return lh;
-}
-
-void lh_unlock(struct lock_heap *lh) {
-	pthread_rwlock_unlock(&lh->heap_lock);
-}
-
-void lh_lock(struct lock_heap *lh) {
-	pthread_rwlock_wrlock(&lh->heap_lock);
-}
-
-void lh_rdlock(struct lock_heap *lh) {
-	pthread_rwlock_rdlock(&lh->heap_lock);
-}
-
-// Wrapper functions for pthread_rwlock operations with timing
-static void lh_lock_timed(struct lock_heap *lh) {
-	int start_tsc = safe_read_tsc();
-	lh_lock(lh);
-	int end_tsc = safe_read_tsc();
-	lh->wait_for_wr_heap_lock_cycles += (end_tsc - start_tsc);
-	lh->num_times_wr_heap_locked++;
-}
-
-static void lh_rdlock_timed(struct lock_heap *lh) {
-	int start_tsc = safe_read_tsc();
-	lh_rdlock(lh);
-	int end_tsc = safe_read_tsc();
-	atomic_fetch_add_explicit(&lh->wait_for_rd_heap_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
-	atomic_fetch_add_explicit(&lh->num_times_rd_heap_locked, 1, memory_order_relaxed);
-}
-
 struct group_list *gl_new() {
 	struct group_list *glist = (struct group_list *) malloc(sizeof(struct group_list));
 	glist = (struct group_list *) malloc(sizeof(struct group_list));
-	glist->lheap = lh_new();
+	glist->lheap = lh_new(grp_cmp);
 	return glist;
 }
 

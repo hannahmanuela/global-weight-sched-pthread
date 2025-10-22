@@ -36,7 +36,7 @@ void gl_stats(struct group_list *glist) {
 
 // returns with group and heap locked
 struct group* gl_min_group(struct group_list *gl) {
-	struct group *g = (struct group *) mh_min_group(gl->mheap);
+	struct group *g = mh_min_group(gl->mheap);
 	if (g && g->threads_queued == 0) {
 		g = NULL;
 	}
@@ -47,9 +47,9 @@ struct group* gl_min_group(struct group_list *gl) {
 	return g;
 }
 
-// compute avg_spec_virt_time for groups in gl, ignoring group_to_ignore
+// compute avg_spec_virt_time for groups in group_to_ignore's heap, ignoring group_to_ignore
 // caller should have no locks
-int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
+int gl_avg_spec_virt_time(struct group *group_to_ignore) {
 	int total_spec_virt_time = 0;
 	int count = 0;
 	struct lock_heap *lh = group_to_ignore->lh;

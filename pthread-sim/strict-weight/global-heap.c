@@ -241,7 +241,7 @@ int grp_get_spec_virt_time(struct group *g) {
 // set spec_virt_time for group g
 // caller should have no locks
 void grp_set_spec_virt_time(struct group_list *gl, struct group *g) {
-	int initial_virt_time = gl_avg_spec_virt_time(gl, g); 
+	int initial_virt_time = gl_avg_spec_virt_time(g); 
 	pthread_rwlock_wrlock(&g->group_lock);
 	if (g->virt_lag > 0) {
 		if (g->last_virt_time > initial_virt_time) {
@@ -361,7 +361,7 @@ void dequeue(struct group_list *gl, struct process *p) {
 	// there's a potential race with enq here
 	// enq will have set the threads_queued to 1, so re-check before setting
 	// unlocking the group before getting gl_avg_spec_virt_time is required because of the lock order
-	int curr_avg_spec_virt_time = gl_avg_spec_virt_time(gl, p->group);
+	int curr_avg_spec_virt_time = gl_avg_spec_virt_time(p->group);
 
 	pthread_rwlock_wrlock(&p->group->group_lock);
 	if (p->group->threads_queued > 0) { // someone else enq'd while we were deq'ing, don't overwrite the virt time

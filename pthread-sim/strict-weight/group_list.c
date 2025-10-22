@@ -52,7 +52,7 @@ struct group* gl_min_group(struct group_list *gl) {
 int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) {
 	int total_spec_virt_time = 0;
 	int count = 0;
-	struct lock_heap *lh = mh_heap(gl->mheap, 0);
+	struct lock_heap *lh = group_to_ignore->lh;
 
 	lh_rdlock_timed(lh);
 	for (struct heap_elem *e = heap_first(lh->heap); e != NULL; e = heap_next(lh->heap, e)) {

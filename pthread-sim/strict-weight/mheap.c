@@ -67,12 +67,37 @@ void mh_check_min_group(struct mheap *mh, struct group *g0) {
 		printf("%d(%d) min %d(%d) n %d\n", g0->spec_virt_time, g0->group_id, min->spec_virt_time, min->group_id, n);
 }
 
-// returns with heap locked
-struct group *mh_min_group(struct mheap *mh) {
+struct group *mh_sample_min_group(struct mheap *mh) {
+retry:
 	int i = random() % mh->nheap;
 	int j = random() % mh->nheap;
-	if(i == j) {
-		struct lock_heap *lh = mh_heap(mh, i);
+	while (i == j) {
+		j = random() % mh->nheap;
+	}
+	struct lock_heap *lh_i = mh_heap(mh, i);
+	struct lock_heap *lh_j = mh_heap(mh, j);
+	// XXX use atomics
+	struct group *g_i = (struct group *) heap_min(lh_i->heap);
+	struct group *g_j = (struct group *) heap_min(lh_j->heap);
+	if (g_i == NULL && g_j == NULL) {
+		return NULL;
+	}
+	if (g_i == NULL) {
+		g_i = g_j;
+		lh_i = lh_j;
+	} else if (g_j && lh_i->heap->cmp_elem(g_i, g_j) > 0) {
+		g_i = g_j;
+		lh_i = lh_j;
+	}
+	if(lh_try_lock(lh_i) != 0)
+		goto retry;
+	return g_i;
+}
+
+// returns with heap locked
+struct group *mh_min_group(struct mheap *mh) {
+	if (mh->nheap == 1) {
+		struct lock_heap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
 		struct group *g = (struct group *) heap_min(lh->heap);
 		if(g == NULL) {
@@ -81,36 +106,6 @@ struct group *mh_min_group(struct mheap *mh) {
 		}	
 		return g;
 	}
-	if (i > j) {
-		int t = i;
-		i = j;
-		j = t;
-	}
-	// acquire locks in increasing index order
-	struct lock_heap *lh_i = mh_heap(mh, i);
-	struct lock_heap *lh_j = mh_heap(mh, j);
-	lh_lock_timed(lh_i);
-	lh_lock_timed(lh_j);
-	struct group *g_i = (struct group *) heap_min(lh_i->heap);
-	struct group *g_j = (struct group *) heap_min(lh_j->heap);
-	if (g_i == NULL && g_j == NULL) {
-		lh_unlock(lh_i);
-		lh_unlock(lh_j);
-		return NULL;
-	}
-	if (g_i == NULL) {
-		lh_unlock(lh_i);
-		return g_j;
-	}
-	if (g_j == NULL) {
-		lh_unlock(lh_j);
-		return g_i;
-	}
-	if (lh_i->heap->cmp_elem(g_i, g_j) < 0) {
-		lh_unlock(lh_j);
-		return g_i;
-	}
-	lh_unlock(lh_i);
-	return g_j;
+	return mh_sample_min_group(mh);
 }
 

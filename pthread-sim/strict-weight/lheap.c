@@ -37,6 +37,12 @@ void lh_lock(struct lock_heap *lh) {
 	pthread_rwlock_wrlock(&lh->heap_lock);
 }
 
+// if l = 0,  successful lock
+int lh_try_lock(struct lock_heap *lh) {
+	int l = pthread_rwlock_trywrlock(&lh->heap_lock);
+	return l;
+}
+
 void lh_rdlock(struct lock_heap *lh) {
 	pthread_rwlock_rdlock(&lh->heap_lock);
 }

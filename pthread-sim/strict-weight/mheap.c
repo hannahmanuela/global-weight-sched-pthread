@@ -97,6 +97,10 @@ retry:
 	}
 	if(lh_try_lock(lh_i) != 0)
 		goto retry;
+	if ((struct group *) heap_min(lh_i->heap) != g_i) {
+		lh_unlock(lh_i);
+		goto retry;
+	}
 	return g_i;
 }
 

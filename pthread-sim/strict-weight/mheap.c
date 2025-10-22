@@ -58,7 +58,7 @@ struct group *mh_min_group(struct mheap *mh) {
 	int j = random() % mh->nheap;
 	if(i == j) {
 		struct lock_heap *lh = mh_heap(mh, i);
-		lh_lock_timed(lh);   // XXX is read lock sufficient?
+		lh_lock_timed(lh);
 		struct group *g = (struct group *) heap_min(lh->heap);
 		if(g == NULL) {
 			lh_unlock(lh);
@@ -74,8 +74,8 @@ struct group *mh_min_group(struct mheap *mh) {
 	}
 	struct lock_heap *lh_i = mh_heap(mh, i);
 	struct lock_heap *lh_j = mh_heap(mh, j);
-	lh_lock_timed(lh_i);   // XXX is read lock sufficient?
-	lh_lock_timed(lh_j);   // XXX is read lock sufficient?
+	lh_lock_timed(lh_i);
+	lh_lock_timed(lh_j);
 	struct group *g_i = (struct group *) heap_min(lh_i->heap);
 	struct group *g_j = (struct group *) heap_min(lh_j->heap);
 	if (g_i == NULL && g_j == NULL) {

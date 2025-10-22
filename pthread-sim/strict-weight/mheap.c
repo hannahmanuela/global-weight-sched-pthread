@@ -52,6 +52,21 @@ void mh_del_group(struct mheap *mh, struct group *g) {
 	lh_unlock(g->lh);
 }
 
+void mh_check_min_group(struct mheap *mh, struct group *g0) {
+	struct group *min;
+	int n = 0;
+	for (int i = 0; i < mh->nheap; i++) {
+		struct lock_heap *lh = mh_heap(mh, i);
+		struct group *g1 = (struct group *) heap_min(lh->heap);
+		if(g1 && (g0->spec_virt_time > g1->spec_virt_time)) {
+			min = g1;
+			n++;
+		}
+	}
+	if (min != NULL)
+		printf("%d(%d) min %d(%d) n %d\n", g0->spec_virt_time, g0->group_id, min->spec_virt_time, min->group_id, n);
+}
+
 // returns with heap locked
 struct group *mh_min_group(struct mheap *mh) {
 	int i = random() % mh->nheap;

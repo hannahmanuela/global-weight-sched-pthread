@@ -41,6 +41,7 @@ struct group* gl_min_group(struct group_list *gl) {
 		g = NULL;
 	}
 	if (g) {
+		// mh_check_min_group(gl->mheap, g);
 		pthread_rwlock_wrlock(&g->group_lock);
 	}
 	return g;

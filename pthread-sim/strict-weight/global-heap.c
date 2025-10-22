@@ -389,9 +389,10 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
 	core->current_process = NULL;
 
-	struct group *min_group = gl_peek_min_group(gl); // returns with both locks held
+	struct lock_heap *lh;
+	struct group *min_group = gl_peek_min_group(gl, &lh); // returns with both locks held
 	if (min_group == NULL) {
-		pthread_rwlock_unlock(&gl->group_list_lock);
+		gl_unlock(lh);
 		return;
 	}
     
@@ -402,7 +403,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
 	assert(min_group->threads_queued >= 0);
 
-	pthread_rwlock_unlock(&gl->group_list_lock);
+	gl_unlock(lh);
 
 	// select the next process
 	struct process *next_p = min_group->runqueue_head;
@@ -526,9 +527,9 @@ void *run_core(void* core_num_ptr) {
 		struct process *next_running_process = mycore->current_process;
 		// trace_schedule(sched_cycles, sched_us);
 
-		usleep(tick_length);   // XXX should this be in choice == 0 branch?
+		// usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
-		choose(mycore, &pool);
+		// choose(mycore, &pool);
 	}
 }
 

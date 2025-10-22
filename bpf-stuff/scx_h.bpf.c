@@ -16,6 +16,7 @@ UEI_DEFINE(uei);
 
 #define MY_SLICE ((__u64)4 * 1000000) // 4ms
 #define TMP_GLOBAL_Q 0
+#define CGROUP_MAX_RETRIES 100
 
 const volatile u64 cgrp_slice_ns = MY_SLICE;
 
@@ -475,7 +476,131 @@ void BPF_STRUCT_OPS(h_cgroup_move, struct task_struct *p,
 // TASK BPF OPS
 // =======================================================
 
+/*
+ * @dispatch: Dispatch tasks from the BPF scheduler and/or user DSQs
+ * @cpu: CPU to dispatch tasks for
+ * @prev: previous task being switched out
+ *
+ * Called when a CPU's local dsq is empty. The operation should dispatch
+ * one or more tasks from the BPF scheduler into the DSQs using
+ * scx_bpf_dsq_insert() and/or move from user DSQs into the local DSQ
+ * using scx_bpf_dsq_move_to_local().
+ *
+ * The maximum number of times scx_bpf_dsq_insert() can be called
+ * without an intervening scx_bpf_dsq_move_to_local() is specified by
+ * ops.dispatch_max_batch. See the comments on top of the two functions
+ * for more details.
+ *
+ * When not %NULL, @prev is an SCX task with its slice depleted. If
+ * @prev is still runnable as indicated by set %SCX_TASK_QUEUED in
+ * @prev->scx.flags, it is not enqueued yet and will be enqueued after
+ * ops.dispatch() returns. To keep executing @prev, return without
+ * dispatching or moving any tasks. Also see %SCX_OPS_ENQ_LAST.
+ */
 
+void BPF_STRUCT_OPS(h_dispatch, s32 cpu, struct task_struct *prev)
+{
+	struct core_info *ci;
+	struct cgrp_info *cgi;
+	struct cgroup *kernel_group;
+	u64 now = scx_bpf_now();
+	bool picked_next = false;
+
+	ci = find_cpu_ctx();
+	if (!ci)
+		return;
+
+	if (!ci->cur_cgid)
+		goto pick_next_cgroup;
+
+	if (time_before(now, ci->cur_at + cgrp_slice_ns)) {
+		if (scx_bpf_dsq_move_to_local(ci->cur_cgid)) { // fails if old group empty
+			if (cpu == 4) {
+				bpf_printk("DISPATCH keeping same grp %d", ci->cur_cgid);
+			}
+			return;
+		}
+	}
+
+	/*
+	 * The current cgroup is expiring. It was already charged a full slice.
+	 * Calculate the actual usage and accumulate the delta.
+	 */
+	kernel_group = bpf_cgroup_from_id(ci->cur_cgid);
+	if (!kernel_group) {
+		// cgroup no longer exists?
+		goto pick_next_cgroup;
+	}
+
+	cgi = bpf_cgrp_storage_get(&cgrp_info_storage, kernel_group, 0, 0);
+	if (cgi) {
+		/*
+		 * We want to update the vtime delta and then look for the next
+		 * cgroup to execute but the latter needs to be done in a loop
+		 * and we can't keep the lock held. Oh well...
+		 */
+		bpf_spin_lock(&cg_tree_lock);
+		// time_left_to_account_for = time_got - time_expected = (now - cpuc->cur_at) - cgrp_slice_ns
+		s64 time_expected = 0; // TODO: FOR NOW, later will be cgrp_slice_ns
+		s64 time_gotten = (s64)now - (s64)ci->cur_at;
+		s64 to_add = signed_div((time_gotten - time_expected) * (s64)FCG_HWEIGHT_ONE, (s64)(cgi->hweight ?: 1));
+		s64 old_delta = __atomic_fetch_add(&cgi->svt_delta, to_add, __ATOMIC_ACQUIRE);
+		s64 old_gl_svt = __atomic_add_fetch(&global_curr_sum_svt, to_add, __ATOMIC_ACQUIRE);
+		bpf_spin_unlock(&cg_tree_lock);
+
+		// TODO: 
+		// TODO: big problem: if this decreases the time, that won't ever be applied to the tree!
+		// TODO: 
+
+		if (cpu == 4) {
+			bpf_printk("%d ran (collapsed delta=%lld, old_delta=%lld, added %lld ((%llu - %llu - %llu) * 65536/%lu))", 
+				ci->cur_cgid, cgi->svt_delta, old_delta, to_add, now, ci->cur_at, cgrp_slice_ns, cgi->hweight);
+		}
+	} // else cgroup no longer existss
+
+	bpf_cgroup_release(kernel_group);
+
+pick_next_cgroup:
+	ci->cur_at = now;
+
+	if (scx_bpf_dsq_move_to_local(TMP_GLOBAL_Q)) {
+		if (cpu == 4) {
+			bpf_printk("DISPATCH pulled from tmp global dsq");
+		}
+		ci->cur_cgid = 0;
+		return;
+	}
+
+	// bpf_repeat(CGROUP_MAX_RETRIES) {
+	// 	if (try_pick_next_cgroup(&ci->cur_cgid)) {
+	// 		picked_next = true;
+	// 		break;
+	// 	}
+	// }
+
+	/*
+	 * This only happens if try_pick_next_cgroup() races against enqueue
+	 * path for more than CGROUP_MAX_RETRIES times, which is extremely
+	 * unlikely and likely indicates an underlying bug. There shouldn't be
+	 * any stall risk as the race is against enqueue.
+	 */
+}
+
+
+
+/*
+ * @enqueue: Enqueue a task on the BPF scheduler
+ * @p: task being enqueued
+ * @enq_flags: %SCX_ENQ_*
+ *
+ * @p is ready to run. Insert directly into a DSQ by calling
+ * scx_bpf_dsq_insert() or enqueue on the BPF scheduler. If not directly
+ * inserted, the bpf scheduler owns @p and if it fails to dispatch @p,
+ * the task will stall.
+ *
+ * If @p was inserted into a DSQ from ops.select_cpu(), this callback is
+ * skipped.
+ */
 void BPF_STRUCT_OPS(h_enqueue, struct task_struct *p, u64 enq_flags)
 {
 	struct cgroup *kernel_group;
@@ -512,12 +637,15 @@ void BPF_STRUCT_OPS(h_enqueue, struct task_struct *p, u64 enq_flags)
 	}
 		
 	u64 curr_svt = gl_avg_svt();
-	bpf_printk("  adding to tree w/ sct %llu", curr_svt);
 
 	bpf_spin_lock(&cg_tree_lock);
 	cg_node->svt = curr_svt;
 	bpf_rbtree_add(&cg_tree, &cg_node->rb_node, cg_node_less);
 	bpf_spin_unlock(&cg_tree_lock);
+
+	update_active_weight_sums(kernel_group, true);
+	u64 new_num_grps = __atomic_add_fetch(&global_num_contending_grps, 1, __ATOMIC_ACQUIRE);
+	bpf_printk("  new grp, svt=%llu, now have %d active grps", curr_svt, global_num_contending_grps);
 
 out_release:
 	bpf_cgroup_release(kernel_group);
@@ -544,7 +672,7 @@ SCX_OPS_DEFINE(h_ops,
         // .runnable		= (void *)h_runnable,
         // .dispatch		= (void *)h_dispatch,
         // .running		= (void *)h_running,
-        // .stopping		= (void *)h_stopping,
+        .stopping		= (void *)h_stopping,
         // .quiescent		= (void *)h_quiescent,
         // .exit_task		= (void *)h_exit_task,
         // .enable			= (void *)h_enable,

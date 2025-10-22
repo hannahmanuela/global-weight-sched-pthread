@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdatomic.h>
 
 #include "group.h"
 #include "lheap.h"
@@ -86,9 +87,13 @@ retry:
 	if (g_i == NULL) {
 		g_i = g_j;
 		lh_i = lh_j;
-	} else if (g_j && lh_i->heap->cmp_elem(g_i, g_j) > 0) {
-		g_i = g_j;
-		lh_i = lh_j;
+	} else if (g_j) {
+		int svt_i =  __atomic_load_n(&g_i->spec_virt_time, __ATOMIC_SEQ_CST);
+		int svt_j =  __atomic_load_n(&g_j->spec_virt_time, __ATOMIC_SEQ_CST);
+		if (svt_i > svt_j) {
+			g_i = g_j;
+			lh_i = lh_j;
+		}
 	}
 	if(lh_try_lock(lh_i) != 0)
 		goto retry;

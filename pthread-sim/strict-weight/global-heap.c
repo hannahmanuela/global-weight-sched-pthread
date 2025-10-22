@@ -252,7 +252,6 @@ void grp_set_spec_virt_time(struct group_list *gl, struct group *g) {
 	}
 	g->spec_virt_time = initial_virt_time;
 	pthread_rwlock_unlock(&g->group_lock);
-	return;
 }
 
 int grp_get_weight(struct group *g) {
@@ -342,7 +341,6 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	if (was_empty) {
 		grp_set_spec_virt_time(gl, p->group); 
 	}
-    
 }
 
 
@@ -396,7 +394,6 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 		return;
 	}
     
-
 	int time_expecting = (int)tick_length / min_group->weight;
 	gl_update_group_svt(min_group, time_expecting);
 	min_group->threads_queued -= 1;

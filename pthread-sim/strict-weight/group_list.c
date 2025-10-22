@@ -35,7 +35,6 @@ void gl_stats(struct group_list *glist) {
 	mh_stats(glist->mheap);
 }
 
-
 // returns with group and heap locked
 struct group* gl_get_min_group(struct group_list *gl) {
 	struct lock_heap *lh = mh_heap(gl->mheap, 0);

@@ -28,6 +28,7 @@ void mh_print(struct mheap *mh, void print_elem(struct heap_elem*)) {
 
 void mh_stats(struct mheap *mh) {
 	for (int i = 0; i < mh->nheap; i++) {
+		printf("== heap %d:\n", i);
 		lh_stats(mh->lh[i]);
 	}
 }

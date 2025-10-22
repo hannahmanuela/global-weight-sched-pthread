@@ -37,13 +37,12 @@ struct lock_heap *mh_heap(struct mheap *mh, int i) {
 }
 
 void mh_add_group(struct mheap *mh, struct group *g) {
-	if(mh->nheap == 1) {
-		struct lock_heap *lh = mh_heap(mh, 0);
-		g->lh = lh;
-		lh_lock_timed(lh);
-	        heap_push(lh->heap, &g->heap_elem);
-		lh_unlock(lh);
-	}
+	int i = random() % mh->nheap;
+	struct lock_heap *lh = mh_heap(mh, i);
+	g->lh = lh;
+	lh_lock_timed(lh);
+	heap_push(lh->heap, &g->heap_elem);
+	lh_unlock(lh);
 }
 
 void mh_del_group(struct mheap *mh, struct group *g) {
@@ -54,14 +53,31 @@ void mh_del_group(struct mheap *mh, struct group *g) {
 
 // returns with heap locked
 struct group *mh_min_group(struct mheap *mh) {
-	if(mh->nheap == 1) {
-		struct lock_heap *lh = mh_heap(mh, 0);
+	int i = random() % mh->nheap;
+	int j = random() % mh->nheap;
+	if(i == j) {
+		struct lock_heap *lh = mh_heap(mh, i);
 		lh_lock_timed(lh);   // XXX is read lock sufficient?
 		struct group *g = (struct group *) heap_min(lh->heap);
 		g->lh = lh;   // XXX unnecessary; do this at register/unregister	
 		return g;
 	}
-	//
-	return NULL;
+	if (i > j) {
+		int t = i;
+		i = j;
+		j = t;
+	}
+	struct lock_heap *lh_i = mh_heap(mh, i);
+	struct lock_heap *lh_j = mh_heap(mh, j);
+	lh_lock_timed(lh_i);   // XXX is read lock sufficient?
+	lh_lock_timed(lh_j);   // XXX is read lock sufficient?
+	struct group *g_i = (struct group *) heap_min(lh_i->heap);
+	struct group *g_j = (struct group *) heap_min(lh_j->heap);
+	if (lh_i->heap->cmp_elem(g_i, g_j) < 0) {
+		lh_unlock(lh_j);
+		return g_i;
+	}
+	lh_unlock(lh_i);
+	return g_j;
 }
 

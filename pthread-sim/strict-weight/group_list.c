@@ -36,11 +36,8 @@ void gl_stats(struct group_list *glist) {
 }
 
 // returns with group and heap locked
-struct group* gl_get_min_group(struct group_list *gl) {
-	struct lock_heap *lh = mh_heap(gl->mheap, 0);
-	lh_lock_timed(lh);
-	struct group *g = (struct group *) heap_min(lh->heap);
-	g->lh = lh;   // XXX unnecessary; do this at register/unregister
+struct group* gl_min_group(struct group_list *gl) {
+	struct group *g = (struct group *) mh_min_group(gl->mheap);
 	if (g && g->threads_queued == 0) {
 		g = NULL;
 	}
@@ -71,16 +68,12 @@ int gl_avg_spec_virt_time(struct group_list *gl, struct group *group_to_ignore) 
 }
 
 
-// add group to heap; caller must hold heap_lock
 void gl_add_group(struct group_list *gl, struct group *g) {
-	struct lock_heap *lh = mh_heap(gl->mheap, 0);
-	heap_push(lh->heap, &g->heap_elem);
+	mh_add_group(gl->mheap, g);
 }
 
-// delete group from heap; caller must hold heap_lock
 void gl_del_group(struct group_list *gl, struct group *g) {
-	struct lock_heap *lh = mh_heap(gl->mheap, 0);
-	heap_remove_at(lh->heap, &g->heap_elem);
+	mh_del_group(gl->mheap, g);
 }
 
 // Update group's spec_virt_time and safely reheapify if the group is in the heap.
@@ -102,15 +95,9 @@ void gl_fix_group(struct group *g) {
 }
 
 void gl_register_group(struct group_list *gl, struct group *g) {
-	struct lock_heap *lh = mh_heap(gl->mheap, 0);
-	lh_lock_timed(lh);
 	gl_add_group(gl, g);
-	lh_unlock(lh);
 }
 
 void gl_unregister_group(struct group_list *gl, struct group *g) {
-	struct lock_heap *lh = mh_heap(gl->mheap, 0);
-	lh_lock_timed(lh);
 	gl_del_group(gl, g);
-	lh_unlock(lh);
 }

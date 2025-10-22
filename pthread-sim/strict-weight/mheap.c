@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "group.h"
 #include "lheap.h"
 #include "mheap.h"
 
@@ -34,3 +35,33 @@ void mh_stats(struct mheap *mh) {
 struct lock_heap *mh_heap(struct mheap *mh, int i) {
 	return mh->lh[i];
 }
+
+void mh_add_group(struct mheap *mh, struct group *g) {
+	if(mh->nheap == 1) {
+		struct lock_heap *lh = mh_heap(mh, 0);
+		g->lh = lh;
+		lh_lock_timed(lh);
+	        heap_push(lh->heap, &g->heap_elem);
+		lh_unlock(lh);
+	}
+}
+
+void mh_del_group(struct mheap *mh, struct group *g) {
+	lh_lock_timed(g->lh);
+	heap_remove_at(g->lh->heap, &g->heap_elem);
+	lh_unlock(g->lh);
+}
+
+// returns with heap locked
+struct group *mh_min_group(struct mheap *mh) {
+	if(mh->nheap == 1) {
+		struct lock_heap *lh = mh_heap(mh, 0);
+		lh_lock_timed(lh);   // XXX is read lock sufficient?
+		struct group *g = (struct group *) heap_min(lh->heap);
+		g->lh = lh;   // XXX unnecessary; do this at register/unregister	
+		return g;
+	}
+	//
+	return NULL;
+}
+

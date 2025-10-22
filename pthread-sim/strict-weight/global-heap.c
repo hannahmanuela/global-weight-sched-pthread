@@ -388,7 +388,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
 	core->current_process = NULL;
 
-	struct group *min_group = gl_get_min_group(gl); // returns with both locks held
+	struct group *min_group = gl_min_group(gl); // returns with both locks held
 	if (min_group == NULL) {
 		lh_unlock(min_group->lh);
 		return;

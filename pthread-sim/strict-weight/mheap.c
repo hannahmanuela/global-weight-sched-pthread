@@ -60,6 +60,10 @@ struct group *mh_min_group(struct mheap *mh) {
 		struct lock_heap *lh = mh_heap(mh, i);
 		lh_lock_timed(lh);   // XXX is read lock sufficient?
 		struct group *g = (struct group *) heap_min(lh->heap);
+		if(g == NULL) {
+			lh_unlock(lh);
+			return NULL;
+		}	
 		g->lh = lh;   // XXX unnecessary; do this at register/unregister	
 		return g;
 	}
@@ -74,6 +78,19 @@ struct group *mh_min_group(struct mheap *mh) {
 	lh_lock_timed(lh_j);   // XXX is read lock sufficient?
 	struct group *g_i = (struct group *) heap_min(lh_i->heap);
 	struct group *g_j = (struct group *) heap_min(lh_j->heap);
+	if (g_i == NULL && g_j == NULL) {
+		lh_unlock(lh_i);
+		lh_unlock(lh_j);
+		return NULL;
+	}
+	if (g_i == NULL) {
+		lh_unlock(lh_i);
+		return g_j;
+	}
+	if (g_j == NULL) {
+		lh_unlock(lh_j);
+		return g_i;
+	}
 	if (lh_i->heap->cmp_elem(g_i, g_j) < 0) {
 		lh_unlock(lh_j);
 		return g_i;

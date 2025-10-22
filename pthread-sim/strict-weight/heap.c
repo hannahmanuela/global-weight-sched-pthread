@@ -22,8 +22,11 @@ int heap_elem_idx(struct heap_elem *h) {
 }
 
 void *heap_min(struct heap *h) {
+	if(h->heap_size == 0) {
+		return NULL;
+	}
 	return h->heap[0]->elem;
-}
+} 
 
 void *heap_lookup(struct heap *heap, int idx) {
 	return heap->heap_size > 0 ? heap->heap[idx]->elem : NULL;

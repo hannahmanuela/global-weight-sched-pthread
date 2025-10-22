@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <pthread.h>
 #include <stdlib.h>
 
@@ -13,6 +14,19 @@ struct lock_heap *lh_new(int grp_cmp(void *, void*)) {
 	atomic_init(&lh->num_times_rd_heap_locked, 0);
 	pthread_rwlock_init(&lh->heap_lock, NULL);
 	return lh;
+}
+
+void lh_stats(struct lock_heap *lh) {
+	if (lh->num_times_wr_heap_locked > 0) {
+		printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+		       lh->wait_for_wr_heap_lock_cycles / lh->num_times_wr_heap_locked,
+		       lh->wait_for_wr_heap_lock_cycles, lh->num_times_wr_heap_locked);
+	}
+	if (lh->num_times_rd_heap_locked > 0) {
+		printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+		       lh->wait_for_rd_heap_lock_cycles / lh->num_times_rd_heap_locked,
+		       lh->wait_for_rd_heap_lock_cycles, lh->num_times_rd_heap_locked);
+	}
 }
 
 void lh_unlock(struct lock_heap *lh) {

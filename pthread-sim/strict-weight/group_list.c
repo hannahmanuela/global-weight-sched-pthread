@@ -36,16 +36,7 @@ void gl_print(struct group_list *gl) {
 
 void gl_stats(struct group_list *glist) {
     printf("\nLock timing statistics:\n");
-    if (glist->lheap->num_times_wr_heap_locked > 0) {
-        printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-               glist->lheap->wait_for_wr_heap_lock_cycles / glist->lheap->num_times_wr_heap_locked,
-               glist->lheap->wait_for_wr_heap_lock_cycles, glist->lheap->num_times_wr_heap_locked);
-    }
-    if (glist->lheap->num_times_rd_heap_locked > 0) {
-        printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-               glist->lheap->wait_for_rd_heap_lock_cycles / glist->lheap->num_times_rd_heap_locked,
-               glist->lheap->wait_for_rd_heap_lock_cycles, glist->lheap->num_times_rd_heap_locked);
-    }
+    lh_stats(glist->lheap);
 }
 
 

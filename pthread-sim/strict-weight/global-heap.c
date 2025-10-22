@@ -263,20 +263,20 @@ int grp_get_weight(struct group *g) {
 }
 
 // update spec time (collapse spec time)
-void grp_collapse_spec_virt_time(struct group_list *gl, struct group *g, int time_passed) {
+void grp_collapse_spec_virt_time(struct group *g, int time_passed) {
 	int p_grp_weight = grp_get_weight(g);
-    int time_had_expected = (int) (tick_length / p_grp_weight);
+	int time_had_expected = (int) (tick_length / p_grp_weight);
     
-    // update spec virt time if time gotten was not what this core expected
-    int virt_time_gotten = (int)(time_passed / p_grp_weight);
-    if (time_had_expected  != virt_time_gotten) {
-        // need to edit the spec time to use time actually got
-        int diff = virt_time_gotten - time_had_expected;
-        pthread_rwlock_wrlock(&g->group_lock);
-        g->spec_virt_time += diff;
-        pthread_rwlock_unlock(&g->group_lock);
-	gl_fix_group(gl, g);
-    }
+	// update spec virt time if time gotten was not what this core expected
+	int virt_time_gotten = (int)(time_passed / p_grp_weight);
+	if (time_had_expected  != virt_time_gotten) {
+		// need to edit the spec time to use time actually got
+		int diff = virt_time_gotten - time_had_expected;
+		pthread_rwlock_wrlock(&g->group_lock);
+		g->spec_virt_time += diff;
+		pthread_rwlock_unlock(&g->group_lock);
+		gl_fix_group(g);
+	}
 }
 
 
@@ -381,7 +381,7 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 	struct group *prev_running_group = NULL;
 
 	if (running_process) {
-		grp_collapse_spec_virt_time(gl, running_process->group, time_passed);
+		grp_collapse_spec_virt_time(running_process->group, time_passed);
 	}
 
 	if (should_re_enq && running_process) {
@@ -390,21 +390,20 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 
 	core->current_process = NULL;
 
-	struct lock_heap *lh;
-	struct group *min_group = gl_peek_min_group(gl, &lh); // returns with both locks held
+	struct group *min_group = gl_get_min_group(gl); // returns with both locks held
 	if (min_group == NULL) {
-		lh_unlock(lh);
+		lh_unlock(min_group->lh);
 		return;
 	}
     
 
 	int time_expecting = (int)tick_length / min_group->weight;
-	gl_update_group_svt(gl, min_group, time_expecting);
+	gl_update_group_svt(min_group, time_expecting);
 	min_group->threads_queued -= 1;
 
 	assert(min_group->threads_queued >= 0);
 
-	lh_unlock(lh);
+	lh_unlock(min_group->lh);
 
 	// select the next process
 	struct process *next_p = min_group->runqueue_head;

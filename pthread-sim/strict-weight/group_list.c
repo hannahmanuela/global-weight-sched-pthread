@@ -31,7 +31,6 @@ void gl_print(struct group_list *gl) {
 }
 
 void gl_stats(struct group_list *glist) {
-	printf("\nLock timing statistics:\n");
 	mh_stats(glist->mheap);
 }
 

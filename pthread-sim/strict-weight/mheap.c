@@ -1,19 +1,30 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdatomic.h>
+#include <limits.h>
 
 #include "group.h"
 #include "lheap.h"
 #include "mheap.h"
+
+#define DUMMY  -1
 
 struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->lh = (struct lock_heap **) malloc(sizeof(struct lock_heap) * n);
 	for (int i=0; i < n; i++) {
 		mh->lh[i] = lh_new(grp_cmp);
+		// insert a dummy element so that the heap always has a min
+		struct group* dummy = grp_new(DUMMY, 0);
+		dummy->spec_virt_time = INT_MAX;
+		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
 	}
 	mh->nheap = n;
 	return mh;
+}
+
+int mh_empty(struct group *g) {
+	return g->group_id == DUMMY;
 }
 
 void mh_print(struct mheap *mh, void print_elem(struct heap_elem*)) {
@@ -69,6 +80,13 @@ void mh_check_min_group(struct mheap *mh, struct group *g0) {
 		printf("%d(%d) min %d(%d) n %d\n", g0->spec_virt_time, g0->group_id, min->spec_virt_time, min->group_id, n);
 }
 
+
+// caller must ensure there is a min element
+void *mh_min_atomic(struct lock_heap *lh)  {
+        struct heap_elem *e = __atomic_load_n(&(lh->heap->heap[0]), __ATOMIC_ACQUIRE);
+        return e->elem;
+}
+
 struct group *mh_sample_min_group(struct mheap *mh) {
 retry:
 	int i = random() % mh->nheap;
@@ -78,12 +96,12 @@ retry:
 	}
 	struct lock_heap *lh_i = mh_heap(mh, i);
 	struct lock_heap *lh_j = mh_heap(mh, j);
-	struct group *g_i = (struct group *) lh_min_atomic(lh_i);
-	struct group *g_j = (struct group *) lh_min_atomic(lh_j);
-	if (g_i == NULL && g_j == NULL) {
+	struct group *g_i = (struct group *) mh_min_atomic(lh_i);
+	struct group *g_j = (struct group *) mh_min_atomic(lh_j);
+	if (mh_empty(g_i) && mh_empty(g_j)) {
 		return NULL;
 	}
-	if (g_i == NULL) {
+	if (mh_empty(g_i)) {
 		g_i = g_j;
 		lh_i = lh_j;
 	} else if (g_j) {
@@ -109,7 +127,7 @@ struct group *mh_min_group(struct mheap *mh) {
 		struct lock_heap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
 		struct group *g = (struct group *) heap_min(lh->heap);
-		if(g == NULL) {
+		if(mh_empty(g)) {
 			lh_unlock(lh);
 			return NULL;
 		}	

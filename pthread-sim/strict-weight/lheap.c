@@ -38,11 +38,6 @@ void lh_lock(struct lock_heap *lh) {
 	pthread_rwlock_wrlock(&lh->heap_lock);
 }
 
-void *lh_min_atomic(struct lock_heap *lh)  {
-	struct heap_elem *e = __atomic_load_n(&(lh->heap->heap[0]), __ATOMIC_ACQUIRE);
-	return e->elem;
-}
-
 // if l = 0,  successful lock
 int lh_try_lock(struct lock_heap *lh) {
 	int l = pthread_rwlock_trywrlock(&lh->heap_lock);

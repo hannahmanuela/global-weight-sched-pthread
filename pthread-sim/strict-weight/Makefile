@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-I. -g -O2
 DEPS = group.h group_list.h heap.h lheap.h mheap.h util.h
-OBJ = global-heap.o group_list.o mheap.o lheap.o heap.o util.c
+OBJ = global-heap.o group_list.o group.o mheap.o lheap.o heap.o util.c
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $(CFLAGS) $<

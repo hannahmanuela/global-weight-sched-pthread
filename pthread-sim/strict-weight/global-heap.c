@@ -63,34 +63,6 @@ pthread_mutex_t log_lock;
 // =========================================================================
 
 
-// ================
-// for creation
-// ================
-
-struct process *create_process(int id, struct group *group) {
-    struct process *p = malloc(sizeof(struct process));
-    p->process_id = id;
-    p->group = group;
-    p->next = NULL;
-    return p;
-}
-
-
-struct group *create_group(int id, int weight) {
-    struct group *g = malloc(sizeof(struct group));
-    g->group_id = id;
-    g->weight = weight;
-    g->num_threads = 0;
-    g->threads_queued = 0;
-    g->spec_virt_time = 0;
-    g->virt_lag = 0;
-    g->last_virt_time = 0;
-    g->runqueue_head = NULL;
-    g->next = NULL;
-    heap_elem_init(&g->heap_elem, g);
-    pthread_rwlock_init(&g->group_lock, NULL);
-    return g;
-}
 
 
 // ================
@@ -540,10 +512,10 @@ void main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < num_groups; i++) {
-        struct group *g = create_group(i, 10);
+        struct group *g = grp_new(i, 10);
         gl_register_group(gs->glist, g);
         for (int j = 0; j < num_threads_p_group; j++) {
-            struct process *p = create_process(i*num_threads_p_group+j, g);
+            struct process *p = grp_new_process(i*num_threads_p_group+j, g);
             enqueue(gs->glist, p, 1);
         }
     }

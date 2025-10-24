@@ -155,23 +155,29 @@ long us_since(struct timeval *start) {
 	return us;
 }
 
-#define YIELD 0
-#define ENQ 1
-#define DEQ 2
+#define SCHEDULE 0
+#define YIELD 1
+#define ENQ 2
+#define DEQ 3
 
-void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, struct process *p) {
+void doop(struct core_state *mycore, int op, int len, long *cycles, long *us, long *n, struct process *p) {
 	struct timeval start;
 	gettimeofday(&start, NULL);
 	long ts = safe_read_tsc();
 	switch(op) {
+	case SCHEDULE:
+		mycore->current_process = schedule(gs->glist, tick_length);
+		break;
 	case YIELD:
-		mycore->current_process = yield(gs->glist, p, 1, tick_length, tick_length);
+		yield(gs->glist, p, len, len == tick_length, tick_length);
+		mycore->current_process = NULL;
 		break;
 	case ENQ:
 	        enqueue(gs->glist, p, 1);
 		break;
 	case DEQ:
-		mycore->current_process = dequeue(gs->glist, p, tick_length/2, tick_length);
+		dequeue(gs->glist, p, tick_length/2, tick_length);
+		mycore->current_process = NULL;
 		break;
 	}
 	long op_cycles = safe_read_tsc() - ts;
@@ -182,33 +188,32 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 }
 
 // randomly choose to: "run" for the full tick, "enq" a new process, or "yield" early
-void choose(struct core_state *mycore, struct process **pool) {
+int choose(struct core_state *mycore, struct process **pool) {
 	int choice = rand() % 3;
 	switch(choice) {
 	case 0: // Run for full tick
-		return;
+		return tick_length;
 	case 1: // Make a process runnable
 		// pick an exisitng process from the pool?
 		struct process *p = *pool;
 		if (!p) {
-			return;
+			return tick_length;
 		}
 		*pool = p->next;
 		p->next = NULL;
 
-		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
-
+		doop(mycore, ENQ, tick_length, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
 		assert_p_in_group(p, p->group);
-		break;
-	case 2: // Yield core early
+		return tick_length;
+	case 2: // Make current process not runnable (e.g., go to sleep)
 		p = mycore->current_process;
 		if (!p) {
-			return;
+			return tick_length;
 		}
 		assert_p_not_in_group(p, p->group);
 		p->next = *pool;
 		*pool = p;
-		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, p);
+		return tick_length/2;
 	}
 }
 
@@ -228,19 +233,16 @@ void *run_core(void* core_num_ptr) {
 	gettimeofday(&start_exp, NULL);
 
 	int cont = 1;
+	int len = tick_length;
 	while (us_since(&start_exp) < TIME_TO_RUN) {
-		struct process *prev_running_process = mycore->current_process;
-
 		// gl_print(gs->glist);
-
-		doop(mycore, YIELD, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, mycore->current_process); 
+		doop(mycore, YIELD, len, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
+		doop(mycore, SCHEDULE, len, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, mycore->current_process); 
 		if (mycore->current_process) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		struct process *next_running_process = mycore->current_process;
-
-		// choose(mycore, &pool);
+		// len = choose(mycore, &pool);
 	}
 }
 

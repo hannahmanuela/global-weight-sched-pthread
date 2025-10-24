@@ -5,21 +5,6 @@
 #include "group.h"
 #include "group_list.h"
 
-// Make p runnable.
-void enqueue(struct group_list *gl, struct process *p, int is_new) {
-	pthread_rwlock_wrlock(&p->group->group_lock);
-	bool was_empty = p->group->threads_queued == 0;
-	grp_add_process(p, is_new); 
-	if (is_new) {
-		p->group->num_threads += 1;
-	}
-	p->group->threads_queued += 1;
-	pthread_rwlock_unlock(&p->group->group_lock);
-	if (was_empty) {
-		grp_set_spec_virt_time(p->group, gl_avg_spec_virt_time(p->group)); 
-	}
-}
-
 
 // set the new spec_virt_time for p to run again, assuming p will run for a full tick
 static void set_new_spec_virt_time(struct group_list *gl, struct process *p) {
@@ -50,20 +35,8 @@ static void set_new_spec_virt_time(struct group_list *gl, struct process *p) {
 	pthread_rwlock_unlock(&p->group->group_lock);
 }
 
-// process p yields core
-struct process *yield(struct group_list *gl, struct process *running_process, int time_passed, int should_re_enq, int tick_length) {
-	struct group *prev_running_group = NULL;
-
-	if (running_process) {
-		if (grp_adjust_spec_virt_time(running_process->group, time_passed, tick_length)) {
-			gl_fix_group(running_process->group);
-		}
-	}
-
-	if (should_re_enq && running_process) {
-		enqueue(gl, running_process, 0);
-	}
-
+// select next process to run
+struct process *schedule(struct group_list *gl, int tick_length) {
 	struct group *min_group = gl_min_group(gl); // returns with both locks held
 	if (min_group == NULL) {
 		return NULL;
@@ -85,9 +58,38 @@ struct process *yield(struct group_list *gl, struct process *running_process, in
 	return next_p;
 }
 
+// Make p runnable.
+void enqueue(struct group_list *gl, struct process *p, int is_new) {
+	pthread_rwlock_wrlock(&p->group->group_lock);
+	bool was_empty = p->group->threads_queued == 0;
+	grp_add_process(p, is_new); 
+	if (is_new) {
+		p->group->num_threads += 1;
+	}
+	p->group->threads_queued += 1;
+	pthread_rwlock_unlock(&p->group->group_lock);
+	if (was_empty) {
+		grp_set_spec_virt_time(p->group, gl_avg_spec_virt_time(p->group)); 
+	}
+}
+
+// process p yields core
+void yield(struct group_list *gl, struct process *p, int time_passed, int should_re_enq, int tick_length) {
+	if (p) {
+		if (grp_adjust_spec_virt_time(p->group, time_passed, tick_length)) {
+			gl_fix_group(p->group);
+		}
+	}
+	if (should_re_enq && p) {
+		enqueue(gl, p, 0);
+	}
+}
+
+// Make p not runnable
 void dequeue(struct group_list *gl, struct process *p, int time_gotten, int tick_length) {
 	grp_dec_nthread(p->group);
 	yield(gl, p, time_gotten, 0, tick_length);
 }
+
 
 

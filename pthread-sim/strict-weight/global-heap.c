@@ -54,16 +54,6 @@ struct global_state {
 };
 
 struct global_state* gs;
-pthread_mutex_t log_lock;
-
-// =========================================================================
-// =========================================================================
-// HELPER FUNCTIONS
-// =========================================================================
-// =========================================================================
-
-
-
 
 // ================
 // for run_core
@@ -162,117 +152,6 @@ void assert_thread_counts_correct(struct group *g, struct core_state *core) {}
 #endif
 
 
-// =================
-// for group
-// =================
-
-int grp_cmp(void *e0, void *e1) {
-	struct group *a = (struct group *) e0;
-	struct group *b = (struct group *) e1;
-	if (a->threads_queued == 0) return 1;
-	if (b->threads_queued == 0) return -1;
-	// Compare by spec_virt_time; lower is higher priority
-	if (a->spec_virt_time < b->spec_virt_time) return -1;
-	if (a->spec_virt_time > b->spec_virt_time) return 1;
-	// tie-breaker by group_id for determinism
-	if (a->group_id < b->group_id) return -1;
-	if (a->group_id > b->group_id) return 1;
-	return 0;
-}
-
-int grp_get_spec_virt_time(struct group *g) {
-	pthread_rwlock_rdlock(&g->group_lock);
-	int curr_spec_virt_time = g->spec_virt_time;
-	if (g->threads_queued == 0) { // deq sets threads_queued before removing the group from the list
-		curr_spec_virt_time = INT_MAX;
-	}
-	pthread_rwlock_unlock(&g->group_lock);
-	return curr_spec_virt_time;
-}
-
-// set spec_virt_time for group g
-// caller should have no locks
-void grp_set_spec_virt_time(struct group_list *gl, struct group *g) {
-	int initial_virt_time = gl_avg_spec_virt_time(g); 
-	pthread_rwlock_wrlock(&g->group_lock);
-	if (g->virt_lag > 0) {
-		if (g->last_virt_time > initial_virt_time) {
-			initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
-		}
-	} else if (g->virt_lag < 0) {
-		initial_virt_time -= g->virt_lag; // negative lag always carries over? maybe limit it?
-	}
-	g->spec_virt_time = initial_virt_time;
-	pthread_rwlock_unlock(&g->group_lock);
-}
-
-int grp_get_weight(struct group *g) {
-        pthread_rwlock_rdlock(&g->group_lock);
-        int p_grp_weight = g->weight;
-        pthread_rwlock_unlock(&g->group_lock);
-	return p_grp_weight;
-}
-
-// update spec time (collapse spec time)
-void grp_collapse_spec_virt_time(struct group *g, int time_passed) {
-	int p_grp_weight = grp_get_weight(g);
-	int time_had_expected = (int) (tick_length / p_grp_weight);
-
-	// printf("%d: collapse: e %d t %d w %d\n", g->group_id, time_had_expected, time_passed, p_grp_weight);
-    
-	// update spec virt time if time gotten was not what this core expected
-	int virt_time_gotten = (int)(time_passed / p_grp_weight);
-	if (time_had_expected  != virt_time_gotten) {
-		// need to edit the spec time to use time actually got
-		int diff = virt_time_gotten - time_had_expected;
-		pthread_rwlock_wrlock(&g->group_lock);
-		g->spec_virt_time += diff;
-		pthread_rwlock_unlock(&g->group_lock);
-		gl_fix_group(g);
-	}
-}
-
-
-// add p to its group. caller must hold group lock
-void grp_add_process(struct process *p, int is_new) {
-	struct process *curr_head = p->group->runqueue_head;
-	if (!curr_head) {
-		p->group->runqueue_head = p;
-		p->next = NULL;
-	} else {
-		p->next = curr_head;
-		p->group->runqueue_head = p;
-	}
-}
-
-// remove p from its group. caller must hold group lock
-void grp_del_process(struct process *p) {
-	struct process *curr_p = p->group->runqueue_head;
-	if (curr_p->process_id == p->process_id) {
-		p->group->runqueue_head = curr_p->next;
-	} else {
-		struct process *prev = curr_p;
-		curr_p = curr_p->next;
-		while (curr_p) {
-			if (curr_p->process_id == p->process_id) {
-				prev->next = curr_p->next;
-				break;
-			}
-			prev = curr_p;
-			curr_p = curr_p->next;
-		}
-	}
-	p->next = NULL;
-}
-
-void grp_dec_nthread(struct group *g) {
-	pthread_rwlock_wrlock(&g->group_lock);
-	g->num_threads -= 1;
-	assert(g->num_threads >= g->threads_queued);
-	pthread_rwlock_unlock(&g->group_lock);
-}
-
-
 // =========================================================================
 // =========================================================================
 // MAIN FUNCTIONS
@@ -293,7 +172,7 @@ void enqueue(struct group_list *gl, struct process *p, int is_new) {
 	p->group->threads_queued += 1;
 	pthread_rwlock_unlock(&p->group->group_lock);
 	if (was_empty) {
-		grp_set_spec_virt_time(gl, p->group); 
+		grp_set_spec_virt_time(p->group, gl_avg_spec_virt_time(p->group)); 
 	}
 }
 
@@ -333,7 +212,9 @@ void schedule(struct core_state *core, struct group_list *gl, int time_passed, i
 	struct group *prev_running_group = NULL;
 
 	if (running_process) {
-		grp_collapse_spec_virt_time(running_process->group, time_passed);
+		if (grp_adjust_spec_virt_time(running_process->group, time_passed, tick_length)) {
+			gl_fix_group(running_process->group);
+		}
 	}
 
 	if (should_re_enq && running_process) {
@@ -480,7 +361,6 @@ void *run_core(void* core_num_ptr) {
 
 
 void main(int argc, char *argv[]) {
-    pthread_mutex_init(&log_lock, NULL);
 
     // struct sched_param sched_param;
     // sched_param.sched_priority = 99;

@@ -18,6 +18,7 @@
 #include "lheap.h"
 #include "group.h"
 #include "group_list.h"
+#include "global_heap.h"
 #include "util.h"
 
 #define TRACE
@@ -54,11 +55,6 @@ struct global_state {
 };
 
 struct global_state* gs;
-
-// ================
-// for run_core
-// ================
-
 
 void print_core(struct core_state *c) {
 	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)\n",
@@ -152,112 +148,6 @@ void assert_thread_counts_correct(struct group *g, struct core_state *core) {}
 #endif
 
 
-// =========================================================================
-// =========================================================================
-// MAIN FUNCTIONS
-// =========================================================================
-// =========================================================================
-
-
-
-// Make p runnable.
-// caller should have no locks
-void enqueue(struct group_list *gl, struct process *p, int is_new) {
-	pthread_rwlock_wrlock(&p->group->group_lock);
-	bool was_empty = p->group->threads_queued == 0;
-	grp_add_process(p, is_new); 
-	if (is_new) {
-		p->group->num_threads += 1;
-	}
-	p->group->threads_queued += 1;
-	pthread_rwlock_unlock(&p->group->group_lock);
-	if (was_empty) {
-		grp_set_spec_virt_time(p->group, gl_avg_spec_virt_time(p->group)); 
-	}
-}
-
-
-// Assumes caller holds p's group lock
-// returns with no locks
-void dequeue(struct group_list *gl, struct process *p) {
-
-	grp_del_process(p);
-
-	bool now_empty = p->group->threads_queued == 0;
-
-	pthread_rwlock_unlock(&p->group->group_lock);
-    
-	if (!now_empty) {
-		return;
-	}
-
-	// there's a potential race with enq here
-	// enq will have set the threads_queued to 1, so re-check before setting
-	// unlocking the group before getting gl_avg_spec_virt_time is required because of the lock order
-	int curr_avg_spec_virt_time = gl_avg_spec_virt_time(p->group);
-
-	pthread_rwlock_wrlock(&p->group->group_lock);
-	if (p->group->threads_queued > 0) { // someone else enq'd while we were deq'ing, don't overwrite the virt time
-		pthread_rwlock_unlock(&p->group->group_lock);
-		return;
-	}
-	int spec_virt_time = p->group->spec_virt_time;
-	p->group->virt_lag = curr_avg_spec_virt_time - spec_virt_time;
-	p->group->last_virt_time = spec_virt_time;
-	pthread_rwlock_unlock(&p->group->group_lock);
-}
-
-void schedule(struct core_state *core, struct group_list *gl, int time_passed, int should_re_enq) {
-	struct process *running_process = core->current_process; 
-	struct group *prev_running_group = NULL;
-
-	if (running_process) {
-		if (grp_adjust_spec_virt_time(running_process->group, time_passed, tick_length)) {
-			gl_fix_group(running_process->group);
-		}
-	}
-
-	if (should_re_enq && running_process) {
-		enqueue(gl, running_process, 0);
-	}
-
-	core->current_process = NULL;
-
-	struct group *min_group = gl_min_group(gl); // returns with both locks held
-	if (min_group == NULL) {
-		return;
-	}
-    
-	int time_expecting = (int)tick_length / min_group->weight;
-	gl_update_group_svt(min_group, time_expecting);
-	min_group->threads_queued -= 1;
-
-	assert(min_group->threads_queued >= 0);
-
-	lh_unlock(min_group->lh);
-
-	// select the next process
-	struct process *next_p = min_group->runqueue_head;
-	dequeue(gl, next_p); // unlocks the group lock
-    
-
-	core->current_process = next_p; // core owns p
-	next_p->next = NULL;
-}
-
-// NOTE: assume we hold no locks
-void yield(struct core_state *core, struct group_list *gl, struct process *p, int time_gotten) {
-	grp_dec_nthread(p->group);
-	schedule(core, gl, time_gotten, 0);
-}
-
-
-// =========================================================================
-// =========================================================================
-// RUN FUNCTIONS
-// =========================================================================
-// =========================================================================
-
 long us_since(struct timeval *start) {
 	struct timeval end;
 	gettimeofday(&end, NULL);
@@ -275,13 +165,13 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	long ts = safe_read_tsc();
 	switch(op) {
 	case SCHED:
-		schedule(mycore, gs->glist, tick_length, 1);
+		mycore->current_process = schedule(mycore->current_process, gs->glist, tick_length, 1, tick_length);
 		break;
 	case ENQ:
 	        enqueue(gs->glist, p, 1);
 		break;
 	case YIELD:
-		yield(mycore, gs->glist, p, tick_length/2);
+		mycore->current_process = yield(gs->glist, p, tick_length/2, tick_length);
 		break;
 	}
 	long op_cycles = safe_read_tsc() - ts;
@@ -353,7 +243,6 @@ void *run_core(void* core_num_ptr) {
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
 		struct process *next_running_process = mycore->current_process;
-		// usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
 		// choose(mycore, &pool);
 	}

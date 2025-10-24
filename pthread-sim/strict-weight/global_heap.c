@@ -75,12 +75,10 @@ void enqueue(struct process *p, int is_new) {
 
 // process p yields core
 void yield(struct process *p, int time_passed, int should_re_enq, int tick_length) {
-	if (p) {
-		if (grp_adjust_spec_virt_time(p->group, time_passed, tick_length)) {
-			gl_fix_group(p->group);
-		}
+	if (grp_adjust_spec_virt_time(p->group, time_passed, tick_length)) {
+		gl_fix_group(p->group);
 	}
-	if (should_re_enq && p) {
+	if (should_re_enq) {
 		enqueue(p, 0);
 	}
 }

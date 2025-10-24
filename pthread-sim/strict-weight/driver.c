@@ -169,7 +169,7 @@ void doop(struct core_state *mycore, int op, int len, long *cycles, long *us, lo
 		mycore->current_process = schedule(gs->glist, tick_length);
 		break;
 	case YIELD:
-		yield(p, len, len == tick_length, tick_length);
+		if(p) yield(p, len, len == tick_length, tick_length);
 		mycore->current_process = NULL;
 		break;
 	case ENQ:
@@ -237,7 +237,7 @@ void *run_core(void* core_num_ptr) {
 	while (us_since(&start_exp) < TIME_TO_RUN) {
 		// gl_print(gs->glist);
 		doop(mycore, YIELD, len, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
-		doop(mycore, SCHEDULE, len, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, mycore->current_process); 
+		doop(mycore, SCHEDULE, len, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
 		if (mycore->current_process) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);

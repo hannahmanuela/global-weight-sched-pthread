@@ -169,14 +169,14 @@ void doop(struct core_state *mycore, int op, int len, long *cycles, long *us, lo
 		mycore->current_process = schedule(gs->glist, tick_length);
 		break;
 	case YIELD:
-		yield(gs->glist, p, len, len == tick_length, tick_length);
+		yield(p, len, len == tick_length, tick_length);
 		mycore->current_process = NULL;
 		break;
 	case ENQ:
-	        enqueue(gs->glist, p, 1);
+	        enqueue(p, 1);
 		break;
 	case DEQ:
-		dequeue(gs->glist, p, tick_length/2, tick_length);
+		dequeue(p, tick_length/2, tick_length);
 		mycore->current_process = NULL;
 		break;
 	}
@@ -283,7 +283,7 @@ void main(int argc, char *argv[]) {
         gl_register_group(gs->glist, g);
         for (int j = 0; j < num_threads_p_group; j++) {
             struct process *p = grp_new_process(i*num_threads_p_group+j, g);
-            enqueue(gs->glist, p, 1);
+            enqueue(p, 1);
         }
     }
 

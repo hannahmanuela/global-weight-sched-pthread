@@ -45,14 +45,14 @@ int grp_cmp(void *e0, void *e1) {
 int grp_get_spec_virt_time(struct group *g) {
 	pthread_rwlock_rdlock(&g->group_lock);
 	int curr_spec_virt_time = g->spec_virt_time;
-	if (g->threads_queued == 0) { // deq sets threads_queued before removing the group from the list
+	if (g->threads_queued == 0) {
 		curr_spec_virt_time = INT_MAX;
 	}
 	pthread_rwlock_unlock(&g->group_lock);
 	return curr_spec_virt_time;
 }
 
-// set spec_virt_time for group g
+// set initial spec_virt_time when group g becomes runnable
 // caller must hold group lock
 void grp_set_init_spec_virt_time(struct group *g, int avg) {
 	int initial_virt_time = avg;
@@ -81,6 +81,7 @@ void grp_set_new_spec_virt_time(struct process *p, int avg_spec_virt_time) {
 	p->group->last_virt_time = spec_virt_time;
 }
 
+
 int grp_get_weight(struct group *g) {
         pthread_rwlock_rdlock(&g->group_lock);
         int p_grp_weight = g->weight;
@@ -103,7 +104,6 @@ int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length)
 	}
 	return 0;
 }
-
 
 // add p to its group. caller must hold group lock
 void grp_add_process(struct process *p, int is_new) {

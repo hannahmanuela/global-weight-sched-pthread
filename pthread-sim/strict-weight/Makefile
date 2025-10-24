@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I. -g -O2
+CFLAGS=-I. -O2
 DEPS = group_heap.h group.h group_list.h heap.h lheap.h mheap.h util.h 
 OBJ = driver.o global_heap.o group_list.o group.o mheap.o lheap.o heap.o util.c
 

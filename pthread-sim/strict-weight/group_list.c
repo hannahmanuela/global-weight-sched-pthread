@@ -66,15 +66,6 @@ int gl_avg_spec_virt_time(struct group *group_to_ignore) {
 	return total_spec_virt_time / count;
 }
 
-
-void gl_add_group(struct group_list *gl, struct group *g) {
-	mh_add_group(gl->mheap, g);
-}
-
-void gl_del_group(struct group_list *gl, struct group *g) {
-	mh_del_group(gl->mheap, g);
-}
-
 // Update group's spec_virt_time and safely reheapify if the group is in the heap.
 // caller must hold heap lock and group_lock
 void gl_update_group_svt(struct group *g, int diff) {
@@ -91,9 +82,9 @@ void gl_fix_group(struct group *g) {
 }
 
 void gl_register_group(struct group_list *gl, struct group *g) {
-	gl_add_group(gl, g);
+	mh_add_group(gl->mheap, g);
 }
 
 void gl_unregister_group(struct group_list *gl, struct group *g) {
-	gl_del_group(gl, g);
+	mh_del_group(gl->mheap, g);
 }

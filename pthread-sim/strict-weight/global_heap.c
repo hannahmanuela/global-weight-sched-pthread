@@ -5,7 +5,6 @@
 #include "group.h"
 #include "group_list.h"
 
-
 // select next process to run
 struct process *schedule(struct group_list *gl, int tick_length) {
 	struct group *min_group = gl_min_group(gl);
@@ -68,7 +67,7 @@ void yield(struct process *p, int time_passed, int should_re_enq, int tick_lengt
 	lh_unlock(p->group->lh);
 }
 
-// Make p not runnable
+// process p is not runnable and yields core
 void dequeue(struct process *p, int time_gotten, int tick_length) {
 	grp_dec_nthread(p->group);
 	yield(p, time_gotten, 0, tick_length);

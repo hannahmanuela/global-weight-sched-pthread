@@ -6,41 +6,14 @@
 #include "group_list.h"
 
 
-// set the new spec_virt_time for p to run again, assuming p will run for a full tick
-static void set_new_spec_virt_time(struct process *p) {
-
-	grp_del_process(p);
-
-	bool now_empty = p->group->threads_queued == 0;
-
-	pthread_rwlock_unlock(&p->group->group_lock);
-    
-	if (!now_empty) {
-		return;
-	}
-
-	// there's a potential race with enq here
-	// enq will have set the threads_queued to 1, so re-check before setting
-	// unlocking the group before getting gl_avg_spec_virt_time is required because of the lock order
-	int curr_avg_spec_virt_time = gl_avg_spec_virt_time(p->group);
-
-	pthread_rwlock_wrlock(&p->group->group_lock);
-	if (p->group->threads_queued > 0) { // someone else enq'd while we were deq'ing, don't overwrite the virt time
-		pthread_rwlock_unlock(&p->group->group_lock);
-		return;
-	}
-	int spec_virt_time = p->group->spec_virt_time;
-	p->group->virt_lag = curr_avg_spec_virt_time - spec_virt_time;
-	p->group->last_virt_time = spec_virt_time;
-	pthread_rwlock_unlock(&p->group->group_lock);
-}
-
 // select next process to run
 struct process *schedule(struct group_list *gl, int tick_length) {
-	struct group *min_group = gl_min_group(gl); // returns with both locks held
+	struct group *min_group = gl_min_group(gl);
 	if (min_group == NULL) {
 		return NULL;
 	}
+
+        // gl_min_group returns with both locks held
     
 	int time_expecting = (int)tick_length / min_group->weight;
 	gl_update_group_svt(min_group, time_expecting);
@@ -48,39 +21,51 @@ struct process *schedule(struct group_list *gl, int tick_length) {
 
 	assert(min_group->threads_queued >= 0);
 
-	lh_unlock(min_group->lh);
-
 	// select the next process
 	struct process *next_p = min_group->runqueue_head;
-	set_new_spec_virt_time(next_p); // unlocks the group lock
+	grp_set_new_spec_virt_time(next_p, gl_avg_spec_virt_time(next_p->group));
     
+	pthread_rwlock_unlock(&next_p->group->group_lock);
+	lh_unlock(min_group->lh);
+
 	next_p->next = NULL;
 	return next_p;
 }
 
 // Make p runnable.
-void enqueue(struct process *p, int is_new) {
-	pthread_rwlock_wrlock(&p->group->group_lock);
+// caller must hold heap and group lock
+static void enqueueL(struct process *p, int is_new) {
 	bool was_empty = p->group->threads_queued == 0;
 	grp_add_process(p, is_new); 
 	if (is_new) {
 		p->group->num_threads += 1;
 	}
 	p->group->threads_queued += 1;
-	pthread_rwlock_unlock(&p->group->group_lock);
 	if (was_empty) {
-		grp_set_spec_virt_time(p->group, gl_avg_spec_virt_time(p->group)); 
+		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time(p->group)); 
 	}
+}
+
+void enqueue(struct process *p, int is_new) {
+	lh_lock_timed(p->group->lh);
+	pthread_rwlock_wrlock(&p->group->group_lock);
+	enqueueL(p, is_new);
+	pthread_rwlock_unlock(&p->group->group_lock);
+	lh_unlock(p->group->lh);
 }
 
 // process p yields core
 void yield(struct process *p, int time_passed, int should_re_enq, int tick_length) {
+	lh_lock_timed(p->group->lh);
+	pthread_rwlock_wrlock(&p->group->group_lock);
 	if (grp_adjust_spec_virt_time(p->group, time_passed, tick_length)) {
 		gl_fix_group(p->group);
 	}
 	if (should_re_enq) {
-		enqueue(p, 0);
+		enqueueL(p, 0);
 	}
+	pthread_rwlock_unlock(&p->group->group_lock);
+	lh_unlock(p->group->lh);
 }
 
 // Make p not runnable

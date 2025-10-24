@@ -53,9 +53,9 @@ int grp_get_spec_virt_time(struct group *g) {
 }
 
 // set spec_virt_time for group g
-void grp_set_spec_virt_time(struct group *g, int avg) {
+// caller must hold group lock
+void grp_set_init_spec_virt_time(struct group *g, int avg) {
 	int initial_virt_time = avg;
-	pthread_rwlock_wrlock(&g->group_lock);
 	if (g->virt_lag > 0) {
 		if (g->last_virt_time > initial_virt_time) {
 			initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
@@ -64,7 +64,21 @@ void grp_set_spec_virt_time(struct group *g, int avg) {
 		initial_virt_time -= g->virt_lag; // negative lag always carries over? maybe limit it?
 	}
 	g->spec_virt_time = initial_virt_time;
-	pthread_rwlock_unlock(&g->group_lock);
+}
+
+// set the new spec_virt_time for p to run again, assuming p will run for a full tick
+// caller must group lock
+void grp_set_new_spec_virt_time(struct process *p, int avg_spec_virt_time) {
+	grp_del_process(p);
+
+	bool now_empty = p->group->threads_queued == 0;
+
+	if (!now_empty) {
+		return;
+	}
+	int spec_virt_time = p->group->spec_virt_time;
+	p->group->virt_lag = avg_spec_virt_time - spec_virt_time;
+	p->group->last_virt_time = spec_virt_time;
 }
 
 int grp_get_weight(struct group *g) {

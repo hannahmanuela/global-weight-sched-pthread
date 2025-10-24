@@ -48,13 +48,12 @@ struct group* gl_min_group(struct group_list *gl) {
 }
 
 // compute avg_spec_virt_time for groups in group_to_ignore's heap, ignoring group_to_ignore
-// caller should have no locks
+// caller should have heap lock
 int gl_avg_spec_virt_time(struct group *group_to_ignore) {
 	int total_spec_virt_time = 0;
 	int count = 0;
 	struct lock_heap *lh = group_to_ignore->lh;
 
-	lh_rdlock_timed(lh);
 	for (struct heap_elem *e = heap_first(lh->heap); e != NULL; e = heap_next(lh->heap, e)) {
 		struct group *g = (struct group *) e->elem;
 		assert(g != NULL);
@@ -63,7 +62,6 @@ int gl_avg_spec_virt_time(struct group *group_to_ignore) {
 		total_spec_virt_time += grp_get_spec_virt_time(g);
 		count++;
 	}
-	lh_unlock(lh);
 	if (count == 0) return 0;
 	return total_spec_virt_time / count;
 }
@@ -84,15 +82,12 @@ void gl_update_group_svt(struct group *g, int diff) {
 	heap_fix_index(g->lh->heap, &g->heap_elem);
 }
 
+// caller must hold heap lock and group lock
 void gl_fix_group(struct group *g) {
-	lh_lock_timed(g->lh);
-        pthread_rwlock_wrlock(&g->group_lock);
         // If the group is currently in the heap, fix its position
         if (g->heap_elem.heap_index != -1) {
 		heap_fix_index(g->lh->heap, &g->heap_elem);
         }
-        pthread_rwlock_unlock(&g->group_lock);
-        lh_unlock(g->lh);
 }
 
 void gl_register_group(struct group_list *gl, struct group *g) {

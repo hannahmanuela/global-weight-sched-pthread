@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <unistd.h>
 
-#include "strict-weight/heap.h"
+#include "heap.h"
 
 struct group {
 	int spec_virt_time;
@@ -20,6 +20,10 @@ void heap_elem_print(struct heap_elem *e) {
 	printf("%d id %d svt %d w %d q %d\n", e->heap_index, g->id, g->spec_virt_time, g->weight, g->queued);
 }
 
+void heap_print(struct heap *heap) {
+	printf("h: %d\n", heap->heap_size);
+	heap_iter(heap, heap_elem_print);
+}
 
 static struct group* make_group(int id, int svt, int weight) {
 	struct group *g = malloc(sizeof(struct group));

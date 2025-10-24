@@ -8,10 +8,7 @@ struct heap *heap_new(int cmp(void *, void *)) {
 	struct heap *h = malloc(sizeof(struct heap));
 	h->cmp_elem = cmp;
 	h->heap_size = 0;
-	h->heap = malloc(sizeof(struct heap_elem));
-	h->heap[0]->heap_index = -1;
-	h->heap[0]->elem = NULL;
-	h->heap_capacity = 1;
+	h->heap_capacity = 0;
 	return h;
 }
 
@@ -25,6 +22,8 @@ int heap_elem_idx(struct heap_elem *h) {
 }
 
 void *heap_min(struct heap *h) {
+	if (h->heap_size == 0)
+		return NULL;
 	return h->heap[0]->elem;
 } 
 
@@ -99,7 +98,7 @@ void heap_ensure_capacity(struct heap *h) {
 	h->heap_capacity = new_capacity;
 }
 
-// reheapify a group at its current index after its key changed; caller must hold group_list_lock
+// reheapify an elem at its current index after its key changed
 void heap_fix_index(struct heap *h, struct heap_elem *e) {
     assert(e->heap_index != -1);
 	if (e->heap_index < 0 || e->heap_index >= h->heap_size) return;
@@ -107,7 +106,7 @@ void heap_fix_index(struct heap *h, struct heap_elem *e) {
 	heap_sift_up(h, e->heap_index);
 }
 
-// push group into heap; caller must hold group_list_lock
+// push an elem into heap
 void heap_push(struct heap *h, struct heap_elem *e) {
     assert(e->heap_index == -1);
     heap_ensure_capacity(h);
@@ -116,7 +115,7 @@ void heap_push(struct heap *h, struct heap_elem *e) {
     heap_sift_up(h, e->heap_index);
 }
 
-// remove group at index; caller must hold group_list_lock
+// remove elem at index
 void heap_remove_at(struct heap *h, struct heap_elem *e) {
     assert(e->heap_index != -1);
     int last = h->heap_size - 1;
@@ -131,5 +130,4 @@ void heap_remove_at(struct heap *h, struct heap_elem *e) {
         heap_sift_up(h, e->heap_index);
     }
     removed->heap_index = -1;
-    removed->elem = NULL;
 }

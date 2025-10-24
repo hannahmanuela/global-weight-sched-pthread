@@ -20,7 +20,7 @@
 #include "group_list.h"
 #include "util.h"
 
-//#define TRACE
+#define TRACE
 // #define ASSERTS
 // #define ASSERTS_SINGLE_WORKER
 
@@ -105,26 +105,6 @@ void print_core(struct core_state *c) {
 	       c->nenq, 1.0*c->enq_us/c->nenq, 1.0*c->enq_cycles/c->nenq,
 	       c->nyield, 1.0*c->yield_us/c->nyield, 1.0*c->yield_cycles/c->nyield);
 }
-
-void trace_schedule(long cycles, long us) {
-#ifdef TRACE
-    printf("sched,%ld,%ld\n", cycles, us);
-#endif
-}
-
-void trace_yield(long cycles, long us) {
-#ifdef TRACE
-    printf("yield,%ld,%ld\n", cycles, us);
-#endif
-}
-
-void trace_enqueue(long cycles, long us) {
-#ifdef TRACE
-    printf("enq,%ld,%ld\n", cycles, us);
-#endif
-}
-
-
 
 // =================
 // for asserts
@@ -265,6 +245,8 @@ int grp_get_weight(struct group *g) {
 void grp_collapse_spec_virt_time(struct group *g, int time_passed) {
 	int p_grp_weight = grp_get_weight(g);
 	int time_had_expected = (int) (tick_length / p_grp_weight);
+
+	// printf("%d: collapse: e %d t %d w %d\n", g->group_id, time_had_expected, time_passed, p_grp_weight);
     
 	// update spec virt time if time gotten was not what this core expected
 	int virt_time_gotten = (int)(time_passed / p_grp_weight);
@@ -446,7 +428,7 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	        enqueue(gs->glist, p, 1);
 		break;
 	case YIELD:
-		yield(mycore, gs->glist, p, tick_length);
+		yield(mycore, gs->glist, p, tick_length/2);
 		break;
 	}
 	long op_cycles = safe_read_tsc() - ts;
@@ -474,7 +456,6 @@ void choose(struct core_state *mycore, struct process **pool) {
 		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
 
 		assert_p_in_group(p, p->group);
-		//trace_enqueue(enq_cycles, enq_us);
 		usleep(tick_length);
 		break;
 	case 2: // Yield core
@@ -484,10 +465,8 @@ void choose(struct core_state *mycore, struct process **pool) {
 		}
 		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, p);
 		// XXX should 1/2 tick_length?
-		// gl_print(gs->glist);
 
 		assert_p_not_in_group(p, p->group);
-		// trace_yield(yield_cycles, yield_us);
 		p->next = *pool;
 		*pool = p;
 		usleep((int)(tick_length / 2));
@@ -521,8 +500,6 @@ void *run_core(void* core_num_ptr) {
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
 		struct process *next_running_process = mycore->current_process;
-		// trace_schedule(sched_cycles, sched_us);
-
 		// usleep(tick_length);   // XXX should this be in choice == 0 branch?
 
 		// choose(mycore, &pool);
@@ -570,8 +547,6 @@ void main(int argc, char *argv[]) {
             enqueue(gs->glist, p, 1);
         }
     }
-
-    // gl_print(gs->glist);
 
     pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 

@@ -4,6 +4,8 @@
 
 # Unignore all with extensions
 !*.c
+!*.h
+!*.md
 !*.cpp
 !*.sh
 !*.py

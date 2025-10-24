@@ -59,6 +59,7 @@ int gl_avg_spec_virt_time(struct group *group_to_ignore) {
 		struct group *g = (struct group *) e->elem;
 		assert(g != NULL);
 		if (g == group_to_ignore) continue;
+		if (mh_empty(g)) continue;
 		total_spec_virt_time += grp_get_spec_virt_time(g);
 		count++;
 	}

@@ -79,12 +79,6 @@ void grp_set_new_spec_virt_time(struct process *p, int avg_spec_virt_time) {
 	p->group->last_virt_time = spec_virt_time;
 }
 
-int grp_get_weight(struct group *g) {
-        pthread_rwlock_rdlock(&g->group_lock);
-        int p_grp_weight = g->weight;
-        pthread_rwlock_unlock(&g->group_lock);
-	return p_grp_weight;
-}
 
 // adjust spec_virt_time if group's process didn't run for a complete tick
 int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length) {
@@ -100,7 +94,8 @@ int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length)
 	return 0;
 }
 
-// add p to its group. caller must hold group lock
+// add p to its group.
+// caller must hold group lock
 void grp_add_process(struct process *p, int is_new) {
 	struct process *curr_head = p->group->runqueue_head;
 	if (!curr_head) {

@@ -15,7 +15,7 @@ struct process *schedule(struct group_list *gl, int tick_length) {
 		return NULL;
 	}
 
-        // gl_min_group returns with both locks held
+        // gl_min_group returns with heap and group lock held
     
 	int time_expecting = (int)tick_length / min_group->weight;
 	min_group->spec_virt_time += time_expecting;

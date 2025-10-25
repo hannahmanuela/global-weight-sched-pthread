@@ -26,13 +26,13 @@ struct process *schedule(struct group_list *gl, int tick_length) {
 	assert(min_group->threads_queued >= 0);
 
 	// select the next process
-	struct process *next_p = min_group->runqueue_head;
-	grp_set_new_spec_virt_time(next_p, gl_avg_spec_virt_time(next_p->group));
+	struct process *next_p = grp_deq_process(min_group);
+
+	grp_set_new_spec_virt_time(next_p, gl_avg_spec_virt_time(min_group));
     
 	pthread_rwlock_unlock(&next_p->group->group_lock);
 	lh_unlock(min_group->lh);
 
-	next_p->next = NULL;
 	return next_p;
 }
 

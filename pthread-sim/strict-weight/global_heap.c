@@ -8,8 +8,6 @@
 
 // select next process to run
 struct process *schedule(struct group_list *gl, int tick_length) {
-	gl_print(gl);
-
 	struct group *min_group = gl_min_group(gl);
 	if (min_group == NULL) {
 		return NULL;

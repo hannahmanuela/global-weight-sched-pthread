@@ -64,7 +64,7 @@ void yield(struct process *p, int time_passed, int should_re_enq, int tick_lengt
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
 	if (grp_adjust_spec_virt_time(p->group, time_passed, tick_length)) {
-		gl_fix_group(p->group);
+		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
 	if (should_re_enq) {
 		enqueueL(p, 0);

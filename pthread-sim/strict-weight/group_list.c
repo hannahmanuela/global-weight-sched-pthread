@@ -64,14 +64,6 @@ int gl_avg_spec_virt_time(struct group *group_to_ignore) {
 	return total_spec_virt_time / count;
 }
 
-// caller must hold heap lock and group lock
-void gl_fix_group(struct group *g) {
-        // If the group is currently in the heap, fix its position
-        if (g->heap_elem.heap_index != -1) {
-		heap_fix_index(g->lh->heap, &g->heap_elem);
-        }
-}
-
 void gl_register_group(struct group_list *gl, struct group *g) {
 	mh_add_group(gl->mheap, g);
 }

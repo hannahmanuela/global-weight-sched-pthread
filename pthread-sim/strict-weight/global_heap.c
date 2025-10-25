@@ -18,7 +18,7 @@ struct process *schedule(struct group_list *gl, int tick_length) {
         // gl_min_group returns with heap and group lock held
     
 	int time_expecting = (int)tick_length / min_group->weight;
-	min_group->spec_virt_time += time_expecting;
+	grp_upd_spec_virt_time_avg(min_group, time_expecting);
 	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
 
 	min_group->threads_queued -= 1;
@@ -28,7 +28,7 @@ struct process *schedule(struct group_list *gl, int tick_length) {
 	// select the next process
 	struct process *next_p = grp_deq_process(min_group);
 
-	grp_set_new_spec_virt_time(next_p, gl_avg_spec_virt_time(min_group));
+	grp_lag_spec_virt_time(next_p, gl_avg_spec_virt_time_inc(min_group));
     
 	pthread_rwlock_unlock(&next_p->group->group_lock);
 	lh_unlock(min_group->lh);
@@ -46,7 +46,7 @@ static void enqueueL(struct process *p, int is_new) {
 	}
 	p->group->threads_queued += 1;
 	if (was_empty) {
-		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time(p->group)); 
+		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group)); 
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
 }

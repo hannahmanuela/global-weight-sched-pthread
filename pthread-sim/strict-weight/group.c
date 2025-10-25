@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <limits.h>
 
+#include "lheap.h"
 #include "group.h"
 
 struct process *grp_new_process(int id, struct group *group) {
@@ -43,6 +44,22 @@ int grp_cmp(void *e0, void *e1) {
 	return 0;
 }
 
+void grp_set_spec_virt_time_avg(struct group *g, int val) {
+	g->spec_virt_time = val;
+	g->lh->heap->sum += val;
+}
+
+void grp_clear_spec_virt_time_avg(struct group *g) {
+	g->lh->heap->sum -= g->spec_virt_time;
+	g->spec_virt_time = INT_MAX;
+}
+
+void grp_upd_spec_virt_time_avg(struct group *g, int delta) {
+	g->spec_virt_time += delta;
+	g->lh->heap->sum += delta;
+}
+
+// XXX obsolete when gl_avg_spec_virt_time is obsolete
 int grp_get_spec_virt_time(struct group *g) {
 	pthread_rwlock_rdlock(&g->group_lock);
 	int curr_spec_virt_time = g->spec_virt_time;
@@ -64,12 +81,12 @@ void grp_set_init_spec_virt_time(struct group *g, int avg) {
 	} else if (g->virt_lag < 0) {
 		initial_virt_time -= g->virt_lag; // negative lag always carries over? maybe limit it?
 	}
-	g->spec_virt_time = initial_virt_time;
+	grp_set_spec_virt_time_avg(g, initial_virt_time);
 }
 
-// set the new spec_virt_time for p to run again, assuming p will run for a full tick
+// remember spec_virt_time for when group becomes runnable again
 // caller must group lock
-void grp_set_new_spec_virt_time(struct process *p, int avg_spec_virt_time) {
+void grp_lag_spec_virt_time(struct process *p, int avg_spec_virt_time) {
 	bool now_empty = p->group->threads_queued == 0;
 	if (!now_empty) {
 		return;
@@ -77,6 +94,7 @@ void grp_set_new_spec_virt_time(struct process *p, int avg_spec_virt_time) {
 	int spec_virt_time = p->group->spec_virt_time;
 	p->group->virt_lag = avg_spec_virt_time - spec_virt_time;
 	p->group->last_virt_time = spec_virt_time;
+	grp_clear_spec_virt_time_avg(p->group);
 }
 
 
@@ -88,7 +106,7 @@ int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length)
 	if (time_had_expected  != virt_time_gotten) {
 		printf("%d: collapse: e %d t %d w %d\n", g->group_id, time_had_expected, time_passed, p_grp_weight);
 		int diff = virt_time_gotten - time_had_expected;
-		g->spec_virt_time += diff;
+		grp_upd_spec_virt_time_avg(g, diff);
 		return 1;
 	}
 	return 0;

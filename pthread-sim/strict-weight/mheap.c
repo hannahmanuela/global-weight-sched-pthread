@@ -16,6 +16,7 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 		mh->lh[i] = lh_new(grp_cmp);
 		// insert a dummy element so that the heap always has a min
 		struct group* dummy = grp_new(DUMMY, 0);
+		dummy->threads_queued = 1;
 		dummy->spec_virt_time = INT_MAX;
 		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
 	}
@@ -30,8 +31,7 @@ int mh_empty(struct group *g) {
 void mh_print(struct mheap *mh, void print_elem(struct heap_elem*)) {
 	for (int i = 0; i < mh->nheap; i++) {
 		lh_rdlock_timed(mh->lh[i]);
-		printf("Global heap size: %d \n", mh->lh[i]->heap->heap_size);
-		printf("Heap contents by (group_id: svt, num_threads, num_queued): ");
+		printf("Heap %d size %d: \n", i, mh->lh[i]->heap->heap_size);
 		heap_iter(mh->lh[i]->heap, print_elem);
 		printf("\n");
 		lh_unlock(mh->lh[i]);

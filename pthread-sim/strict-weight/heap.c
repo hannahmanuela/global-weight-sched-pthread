@@ -76,10 +76,10 @@ static void heap_sift_down(struct heap *h, int idx) {
 		int left = idx * 2 + 1;
 		int right = idx * 2 + 2;
 		int smallest = idx;
-		if (left < n && h->cmp_elem(h->heap[left]->elem, h->heap[smallest]->elem) < 0) {
+		if ((left < n) && h->cmp_elem(h->heap[left]->elem, h->heap[smallest]->elem) < 0) {
 			smallest = left;
 		}
-		if (right < n && h->cmp_elem(h->heap[right]->elem, h->heap[smallest]->elem) < 0) {
+		if ((right < n) && h->cmp_elem(h->heap[right]->elem, h->heap[smallest]->elem) < 0) {
 			smallest = right;
 		}
 		if (smallest != idx) {

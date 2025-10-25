@@ -21,9 +21,7 @@ struct group_list *gl_new(int nqueue) {
 
 static void print_elem(struct heap_elem *e) {
 	struct group *g = (struct group *) e->elem;
-	pthread_rwlock_rdlock(&g->group_lock);
-	printf("(%d: %d, %d, %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued);
-	pthread_rwlock_unlock(&g->group_lock);
+	printf("(d: svt %d, n %d, q %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued);
 }
 
 void gl_print(struct group_list *gl) {
@@ -64,13 +62,6 @@ int gl_avg_spec_virt_time(struct group *group_to_ignore) {
 	}
 	if (count == 0) return 0;
 	return total_spec_virt_time / count;
-}
-
-// Update group's spec_virt_time and safely reheapify if the group is in the heap.
-// caller must hold heap lock and group_lock
-void gl_update_group_svt(struct group *g, int diff) {
-	g->spec_virt_time += diff;
-	heap_fix_index(g->lh->heap, &g->heap_elem);
 }
 
 // caller must hold heap lock and group lock

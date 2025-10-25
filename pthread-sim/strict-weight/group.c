@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <limits.h>
 
 #include "group.h"
@@ -91,15 +92,13 @@ int grp_get_weight(struct group *g) {
 
 // adjust spec_virt_time if group's process didn't run for a complete tick
 int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length) {
-	int p_grp_weight = grp_get_weight(g);
+	int p_grp_weight = g->weight;
 	int time_had_expected = (int) (tick_length / p_grp_weight);
 	int virt_time_gotten = (int)(time_passed / p_grp_weight);
 	if (time_had_expected  != virt_time_gotten) {
-		// printf("%d: collapse: e %d t %d w %d\n", g->group_id, time_had_expected, time_passed, p_grp_weight);
+		printf("%d: collapse: e %d t %d w %d\n", g->group_id, time_had_expected, time_passed, p_grp_weight);
 		int diff = virt_time_gotten - time_had_expected;
-		pthread_rwlock_wrlock(&g->group_lock);
 		g->spec_virt_time += diff;
-		pthread_rwlock_unlock(&g->group_lock);
 		return 1;
 	}
 	return 0;

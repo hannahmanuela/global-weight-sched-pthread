@@ -177,7 +177,7 @@ void doop(struct core_state *mycore, int op, int len, long *cycles, long *us, lo
 		mycore->current_process = NULL;
 		break;
 	case ENQ:
-	        enqueue(p, 1);
+	        enqueue(p);
 		break;
 	case DEQ:
 		dequeue(p, tick_length/2, tick_length);
@@ -287,7 +287,7 @@ void main(int argc, char *argv[]) {
         gl_register_group(gs->glist, g);
         for (int j = 0; j < num_threads_p_group; j++) {
             struct process *p = grp_new_process(i*num_threads_p_group+j, g);
-            enqueue(p, 1);
+            enqueue(p);
         }
     }
 

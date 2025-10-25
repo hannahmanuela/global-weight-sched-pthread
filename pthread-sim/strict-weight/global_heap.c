@@ -51,10 +51,10 @@ static void enqueueL(struct process *p, int is_new) {
 	}
 }
 
-void enqueue(struct process *p, int is_new) {
+void enqueue(struct process *p) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
-	enqueueL(p, is_new);
+	enqueueL(p, 1);
 	pthread_rwlock_unlock(&p->group->group_lock);
 	lh_unlock(p->group->lh);
 }

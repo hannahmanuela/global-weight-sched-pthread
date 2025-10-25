@@ -29,6 +29,9 @@ virt time; otherwise, it is before.
 
 XXX examples.
 
+To implement the global heap in scalable way, it uses multiple
+heaps, inspired by https://dl.acm.org/doi/10.1145/2755573.2755616.
+
 
 
 

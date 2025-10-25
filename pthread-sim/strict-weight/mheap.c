@@ -87,6 +87,7 @@ void *mh_min_atomic(struct lock_heap *lh)  {
         return e->elem;
 }
 
+// https://dl.acm.org/doi/10.1145/2755573.2755616
 struct group *mh_sample_min_group(struct mheap *mh) {
 retry:
 	int i = random() % mh->nheap;

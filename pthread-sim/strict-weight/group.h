@@ -41,7 +41,6 @@ void grp_set_new_spec_virt_time(struct process *p, int avg);
 int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length);
 void grp_add_process(struct process *p, int is_new);
 struct process *grp_deq_process(struct group *g);
-void grp_dec_nthread(struct group *g);
 
 
 

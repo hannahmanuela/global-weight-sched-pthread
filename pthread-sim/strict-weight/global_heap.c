@@ -63,6 +63,10 @@ void enqueue(struct process *p) {
 void yield(struct process *p, int time_passed, int should_re_enq, int tick_length) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
+	if (!should_re_enq) {
+		p->group->num_threads -= 1;
+		assert(p->group->num_threads >= p->group->threads_queued);
+	}
 	if (grp_adjust_spec_virt_time(p->group, time_passed, tick_length)) {
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
@@ -75,6 +79,5 @@ void yield(struct process *p, int time_passed, int should_re_enq, int tick_lengt
 
 // process p is not runnable and yields core
 void dequeue(struct process *p, int time_gotten, int tick_length) {
-	grp_dec_nthread(p->group);
 	yield(p, time_gotten, 0, tick_length);
 }

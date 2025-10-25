@@ -120,9 +120,3 @@ struct process *grp_deq_process(struct group *g) {
 	p->next = NULL;
 }
 
-void grp_dec_nthread(struct group *g) {
-	pthread_rwlock_wrlock(&g->group_lock);
-	g->num_threads -= 1;
-	assert(g->num_threads >= g->threads_queued);
-	pthread_rwlock_unlock(&g->group_lock);
-}

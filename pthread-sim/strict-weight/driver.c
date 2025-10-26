@@ -38,6 +38,7 @@ int num_threads_p_group = 3;
 struct core_state {
 	int core_id;
 	struct process *current_process;
+	struct process *pool;
 	long sched_us;
 	long sched_cycles;
 	long enq_us;
@@ -164,7 +165,7 @@ long us_since(struct timeval *start) {
 #define ENQ 2
 #define DEQ 3
 
-void doop(struct core_state *mycore, int op, int len, long *cycles, long *us, long *n, struct process *p) {
+void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, struct process *p) {
 	struct timeval start;
 	gettimeofday(&start, NULL);
 	long ts = safe_read_tsc();
@@ -176,7 +177,7 @@ void doop(struct core_state *mycore, int op, int len, long *cycles, long *us, lo
 		break;
 	case YIELD:
 		if(p) {
-			yield(p, len, len == tick_length, tick_length);
+			yield(p, tick_length, 1, tick_length);
 		}
 		mycore->current_process = NULL;
 		break;
@@ -195,42 +196,49 @@ void doop(struct core_state *mycore, int op, int len, long *cycles, long *us, lo
 	*n += 1;
 }
 
+#define RUN 0
+#define WAKEUP 1
+#define SLEEP 2
+
 // simulator actions
-int action(struct core_state *mycore, struct process **pool, int choice) {
+void action(struct core_state *mycore, int choice) {
 	switch(choice) {
-	case 0: // Run for full tick
-		doop(mycore, YIELD, tick_length, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
-		return tick_length;
-	case 1: // Make a process runnable
+	case RUN: // Run for full tick
+		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
+	case WAKEUP: // Make a process runnable
 		// pick an existing process from the pool?
-		struct process *p = *pool;
+		struct process *p = mycore->pool;
 		if (!p) {
-			return tick_length;
+			return; 
 		}
-		*pool = p->next;
+		mycore->pool = p->next;
 		p->next = NULL;
 
-		doop(mycore, ENQ, tick_length, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
+		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
 		assert_p_in_group(p, p->group);
-		return tick_length;
-	case 2: // Make current process not runnable (e.g., go to sleep)
+	case SLEEP: // Make current process not runnable (e.g., go to sleep)
 		p = mycore->current_process;
 		if (!p) {
-			return tick_length;
+			return;
 		}
-		doop(mycore, DEQ, tick_length/2, &mycore->deq_cycles, &mycore->deq_us, &mycore->ndeq, p);
+		doop(mycore, DEQ, &mycore->deq_cycles, &mycore->deq_us, &mycore->ndeq, p);
 		assert_p_not_in_group(p, p->group);
-		p->next = *pool;
-		*pool = p;
-		return tick_length/2;
+		p->next = mycore->pool;
+		mycore->pool = p;
 	}
+}
+
+void sleepwakeup(struct core_state *mycore) {
+	printf("= before deq: "); gl_print(gs->glist);
+	action(mycore, SLEEP);
+	printf("= before enq: "); gl_print(gs->glist);
+	action(mycore, WAKEUP);
 }
 
 void *run_core(void* core_num_ptr) {
 	int core_id = (int)core_num_ptr;
 	struct core_state *mycore = &(gs->cores[core_id]);
 
-	struct process *pool = NULL;
 
 	// pin to an actual core
 	cpu_set_t cpuset;
@@ -246,16 +254,13 @@ void *run_core(void* core_num_ptr) {
 	int i = 0;
 	while (us_since(&start_exp) < TIME_TO_RUN) {
 		printf("\n= before schedule: "); gl_print(gs->glist);
-		doop(mycore, SCHEDULE, len, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
+		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
 		if (mycore->current_process) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		printf("= before deq: "); gl_print(gs->glist);
-		// len = action(mycore, &pool, 0);
-		len = action(mycore, &pool, 2);
-		printf("= before enq: "); gl_print(gs->glist);
-		len = action(mycore, &pool, 1);
+		action(mycore, RUN);
+		// sleepwakeup(mycore);
 		// int choice = rand() % 3;
 	}
 }
@@ -281,6 +286,7 @@ void main(int argc, char *argv[]) {
     for (int i = 0; i < num_cores; i++) {
         gs->cores[i].core_id = i;
         gs->cores[i].current_process = NULL;
+	gs->cores[i].pool = NULL;
         gs->cores[i].sched_us = 0;
         gs->cores[i].enq_us = 0;
         gs->cores[i].yield_us = 0;

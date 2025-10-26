@@ -78,6 +78,6 @@ void yield(struct process *p, int time_passed, int should_re_enq, int tick_lengt
 }
 
 // process p is not runnable and yields core
-void dequeue(struct process *p, int time_gotten, int tick_length) {
-	yield(p, time_gotten, 0, tick_length);
+void dequeue(struct process *p, int time_passed, int tick_length) {
+	yield(p, time_passed, 0, tick_length);
 }

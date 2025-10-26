@@ -42,10 +42,13 @@ struct core_state {
 	long sched_cycles;
 	long enq_us;
 	long enq_cycles;
+	long deq_us;
+	long deq_cycles;
 	long yield_us;
 	long yield_cycles;
 	long nsched;
 	long nenq;
+	long ndeq;
 	long nyield;
 } __attribute__((aligned(64)));
 
@@ -57,10 +60,11 @@ struct global_state {
 struct global_state* gs;
 
 void print_core(struct core_state *c) {
-	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)\n",
+	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) deq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)\n",
 	       c - gs->cores,
 	       c->nsched, 1.0*c->sched_us/c->nsched, 1.0*c->sched_cycles/c->nsched,
 	       c->nenq, 1.0*c->enq_us/c->nenq, 1.0*c->enq_cycles/c->nenq,
+	       c->ndeq, 1.0*c->deq_us/c->ndeq, 1.0*c->deq_cycles/c->ndeq,
 	       c->nyield, 1.0*c->yield_us/c->nyield, 1.0*c->yield_cycles/c->nyield);
 }
 
@@ -191,14 +195,14 @@ void doop(struct core_state *mycore, int op, int len, long *cycles, long *us, lo
 	*n += 1;
 }
 
-// randomly choose to: "run" for the full tick, "enq" a new process, or "yield" early
-int choose(struct core_state *mycore, struct process **pool) {
-	int choice = rand() % 3;
+// simulator actions
+int action(struct core_state *mycore, struct process **pool, int choice) {
 	switch(choice) {
 	case 0: // Run for full tick
+		doop(mycore, YIELD, tick_length, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
 		return tick_length;
 	case 1: // Make a process runnable
-		// pick an exisitng process from the pool?
+		// pick an existing process from the pool?
 		struct process *p = *pool;
 		if (!p) {
 			return tick_length;
@@ -214,6 +218,7 @@ int choose(struct core_state *mycore, struct process **pool) {
 		if (!p) {
 			return tick_length;
 		}
+		doop(mycore, DEQ, tick_length/2, &mycore->deq_cycles, &mycore->deq_us, &mycore->ndeq, p);
 		assert_p_not_in_group(p, p->group);
 		p->next = *pool;
 		*pool = p;
@@ -238,15 +243,20 @@ void *run_core(void* core_num_ptr) {
 
 	int cont = 1;
 	int len = tick_length;
+	int i = 0;
 	while (us_since(&start_exp) < TIME_TO_RUN) {
-		gl_print(gs->glist);
-		doop(mycore, YIELD, len, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
+		printf("\n= before schedule: "); gl_print(gs->glist);
 		doop(mycore, SCHEDULE, len, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
 		if (mycore->current_process) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		// len = choose(mycore, &pool);
+		printf("= before deq: "); gl_print(gs->glist);
+		// len = action(mycore, &pool, 0);
+		len = action(mycore, &pool, 2);
+		printf("= before enq: "); gl_print(gs->glist);
+		len = action(mycore, &pool, 1);
+		// int choice = rand() % 3;
 	}
 }
 
@@ -285,18 +295,17 @@ void main(int argc, char *argv[]) {
     for (int i = 0; i < num_groups; i++) {
 	    // struct group *g = grp_new(i, 10);
 	    struct group *g = grp_new(i, 10*(i+1));
-        gl_register_group(gs->glist, g);
-        for (int j = 0; j < num_threads_p_group; j++) {
-            struct process *p = grp_new_process(i*num_threads_p_group+j, g);
-            enqueue(p);
-        }
+	    gl_register_group(gs->glist, g);
+	    for (int j = 0; j < num_threads_p_group; j++) {
+		    struct process *p = grp_new_process(i*num_threads_p_group+j, g);
+		    enqueue(p);
+	    }
     }
 
     pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 
     for (int i = 0; i < num_cores; i ++) {
         pthread_create(&threads[i], NULL, run_core, (void*)i);
-        // usleep(200);
     }
 
     for (int i = 0; i < num_cores; i++) {

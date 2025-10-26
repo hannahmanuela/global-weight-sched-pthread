@@ -239,7 +239,7 @@ void *run_core(void* core_num_ptr) {
 	int cont = 1;
 	int len = tick_length;
 	while (us_since(&start_exp) < TIME_TO_RUN) {
-		// gl_print(gs->glist);
+		gl_print(gs->glist);
 		doop(mycore, YIELD, len, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
 		doop(mycore, SCHEDULE, len, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
 		if (mycore->current_process) {
@@ -283,7 +283,8 @@ void main(int argc, char *argv[]) {
     }
 
     for (int i = 0; i < num_groups; i++) {
-        struct group *g = grp_new(i, 10);
+	    // struct group *g = grp_new(i, 10);
+	    struct group *g = grp_new(i, 10*(i+1));
         gl_register_group(gs->glist, g);
         for (int j = 0; j < num_threads_p_group; j++) {
             struct process *p = grp_new_process(i*num_threads_p_group+j, g);
@@ -304,8 +305,8 @@ void main(int argc, char *argv[]) {
     }
     // TODO: um I don't unregister the groups for now
 
-    //Print lock timing statistics
-    gl_stats(gs->glist);
+    gl_lock_stats(gs->glist);
+    gl_runtime_stats(gs->glist);
 }
 
 

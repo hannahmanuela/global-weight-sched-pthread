@@ -7,7 +7,8 @@ struct group_list {
 
 struct group_list *gl_new(int nqueue);
 void gl_print(struct group_list *gl);
-void gl_stats(struct group_list *gl);
+void gl_lock_stats(struct group_list *gl);
+void gl_runtime_stats(struct group_list *gl);
 struct group *gl_min_group(struct group_list *);
 int gl_avg_spec_virt_time(struct group *group_to_ignore);
 int gl_avg_spec_virt_time_inc(struct group *group_to_ignore);

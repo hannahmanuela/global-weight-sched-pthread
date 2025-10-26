@@ -28,8 +28,12 @@ void gl_print(struct group_list *gl) {
 	mh_print(gl->mheap, print_elem);
 }
 
-void gl_stats(struct group_list *glist) {
-	mh_stats(glist->mheap);
+void gl_lock_stats(struct group_list *glist) {
+	mh_lock_stats(glist->mheap);
+}
+
+void gl_runtime_stats(struct group_list *glist) {
+	mh_runtime_stats(glist->mheap);
 }
 
 // returns with group and heap locked

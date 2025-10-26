@@ -15,8 +15,8 @@ struct process *schedule(struct group_list *gl, int tick_length) {
 
         // gl_min_group returns with heap and group lock held
     
-	int time_expecting = (int)tick_length / min_group->weight;
-	grp_upd_spec_virt_time_avg(min_group, time_expecting);
+	int svt_inc = (int)tick_length / min_group->weight;
+	grp_upd_spec_virt_time_avg(min_group, svt_inc);
 	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
 
 	min_group->threads_queued -= 1;
@@ -44,6 +44,7 @@ static void enqueueL(struct process *p, int is_new) {
 	}
 	p->group->threads_queued += 1;
 	if (was_empty) {
+		printf("enqueueL: %d is becoming runnable\n", p->group->group_id);
 		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group)); 
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
@@ -65,6 +66,7 @@ void yield(struct process *p, int time_passed, int should_re_enq, int tick_lengt
 		p->group->num_threads -= 1;
 		assert(p->group->num_threads >= p->group->threads_queued);
 	}
+	p->group->runtime += time_passed;
 	if (grp_adjust_spec_virt_time(p->group, time_passed, tick_length)) {
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}

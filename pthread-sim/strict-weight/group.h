@@ -14,7 +14,6 @@ struct group {
 	int weight;
 
 	pthread_rwlock_t group_lock;
-	uint64_t nfail;
 
 	int num_threads; // the total number of threads in the system
 	int threads_queued; // the number of threads runnable and in the q (ie not running)
@@ -25,6 +24,7 @@ struct group {
 	// use this to implement delay deq: if g has positie lag when deqed, that lag isn't added on if it is enqed after the lag time has passed
 	int last_virt_time; 
 
+	int runtime;  // number of us the group ran
 	struct process *runqueue_head;
 	struct group *next;
 	struct heap_elem heap_elem;

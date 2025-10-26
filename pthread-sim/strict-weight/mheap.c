@@ -38,10 +38,23 @@ void mh_print(struct mheap *mh, void print_elem(struct heap_elem*)) {
 	}
 }
 
-void mh_stats(struct mheap *mh) {
+void mh_lock_stats(struct mheap *mh) {
 	for (int i = 0; i < mh->nheap; i++) {
 		printf("== heap %d:\n", i);
 		lh_stats(mh->lh[i]);
+	}
+}
+
+static void grp_stats(struct heap_elem *e) {
+	struct group *g = (struct group *) e->elem;
+	if (g->group_id == DUMMY)
+		return;
+	printf("%d: runtime %d weight %d\n", g->group_id, g->runtime, g->weight);
+}
+
+void mh_runtime_stats(struct mheap *mh) {
+	for (int i = 0; i < mh->nheap; i++) { 
+		heap_iter(mh->lh[i]->heap, grp_stats);
 	}
 }
 

@@ -309,8 +309,8 @@ void *run_core(void* core_num_ptr) {
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
 		//action(mycore, RUN);
-		//sleepwakeup(mycore);
-		notrunnable(mycore, mycore->current_process, i);
+		sleepwakeup(mycore);
+		//notrunnable(mycore, mycore->current_process, i);
 		// int choice = rand() % 3;
 	}
 }

@@ -55,7 +55,9 @@ void enqueue(struct process *p) {
 		long t = p->group->time[p->core_id] - p->group->sleepstart[p->core_id];
 		p->group->sleeptime += t; 
 		printf("enqueueL: %d(%d) sleep time %d\n", p->group->group_id, p->core_id, t);
-		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group)); 
+		if(t > 0) {
+			grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group)); 
+		}
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
 	pthread_rwlock_unlock(&p->group->group_lock);

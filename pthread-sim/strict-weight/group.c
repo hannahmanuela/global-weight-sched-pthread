@@ -122,6 +122,7 @@ void grp_add_process(struct process *p) {
 		p->next = curr_head;
 		p->group->runqueue_head = p;
 	}
+	p->group->threads_queued += 1;
 }
 
 // remove p from its group.
@@ -130,5 +131,8 @@ struct process *grp_deq_process(struct group *g) {
 	struct process *p = g->runqueue_head;
 	g->runqueue_head = p->next;
 	p->next = NULL;
+	g->threads_queued -= 1;
+	assert(g->threads_queued >= 0);
+	return p;
 }
 

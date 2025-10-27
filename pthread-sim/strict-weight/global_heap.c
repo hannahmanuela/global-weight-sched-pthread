@@ -20,25 +20,18 @@ struct process *schedule(struct group_list *gl) {
     
 	int svt_inc = (int)tick_length / min_group->weight;
 	grp_upd_spec_virt_time_avg(min_group, svt_inc);
-	min_group->threads_queued -= 1;
-	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
-
-	assert(min_group->threads_queued >= 0);
 
 	// select the next process
 	struct process *next_p = grp_deq_process(min_group);
+
+	// must be after grp_deq_process
+	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
+
 
 	pthread_rwlock_unlock(&next_p->group->group_lock);
 	lh_unlock(min_group->lh);
 
 	return next_p;
-}
-
-// Make p runnable.
-// caller must hold heap and group lock
-static void enqueueL(struct process *p) {
-	grp_add_process(p);
-	p->group->threads_queued += 1;
 }
 
 void enqueue(struct process *p) {
@@ -47,7 +40,7 @@ void enqueue(struct process *p) {
 	printf("enqueue %d\n", p->group->group_id);
 	p->group->num_threads += 1;
 	bool was_empty = p->group->threads_queued == 0;
-        enqueueL(p);
+	grp_add_process(p);
 	if (was_empty) {
 		ticks_gettime(p->group->time);
 		long t = p->group->time[p->core_id] - p->group->sleepstart[p->core_id];
@@ -75,7 +68,7 @@ void yield(struct process *p, int time_passed) {
 	printf("yield %d\n", p->group->group_id);
 	bool fix_heap = yieldL(p, time_passed);
 	bool is_unrunnable = p->group->threads_queued == 0;
-	enqueueL(p);
+	grp_add_process(p);
 	if(fix_heap || is_unrunnable)
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	pthread_rwlock_unlock(&p->group->group_lock);

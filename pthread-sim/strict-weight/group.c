@@ -57,7 +57,6 @@ void grp_set_spec_virt_time_avg(struct group *g, int val) {
 
 void grp_clear_spec_virt_time_avg(struct group *g) {
 	g->lh->heap->sum -= g->spec_virt_time;
-	g->spec_virt_time = INT_MAX;
 }
 
 void grp_upd_spec_virt_time_avg(struct group *g, int delta) {
@@ -87,16 +86,13 @@ void grp_set_init_spec_virt_time(struct group *g, int avg) {
 	} else if (g->virt_lag < 0) {
 		initial_virt_time -= g->virt_lag; // negative lag always carries over? maybe limit it?
 	}
+	printf("grp_set_init_spec_virt_time: %d %d\n", avg, initial_virt_time);
 	grp_set_spec_virt_time_avg(g, initial_virt_time);
 }
 
 // remember spec_virt_time for when group becomes runnable again
 // caller must group lock
 void grp_lag_spec_virt_time(struct process *p, int avg_spec_virt_time) {
-	bool now_empty = p->group->threads_queued == 0;
-	if (!now_empty) {
-		return;
-	}
 	int spec_virt_time = p->group->spec_virt_time;
 	p->group->virt_lag = avg_spec_virt_time - spec_virt_time;
 	p->group->last_virt_time = spec_virt_time;

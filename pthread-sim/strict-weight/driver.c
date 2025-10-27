@@ -263,7 +263,7 @@ void sleepwakeup(struct core_state *mycore) {
 }
 
 // XXX for 1 core and requires num procs per group to be 1 
-void notrunnable(struct core_state *mycore, struct process *p, int i) {
+void grp_switch_runnable(struct core_state *mycore, struct process *p, int i) {
 	static int wakeup = 0;
 	if(!p) return;
 	printf("run %d %d\n", p->group->group_id, i);
@@ -309,8 +309,8 @@ void *run_core(void* core_num_ptr) {
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
 		//action(mycore, RUN);
-		sleepwakeup(mycore);
-		//notrunnable(mycore, mycore->current_process, i);
+		//sleepwakeup(mycore);
+		grp_switch_runnable(mycore, mycore->current_process, i);
 		// int choice = rand() % 3;
 	}
 }

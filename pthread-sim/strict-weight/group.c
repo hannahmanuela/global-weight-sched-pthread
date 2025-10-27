@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <limits.h>
 
+#include "driver.h"
 #include "lheap.h"
 #include "group.h"
 
@@ -27,7 +28,9 @@ struct group *grp_new(int id, int weight) {
     g->next = NULL;
     g->sleeptime = 0;
     g->runtime = 0;
-    g->sleepstart = 0;
+    g->sleepstart = new_ticks();
+    ticks_gettime(g->sleepstart);
+    g->time = new_ticks();
     heap_elem_init(&g->heap_elem, g);
     pthread_rwlock_init(&g->group_lock, NULL);
     return g;
@@ -114,7 +117,7 @@ int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length)
 
 // add p to its group.
 // caller must hold group lock
-void grp_add_process(struct process *p, int is_new) {
+void grp_add_process(struct process *p) {
 	struct process *curr_head = p->group->runqueue_head;
 	if (!curr_head) {
 		p->group->runqueue_head = p;

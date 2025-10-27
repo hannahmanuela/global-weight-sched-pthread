@@ -31,7 +31,7 @@
 int num_groups = 100;
 int num_cores = 27;
 int tick_length = 1000;
-int num_threads_p_group = 3;
+int num_threads_p_group = 1;
 
 struct tick {
 	long tick;
@@ -193,17 +193,16 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	struct timeval start;
 	gettimeofday(&start, NULL);
 	long ts = safe_read_tsc();
+	if(p) p->core_id = mycore - gs->cores; 
 	switch(op) {
 	case SCHEDULE:
 		mycore->current_process = schedule(gs->glist);
-		if(mycore->current_process)
-			// printf("schedule %d\n", mycore->current_process->group->group_id);
 		break;
 	case YIELD:
 		if(p) {
-			yield(p, tick_length, 1);
+			atomic_fetch_add_explicit(&(mycore->t.tick), tick_length, memory_order_relaxed);
+			yield(p, tick_length);
 		}
-		atomic_fetch_add_explicit(&(mycore->t.tick), tick_length, memory_order_relaxed);
 		mycore->current_process = NULL;
 		break;
 	case ENQ:
@@ -260,6 +259,28 @@ void sleepwakeup(struct core_state *mycore) {
 	action(mycore, WAKEUP);
 }
 
+void notrunnable(struct core_state *mycore, struct process *p) {
+	static int runnable = 1;
+	if(!p) return;
+	printf("run %d\n", p->group->group_id);
+	if (p->group->group_id == 0) {
+		action(mycore, RUN);
+	} else {
+		runnable = p->group->threads_queued > 1;
+		if(runnable) {
+			action(mycore, SLEEP);
+			runnable = 0;
+			printf("= after deq: "); gl_print(gs->glist);
+		}
+	}
+	if(!runnable) {
+		printf("group 1 isn't runnable\n");
+		// printf("= before enq: "); gl_print(gs->glist);
+		// action(mycore, WAKEUP);
+	}
+		
+}
+
 void *run_core(void* core_num_ptr) {
 	int core_id = (int)core_num_ptr;
 	struct core_state *mycore = &(gs->cores[core_id]);
@@ -283,8 +304,9 @@ void *run_core(void* core_num_ptr) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		//action(mycore, RUN);
-		sleepwakeup(mycore);
+		action(mycore, RUN);
+		// sleepwakeup(mycore);
+		//notrunnable(mycore, mycore->current_process);
 		// int choice = rand() % 3;
 	}
 }
@@ -305,7 +327,6 @@ void main(int argc, char *argv[]) {
     num_groups = atoi(argv[3]);
 
     gs = malloc(sizeof(struct global_state));
-    gs->glist = gl_new(atoi(argv[4]));
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
     for (int i = 0; i < num_cores; i++) {
         gs->cores[i].core_id = i;
@@ -321,6 +342,7 @@ void main(int argc, char *argv[]) {
         gs->cores[i].nenq = 0;
         gs->cores[i].nyield = 0;
     }
+    gs->glist = gl_new(atoi(argv[4]));
 
     for (int i = 0; i < num_groups; i++) {
 	    // struct group *g = grp_new(i, 10);

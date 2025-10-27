@@ -6,6 +6,7 @@
 struct process {
 	int process_id;
 	struct group *group;
+	int core_id;
 	struct process *next;
 } __attribute__((aligned(64)));
 
@@ -24,9 +25,10 @@ struct group {
 	// use this to implement delay deq: if g has positie lag when deqed, that lag isn't added on if it is enqed after the lag time has passed
 	int last_virt_time; 
 
-	int runtime;  // number of us the group ran
-	int sleeptime; // number of us the group wasn't runnable
-	int sleepstart; // tick sleep started
+	long runtime;  // number of us the group ran
+	long sleeptime; // number of us the group wasn't runnable
+	long *sleepstart; // tick sleep started
+	long *time;
 	
 	struct process *runqueue_head;
 	struct group *next;
@@ -43,7 +45,7 @@ int grp_get_spec_virt_time(struct group *g);
 void grp_set_init_spec_virt_time(struct group *g, int avg);
 void grp_lag_spec_virt_time(struct process *p, int avg);
 int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length);
-void grp_add_process(struct process *p, int is_new);
+void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);
 
 

@@ -46,6 +46,7 @@ static void enqueueL(struct process *p) {
 void enqueue(struct process *p) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
+	printf("enqueue %d\n", p->group->group_id);
 	p->group->num_threads += 1;
 	bool was_empty = p->group->threads_queued == 0;
         enqueueL(p);
@@ -71,6 +72,7 @@ static bool yieldL(struct process *p, int time_passed) {
 void yield(struct process *p, int time_passed) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
+	printf("yield %d\n", p->group->group_id);
 	bool fix_heap = yieldL(p, time_passed);
 	bool was_empty = p->group->threads_queued == 0;
 	enqueueL(p);

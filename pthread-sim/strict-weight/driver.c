@@ -230,6 +230,7 @@ void action(struct core_state *mycore, int choice) {
 	switch(choice) {
 	case RUN: // Run for full tick
 		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
+		break;
 	case WAKEUP: // Make a process runnable
 		// pick an existing process from the pool?
 		struct process *p = mycore->pool;
@@ -240,6 +241,7 @@ void action(struct core_state *mycore, int choice) {
 		p->next = NULL;
 		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
 		assert_p_in_group(p, p->group);
+		break;
 	case SLEEP: // Make current process not runnable (e.g., go to sleep)
 		p = mycore->current_process;
 		if (!p) {
@@ -249,6 +251,7 @@ void action(struct core_state *mycore, int choice) {
 		assert_p_not_in_group(p, p->group);
 		p->next = mycore->pool;
 		mycore->pool = p;
+		break;
 	}
 }
 
@@ -259,24 +262,26 @@ void sleepwakeup(struct core_state *mycore) {
 	action(mycore, WAKEUP);
 }
 
-void notrunnable(struct core_state *mycore, struct process *p) {
-	static int runnable = 1;
+// XXX for 1 core and requires num procs per group to be 1 
+void notrunnable(struct core_state *mycore, struct process *p, int i) {
+	static int wakeup = 0;
 	if(!p) return;
-	printf("run %d\n", p->group->group_id);
+	printf("run %d %d\n", p->group->group_id, i);
 	if (p->group->group_id == 0) {
 		action(mycore, RUN);
 	} else {
-		runnable = p->group->threads_queued > 1;
-		if(runnable) {
+		if(wakeup == 0) {
+			printf("make group 1 unrunnable\n");
 			action(mycore, SLEEP);
-			runnable = 0;
+			wakeup = i+2;
 			printf("= after deq: "); gl_print(gs->glist);
 		}
 	}
-	if(!runnable) {
-		printf("group 1 isn't runnable\n");
-		// printf("= before enq: "); gl_print(gs->glist);
-		// action(mycore, WAKEUP);
+	if(i > 0 && wakeup == i) {
+		printf("make group 1 runnable\n");
+		printf("= before enq: "); gl_print(gs->glist);
+		wakeup = 0;
+		action(mycore, WAKEUP);
 	}
 		
 }
@@ -296,8 +301,7 @@ void *run_core(void* core_num_ptr) {
 	gettimeofday(&start_exp, NULL);
 
 	int cont = 1;
-	int i = 0;
-	while (us_since(&start_exp) < TIME_TO_RUN) {
+	for (int i = 0; us_since(&start_exp) < TIME_TO_RUN; i++) {
 		printf("\n= before schedule: "); gl_print(gs->glist);
 		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
 		if (mycore->current_process) {
@@ -305,8 +309,8 @@ void *run_core(void* core_num_ptr) {
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
 		//action(mycore, RUN);
-		sleepwakeup(mycore);
-		//notrunnable(mycore, mycore->current_process);
+		//sleepwakeup(mycore);
+		notrunnable(mycore, mycore->current_process, i);
 		// int choice = rand() % 3;
 	}
 }

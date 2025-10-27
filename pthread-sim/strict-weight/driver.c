@@ -283,7 +283,6 @@ void grp_switch_runnable(struct core_state *mycore, struct process *p, int i) {
 		wakeup = 0;
 		action(mycore, WAKEUP);
 	}
-		
 }
 
 void *run_core(void* core_num_ptr) {
@@ -308,9 +307,9 @@ void *run_core(void* core_num_ptr) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		//action(mycore, RUN);
-		//sleepwakeup(mycore);
-		grp_switch_runnable(mycore, mycore->current_process, i);
+		action(mycore, RUN);
+		// sleepwakeup(mycore);
+		// grp_switch_runnable(mycore, mycore->current_process, i);
 		// int choice = rand() % 3;
 	}
 }

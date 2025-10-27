@@ -53,9 +53,11 @@ int grp_cmp(void *e0, void *e1) {
 void grp_set_spec_virt_time_avg(struct group *g, int val) {
 	g->spec_virt_time = val;
 	g->lh->heap->sum += val;
+	g->lh->heap->n += 1;
 }
 
 void grp_clear_spec_virt_time_avg(struct group *g) {
+	g->lh->heap->n -= 1;
 	g->lh->heap->sum -= g->spec_virt_time;
 }
 

@@ -9,7 +9,8 @@ struct heap {
 	int (*cmp_elem)(void *, void *);
 	int heap_size;
 	int heap_capacity;
-	int sum;
+	long sum;
+	int n;
 	struct heap_elem **heap;
 
 }  __attribute__((aligned(64)));

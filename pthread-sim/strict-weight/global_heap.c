@@ -24,9 +24,8 @@ struct process *schedule(struct group_list *gl) {
 	// select the next process
 	struct process *next_p = grp_deq_process(min_group);
 
-	// must be after grp_deq_process
+	// must be after grp_deq_process, since it may empty the proc queue
 	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
-
 
 	pthread_rwlock_unlock(&next_p->group->group_lock);
 	lh_unlock(min_group->lh);
@@ -46,9 +45,7 @@ void enqueue(struct process *p) {
 		long t = p->group->time[p->core_id] - p->group->sleepstart[p->core_id];
 		p->group->sleeptime += t; 
 		printf("enqueueL: %d(%d) sleep time %d\n", p->group->group_id, p->core_id, t);
-		if(t > 0) {
-			grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group)); 
-		}
+		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group->lh)); 
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
 	pthread_rwlock_unlock(&p->group->group_lock);
@@ -84,7 +81,7 @@ void dequeue(struct process *p, int time_passed) {
 	bool fix_heap = yieldL(p, time_passed);
 	bool is_unrunnable = p->group->threads_queued == 0;
 	if (is_unrunnable) {
-		grp_lag_spec_virt_time(p, gl_avg_spec_virt_time_inc(p->group));
+		grp_lag_spec_virt_time(p, gl_avg_spec_virt_time_inc(p->group->lh));
 		ticks_gettime(p->group->sleepstart);
 	}
 	if (fix_heap || is_unrunnable) {

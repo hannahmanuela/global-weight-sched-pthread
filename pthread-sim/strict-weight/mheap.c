@@ -32,7 +32,9 @@ int mh_empty(struct group *g) {
 void mh_print(struct mheap *mh, void print_elem(struct heap_elem*)) {
 	for (int i = 0; i < mh->nheap; i++) {
 		lh_rdlock_timed(mh->lh[i]);
-		printf("Heap %d size %d: \n", i, mh->lh[i]->heap->heap_size);
+		struct heap *h = mh->lh[i]->heap;
+		printf("Heap %d size %d sum %d n %d: \n", i, h->heap_size,
+		       h->sum, h->n);
 		heap_iter(mh->lh[i]->heap, print_elem);
 		printf("\n");
 		lh_unlock(mh->lh[i]);

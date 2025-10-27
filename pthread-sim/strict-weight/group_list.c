@@ -49,11 +49,12 @@ struct group* gl_min_group(struct group_list *gl) {
 	return g;
 }
 
-int gl_avg_spec_virt_time_inc(struct group *ignore) {
-	if(ignore->lh->heap->heap_size <= 2)
+// XXX move
+int gl_avg_spec_virt_time_inc(struct lock_heap *lh) {
+	if (lh->heap->n <= 0)
 		return 0;
-	int sum = ignore->lh->heap->sum - ignore->spec_virt_time;
-	return sum/(ignore->lh->heap->heap_size-2);  // - dummy and this group
+	int sum = lh->heap->sum / lh->heap->n;
+	return sum;
 }
 
 // compute avg_spec_virt_time for groups in group_to_ignore's heap, ignoring group_to_ignore

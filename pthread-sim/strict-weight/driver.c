@@ -33,10 +33,13 @@ int num_cores = 27;
 int tick_length = 1000;
 int num_threads_p_group = 3;
 
-// there are only global datastructures here
-
+struct tick {
+	long tick;
+} __attribute__((aligned(64)));
+	
 struct core_state {
 	int core_id;
+	struct tick t;
 	struct process *current_process;
 	struct process *pool;
 	long sched_us;
@@ -59,6 +62,27 @@ struct global_state {
 };
 
 struct global_state* gs;
+
+long *new_ticks() {
+	return malloc(sizeof(long) * num_cores);
+}
+
+void ticks_free(long *ticks) {
+	free(ticks);
+}
+
+void ticks_gettime(long *ticks) {
+	for (int i = 0; i < num_cores; i++)
+		ticks[i] = atomic_load(&(gs->cores[i].t.tick));
+}
+
+long ticks_sum(long *ticks) {
+	long sum = 0;
+	for (int i = 0; i < num_cores; i++) {
+		sum += ticks[i];
+	}
+	return sum;
+}
 
 void print_core(struct core_state *c) {
 	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) deq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)\n",
@@ -171,21 +195,23 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	long ts = safe_read_tsc();
 	switch(op) {
 	case SCHEDULE:
-		mycore->current_process = schedule(gs->glist, tick_length);
+		mycore->current_process = schedule(gs->glist);
 		if(mycore->current_process)
 			// printf("schedule %d\n", mycore->current_process->group->group_id);
 		break;
 	case YIELD:
 		if(p) {
-			yield(p, tick_length, 1, tick_length);
+			yield(p, tick_length, 1);
 		}
+		atomic_fetch_add_explicit(&(mycore->t.tick), tick_length, memory_order_relaxed);
 		mycore->current_process = NULL;
 		break;
 	case ENQ:
 	        enqueue(p);
 		break;
 	case DEQ:
-		dequeue(p, tick_length/2, tick_length);
+		atomic_fetch_add_explicit(&(mycore->t.tick), tick_length/2, memory_order_relaxed);
+		dequeue(p, tick_length/2);
 		mycore->current_process = NULL;
 		break;
 	}
@@ -213,7 +239,6 @@ void action(struct core_state *mycore, int choice) {
 		}
 		mycore->pool = p->next;
 		p->next = NULL;
-
 		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
 		assert_p_in_group(p, p->group);
 	case SLEEP: // Make current process not runnable (e.g., go to sleep)
@@ -250,7 +275,6 @@ void *run_core(void* core_num_ptr) {
 	gettimeofday(&start_exp, NULL);
 
 	int cont = 1;
-	int len = tick_length;
 	int i = 0;
 	while (us_since(&start_exp) < TIME_TO_RUN) {
 		printf("\n= before schedule: "); gl_print(gs->glist);
@@ -259,8 +283,8 @@ void *run_core(void* core_num_ptr) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		action(mycore, RUN);
-		// sleepwakeup(mycore);
+		//action(mycore, RUN);
+		sleepwakeup(mycore);
 		// int choice = rand() % 3;
 	}
 }

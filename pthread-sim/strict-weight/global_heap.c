@@ -6,8 +6,10 @@
 #include "group.h"
 #include "group_list.h"
 
+extern int tick_length;
+
 // select next process to run
-struct process *schedule(struct group_list *gl, int tick_length) {
+struct process *schedule(struct group_list *gl) {
 	struct group *min_group = gl_min_group(gl);
 	if (min_group == NULL) {
 		return NULL;
@@ -45,6 +47,7 @@ static void enqueueL(struct process *p, int is_new) {
 	p->group->threads_queued += 1;
 	if (was_empty) {
 		printf("enqueueL: %d is becoming runnable\n", p->group->group_id);
+		// p->group->sleeptime += (tick - p->group->sleepstart) * tick_length;
 		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group)); 
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
@@ -59,11 +62,13 @@ void enqueue(struct process *p) {
 }
 
 // process p yields core
-void yield(struct process *p, int time_passed, int should_re_enq, int tick_length) {
+void yield(struct process *p, int time_passed, int should_re_enq) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
 	if (!should_re_enq) {
 		p->group->num_threads -= 1;
+		//if (p->group->threads_queued == 0)
+			// p->group->sleepstart = tick * tick_length;
 		assert(p->group->num_threads >= p->group->threads_queued);
 	}
 	p->group->runtime += time_passed;
@@ -78,6 +83,6 @@ void yield(struct process *p, int time_passed, int should_re_enq, int tick_lengt
 }
 
 // process p is not runnable and yields core
-void dequeue(struct process *p, int time_passed, int tick_length) {
-	yield(p, time_passed, 0, tick_length);
+void dequeue(struct process *p, int time_passed) {
+	yield(p, time_passed, 0);
 }

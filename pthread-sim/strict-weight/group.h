@@ -25,6 +25,9 @@ struct group {
 	int last_virt_time; 
 
 	int runtime;  // number of us the group ran
+	int sleeptime; // number of us the group wasn't runnable
+	int sleepstart; // tick sleep started
+	
 	struct process *runqueue_head;
 	struct group *next;
 	struct heap_elem heap_elem;

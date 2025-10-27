@@ -25,6 +25,9 @@ struct group *grp_new(int id, int weight) {
     g->last_virt_time = 0;
     g->runqueue_head = NULL;
     g->next = NULL;
+    g->sleeptime = 0;
+    g->runtime = 0;
+    g->sleepstart = 0;
     heap_elem_init(&g->heap_elem, g);
     pthread_rwlock_init(&g->group_lock, NULL);
     return g;

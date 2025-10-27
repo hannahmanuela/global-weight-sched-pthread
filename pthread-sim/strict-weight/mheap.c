@@ -3,6 +3,7 @@
 #include <stdatomic.h>
 #include <limits.h>
 
+#include "driver.h"
 #include "group.h"
 #include "lheap.h"
 #include "mheap.h"
@@ -45,16 +46,23 @@ void mh_lock_stats(struct mheap *mh) {
 	}
 }
 
-static void grp_stats(struct heap_elem *e) {
+static void grp_stats(struct heap_elem *e, long sum) {
 	struct group *g = (struct group *) e->elem;
 	if (g->group_id == DUMMY)
 		return;
-	printf("%d: runtime %d weight %d\n", g->group_id, g->runtime, g->weight);
+	printf("%d: runtime %d weight %d ticks %0.2f\n", g->group_id, g->runtime,
+	       g->weight, 1.0*g->runtime/sum);
 }
 
 void mh_runtime_stats(struct mheap *mh) {
-	for (int i = 0; i < mh->nheap; i++) { 
-		heap_iter(mh->lh[i]->heap, grp_stats);
+	long *ticks = new_ticks();
+	ticks_gettime(ticks);
+	long sum = ticks_sum(ticks);
+	printf("total ticks %d\n", sum);
+	for (int i = 0; i < mh->nheap; i++) {
+		for (struct heap_elem *e = heap_first(mh->lh[i]->heap); e != NULL; e = heap_next(mh->lh[i]->heap, e)) {
+			grp_stats(e, sum);
+		}
 	}
 }
 

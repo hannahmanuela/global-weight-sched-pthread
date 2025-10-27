@@ -105,7 +105,7 @@ void grp_lag_spec_virt_time(struct process *p, int avg_spec_virt_time) {
 
 
 // adjust spec_virt_time if group's process didn't run for a complete tick
-int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length) {
+bool grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length) {
 	if (time_passed < tick_length) {
 		int diff = (time_passed - tick_length) / g->weight;
 		printf("%d: adjust svt by %d w %d p %d t %d\n", g->group_id, diff, g->weight, time_passed, tick_length);

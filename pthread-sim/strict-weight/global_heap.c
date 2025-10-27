@@ -38,47 +38,44 @@ struct process *schedule(struct group_list *gl) {
 
 // Make p runnable.
 // caller must hold heap and group lock
-static void enqueueL(struct process *p, int is_new) {
-	bool was_empty = p->group->threads_queued == 0;
+static void enqueueL(struct process *p) {
 	grp_add_process(p);
 	p->group->threads_queued += 1;
-	if (was_empty && is_new) {
-		ticks_gettime(p->group->time);
-		long t = p->group->time[p->core_id] - p->group->sleepstart[p->core_id];
-		p->group->sleeptime += t; 
-		printf("enqueueL: %d(%d) sleep time %d\n", p->group->group_id, p->core_id, t);
-		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group)); 
-		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
-	} else if (was_empty) {
-		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
-	}
 }
 
 void enqueue(struct process *p) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
 	p->group->num_threads += 1;
-        enqueueL(p, 1);
+	bool was_empty = p->group->threads_queued == 0;
+        enqueueL(p);
+	if (was_empty) {
+		ticks_gettime(p->group->time);
+		long t = p->group->time[p->core_id] - p->group->sleepstart[p->core_id];
+		p->group->sleeptime += t; 
+		printf("enqueueL: %d(%d) sleep time %d\n", p->group->group_id, p->core_id, t);
+		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group)); 
+		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
+	}
 	pthread_rwlock_unlock(&p->group->group_lock);
 	lh_unlock(p->group->lh);
 }
 
 // process p yields core
-static void yieldL(struct process *p, int time_passed) {
+static bool yieldL(struct process *p, int time_passed) {
 	p->group->runtime += time_passed;
-	int fix_heap = grp_adjust_spec_virt_time(p->group, time_passed, tick_length);
-	// XXX if group queue becomes > 0 and we yielded early, then
-	// we do two heap_fix_index
-	if(fix_heap)
-		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
+	return grp_adjust_spec_virt_time(p->group, time_passed, tick_length);
 }
 
 // yield and enqueue
 void yield(struct process *p, int time_passed) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
-	yieldL(p, time_passed);
-	enqueueL(p, 0);
+	bool fix_heap = yieldL(p, time_passed);
+	bool was_empty = p->group->threads_queued == 0;
+	enqueueL(p);
+	if(fix_heap || was_empty)
+		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	pthread_rwlock_unlock(&p->group->group_lock);
 	lh_unlock(p->group->lh);
 }
@@ -91,7 +88,9 @@ void dequeue(struct process *p, int time_passed) {
 	if (p->group->threads_queued == 0)
 		ticks_gettime(p->group->sleepstart);
 	assert(p->group->num_threads >= p->group->threads_queued);
-	yieldL(p, time_passed);
+	if (yieldL(p, time_passed)) {
+		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
+	}
 	pthread_rwlock_unlock(&p->group->group_lock);
 	lh_unlock(p->group->lh);
 }

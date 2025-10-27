@@ -44,7 +44,7 @@ void grp_upd_spec_virt_time_avg(struct group *g, int delta);
 int grp_get_spec_virt_time(struct group *g);
 void grp_set_init_spec_virt_time(struct group *g, int avg);
 void grp_lag_spec_virt_time(struct process *p, int avg);
-int grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length);
+bool grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length);
 void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);
 

@@ -3,6 +3,8 @@
 
 #include "heap.h"
 
+#define DUMMY  -1
+
 struct process {
 	int process_id;
 	struct group *group;
@@ -41,6 +43,8 @@ struct group {
 
 
 struct group *grp_new(int id, int weight);
+void grp_print(struct group *group);
+bool grp_empty(struct group *group);
 struct process *grp_new_process(int id, struct group *group);
 int grp_cmp(void *e0, void *e1);
 void grp_upd_spec_virt_time_avg(struct group *g, int delta);

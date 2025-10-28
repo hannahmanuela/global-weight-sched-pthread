@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-I. -O2 -g
-DEPS = global_heap.h group.h group_list.h heap.h lheap.h mheap.h util.h 
-OBJ = driver.o global_heap.o group_list.o group.o mheap.o lheap.o heap.o util.c
+DEPS = global_heap.h group.h heap.h lheap.h mheap.h util.h 
+OBJ = driver.o global_heap.o group.o mheap.o lheap.o heap.o util.c
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $(CFLAGS) $<

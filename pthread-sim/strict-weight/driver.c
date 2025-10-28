@@ -16,8 +16,8 @@
 
 #include "heap.h"
 #include "lheap.h"
+#include "mheap.h"
 #include "group.h"
-#include "group_list.h"
 #include "global_heap.h"
 #include "util.h"
 
@@ -57,7 +57,7 @@ struct core_state {
 } __attribute__((aligned(64)));
 
 struct global_state {
-	struct group_list *glist;
+	struct mheap *mh;
 	struct core_state *cores;
 };
 
@@ -196,7 +196,7 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	if(p) p->core_id = mycore - gs->cores; 
 	switch(op) {
 	case SCHEDULE:
-		mycore->current_process = schedule(gs->glist);
+		mycore->current_process = schedule(gs->mh);
 		break;
 	case YIELD:
 		if(p) {
@@ -301,9 +301,9 @@ void *run_core(void* core_num_ptr) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		//action(mycore, RUN);
+		action(mycore, RUN);
 		// sleepwakeup(mycore);
-		grp_switch_runnable(mycore, mycore->current_process, i);
+		// grp_switch_runnable(mycore, mycore->current_process, i);
 		// int choice = rand() % 3;
 	}
 }
@@ -339,12 +339,12 @@ void main(int argc, char *argv[]) {
         gs->cores[i].nenq = 0;
         gs->cores[i].nyield = 0;
     }
-    gs->glist = gl_new(atoi(argv[4]));
+    gs->mh = mh_new(grp_cmp, atoi(argv[4]));
 
     for (int i = 0; i < num_groups; i++) {
 	    // struct group *g = grp_new(i, 10);
 	    struct group *g = grp_new(i, 10*(i+1));
-	    gl_register_group(gs->glist, g);
+	    mh_add_group(gs->mh, g);
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(i*num_threads_p_group+j, g);
 		    enqueue(p);
@@ -363,8 +363,8 @@ void main(int argc, char *argv[]) {
     }
     // TODO: um I don't unregister the groups for now
 
-    gl_lock_stats(gs->glist);
-    gl_runtime_stats(gs->glist);
+    mh_lock_stats(gs->mh);
+    mh_runtime_stats(gs->mh);
 }
 
 

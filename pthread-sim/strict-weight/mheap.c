@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdatomic.h>
@@ -9,6 +10,14 @@
 #include "mheap.h"
 
 #define DUMMY  -1
+
+int vt_time(int tick_length, int totw, int w) {
+	return (tick_length/totw) * w;
+}
+
+int vt_inc(int tick_length, int totw, int w) {
+	return tick_length - vt_time(tick_length, totw, w);
+}
 
 struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
@@ -25,23 +34,14 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 	return mh;
 }
 
-int vt_time(int tick_length, int totw, int w) {
-	return (tick_length/totw) * w;
-}
-
-int vt_inc(int tick_length, int totw, int w) {
-	return tick_length - vt_time(tick_length, totw, w);
-}
-
 int mh_empty(struct group *g) {
 	return g->group_id == DUMMY;
 }
 
 static void print_elem(struct heap_elem *e) {
 	struct group *g = (struct group *) e->elem;
-	printf("(gid %d svt %d, n %d, q %d, w %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, g->weight);
+	grp_print(g);
 }
-
 
 void mh_print(struct mheap *mh) {
 	printf("= mh total weight %d\n", mh->tot_weight);
@@ -162,18 +162,45 @@ retry:
 	return g_i;
 }
 
-// returns with heap locked
+// returns with heap and group locked
 struct group *mh_min_group(struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct lock_heap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
 		struct group *g = (struct group *) heap_min(lh->heap);
-		if(mh_empty(g)) {
+		if(!g || mh_empty(g)) {
 			lh_unlock(lh);
 			return NULL;
 		}	
+		if (g && g->threads_queued == 0) {
+			lh_unlock(lh);
+			g = NULL;
+		}
+		if (g) {
+			pthread_rwlock_wrlock(&g->group_lock);
+		}
 		return g;
 	}
 	return mh_sample_min_group(mh);
 }
 
+// compute avg_spec_virt_time for groups in group_to_ignore's heap, ignoring group_to_ignore
+// caller should have heap lock
+int mh_avg_spec_virt_time(struct group *group_to_ignore) {
+	int total_spec_virt_time = 0;
+	int count = 0;
+	struct lock_heap *lh = group_to_ignore->lh;
+
+	for (struct heap_elem *e = heap_first(lh->heap); e != NULL; e = heap_next(lh->heap, e)) {
+		struct group *g = (struct group *) e->elem;
+		assert(g != NULL);
+		if (g == group_to_ignore) continue;
+		if (mh_empty(g)) continue;
+		total_spec_virt_time += grp_get_spec_virt_time(g);
+		count++;
+	}
+	int sum = lh->heap->sum - group_to_ignore->spec_virt_time;
+	printf("total %d sum %d cnt %d hs %d\n", total_spec_virt_time, sum, count, lh->heap->heap_size-2);
+	if (count == 0) return 0;
+	return total_spec_virt_time / count;
+}

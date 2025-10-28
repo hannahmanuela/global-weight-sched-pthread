@@ -37,6 +37,15 @@ struct group *grp_new(int id, int weight) {
     return g;
 }
 
+
+bool grp_empty(struct group *g) {
+	return g->group_id == DUMMY;
+}
+
+void grp_print(struct group *g) {
+	printf("(gid %d svt %d, n %d, q %d, w %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, g->weight);
+}	
+
 int grp_cmp(void *e0, void *e1) {
 	struct group *a = (struct group *) e0;
 	struct group *b = (struct group *) e1;

@@ -5,20 +5,20 @@
 #include "driver.h"
 #include "lheap.h"
 #include "group.h"
-#include "group_list.h"
+#include "mheap.h"
 
 extern int tick_length;
 
 // select next process to run
-struct process *schedule(struct group_list *gl) {
-	struct group *min_group = gl_min_group(gl);
+struct process *schedule(struct mheap *mh) {
+	struct group *min_group = mh_min_group(mh);
 	if (min_group == NULL) {
 		return NULL;
 	}
 
         // gl_min_group returns with heap and group lock held
     
-	int svt_inc = vt_inc(tick_length, gl->mh->tot_weight, min_group->weight);
+	int svt_inc = vt_inc(tick_length, mh->tot_weight, min_group->weight);
 
 	printf("%d: schedule: svt_inc %d\n", min_group->group_id, svt_inc);
 	mh_print(min_group->mh);
@@ -28,7 +28,7 @@ struct process *schedule(struct group_list *gl) {
 	// select the next process
 	struct process *next_p = grp_deq_process(min_group);
 
-	next_p->tot_weight = gl->mh->tot_weight;
+	next_p->tot_weight = mh->tot_weight;
 
 	// must be after grp_deq_process, since it may empty the proc queue
 	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
@@ -52,7 +52,7 @@ void enqueue(struct process *p) {
 		long t = p->group->time[p->core_id] - p->group->sleepstart[p->core_id];
 		p->group->sleeptime += t; 
 		printf("enqueueL: %d(%d) sleep time %d\n", p->group->group_id, p->core_id, t);
-		grp_set_init_spec_virt_time(p->group, gl_avg_spec_virt_time_inc(p->group->lh)); 
+		grp_set_init_spec_virt_time(p->group, lh_avg_spec_virt_time_inc(p->group->lh)); 
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
 	pthread_rwlock_unlock(&p->group->group_lock);

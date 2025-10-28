@@ -19,6 +19,7 @@ struct process *schedule(struct group_list *gl) {
         // gl_min_group returns with heap and group lock held
     
 	int svt_inc = vt_inc(tick_length, gl->mh->tot_weight, min_group->weight);
+	printf("%d: schedule: svt_inc %d\n", min_group->group_id, svt_inc);
 	grp_upd_spec_virt_time_avg(min_group, svt_inc);
 
 	// select the next process
@@ -55,7 +56,7 @@ void enqueue(struct process *p) {
 }
 
 // process p yields core
-static bool yieldL(struct process *p, int time_passed) {
+static int yieldL(struct process *p, int time_passed) {
 	p->group->runtime += time_passed;
 	return grp_adjust_spec_virt_time(p, time_passed, tick_length);
 }
@@ -65,10 +66,10 @@ void yield(struct process *p, int time_passed) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
 	printf("yield %d\n", p->group->group_id);
-	bool fix_heap = yieldL(p, time_passed);
+	int vt_inc = yieldL(p, time_passed);
 	bool is_unrunnable = p->group->threads_queued == 0;
 	grp_add_process(p);
-	if(fix_heap || is_unrunnable)
+	if(vt_inc > 0 || is_unrunnable)
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	pthread_rwlock_unlock(&p->group->group_lock);
 	lh_unlock(p->group->lh);
@@ -78,15 +79,16 @@ void yield(struct process *p, int time_passed) {
 void dequeue(struct process *p, int time_passed) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
+	printf("%d: dequeue %d\n", p->group->group_id, time_passed);
 	p->group->num_threads -= 1;
 	assert(p->group->num_threads >= p->group->threads_queued);
-	bool fix_heap = yieldL(p, time_passed);
+	int vt_inc = yieldL(p, time_passed);
 	bool is_unrunnable = p->group->threads_queued == 0;
 	if (is_unrunnable) {
-		grp_lag_spec_virt_time(p, gl_avg_spec_virt_time_inc(p->group->lh));
+		grp_store_spec_virt_time_inc(p->group, vt_inc);
 		ticks_gettime(p->group->sleepstart);
 	}
-	if (fix_heap || is_unrunnable) {
+	if (vt_inc > 0 || is_unrunnable) {
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
 	pthread_rwlock_unlock(&p->group->group_lock);

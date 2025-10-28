@@ -21,7 +21,8 @@ struct group {
 	int threads_queued; // the number of threads runnable and in the q (ie not running)
 	int spec_virt_time; // updated when the group is scheduled, assuming full tick
 
-	int virt_lag; // only has a value when a group is dequeued
+	int vt_inc;
+	
 	// only has a value when a group is dequeued, and if virt_lag is positive
 	// use this to implement delay deq: if g has positie lag when deqed, that lag isn't added on if it is enqed after the lag time has passed
 	int last_virt_time; 
@@ -45,8 +46,8 @@ int grp_cmp(void *e0, void *e1);
 void grp_upd_spec_virt_time_avg(struct group *g, int delta);
 int grp_get_spec_virt_time(struct group *g);
 void grp_set_init_spec_virt_time(struct group *g, int avg);
-void grp_lag_spec_virt_time(struct process *p, int avg);
-bool grp_adjust_spec_virt_time(struct process *p, int time_passed, int tick_length);
+void grp_store_spec_virt_time_inc(struct group *g, int vt_inc);
+int grp_adjust_spec_virt_time(struct process *p, int time_passed, int tick_length);
 void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);
 

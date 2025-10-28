@@ -23,7 +23,7 @@ struct group *grp_new(int id, int weight) {
     g->num_threads = 0;
     g->threads_queued = 0;
     g->spec_virt_time = 0;
-    g->virt_lag = 0;
+    g->vt_inc = 0;
     g->last_virt_time = 0;
     g->runqueue_head = NULL;
     g->next = NULL;
@@ -87,37 +87,38 @@ int grp_get_spec_virt_time(struct group *g) {
 // caller must hold group lock
 void grp_set_init_spec_virt_time(struct group *g, int avg) {
 	int initial_virt_time = avg;
-	if (g->virt_lag > 0) {
-		if (g->last_virt_time > initial_virt_time) {
+	if (g->vt_inc > 0) {
+		if (g->last_virt_time > initial_virt_time + g->vt_inc) {
 			initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
+		} else {
+			initial_virt_time += g->vt_inc;
 		}
-	} else if (g->virt_lag < 0) {
-		initial_virt_time -= g->virt_lag; // negative lag always carries over? maybe limit it?
+	} else if (g->vt_inc < 0) {
+		initial_virt_time += g->vt_inc; // negative lag always carries over? maybe limit it?
 	}
-	printf("%d: grp_set_init_spec_virt_time: %d %d\n", g->group_id, avg, initial_virt_time);
+	printf("%d: grp_set_init_spec_virt_time: lvt %d inc %d avg %d vt %d\n", g->group_id, g->last_virt_time, g->vt_inc, avg, initial_virt_time);
 	grp_set_spec_virt_time_avg(g, initial_virt_time);
 }
 
 // remember spec_virt_time for when group becomes runnable again
 // caller must group lock
-void grp_lag_spec_virt_time(struct process *p, int avg_spec_virt_time) {
-	int spec_virt_time = p->group->spec_virt_time;
-	p->group->virt_lag = avg_spec_virt_time - spec_virt_time;
-	p->group->last_virt_time = spec_virt_time;
-	printf("%d: grp_lag_spec_virt_time: avg %d svt %d lag %d\n", p->group->group_id, avg_spec_virt_time, spec_virt_time, p->group->virt_lag);
-	grp_clear_spec_virt_time_avg(p->group);
+void grp_store_spec_virt_time_inc(struct group *g, int vt_inc) {
+	g->vt_inc = vt_inc;
+	g->last_virt_time = g->spec_virt_time;
+	printf("%d: grp_store_spec_virt_time_inc: svt %d vt_inc %d\n", g->group_id, g->last_virt_time, g->vt_inc);
+	grp_clear_spec_virt_time_avg(g);
 }
 
 
 // adjust spec_virt_time if group's process didn't run for a complete tick
-bool grp_adjust_spec_virt_time(struct process *p, int time_passed, int tick_length) {
+int grp_adjust_spec_virt_time(struct process *p, int time_passed, int tick_length) {
 	if (time_passed < tick_length) {
 		int old = vt_inc(tick_length, p->tot_weight, p->group->weight);
 		int new = vt_inc(time_passed, p->tot_weight, p->group->weight);
 		int diff = -old + new;
 		printf("%d: adjust svt by %d old %d new %d\n", p->group->group_id, diff, old, new);
 		grp_upd_spec_virt_time_avg(p->group, diff);
-		return 1;
+		return diff;
 	}
 	return 0;
 }

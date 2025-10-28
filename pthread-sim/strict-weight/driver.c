@@ -31,7 +31,7 @@
 int num_groups = 100;
 int num_cores = 27;
 int tick_length = 1000;
-int num_threads_p_group = 2;
+int num_threads_p_group = 1;
 
 struct tick {
 	long tick;
@@ -276,17 +276,17 @@ void sleepwakeup(struct core_state *mycore) {
 void grp_switch_runnable(struct core_state *mycore, struct process *p, int i) {
 	static int wakeup = 0;
 	if(!p) return;
-	if (p->group->group_id == 0) {
+	if (p->group->group_id == 1) {
 		action(mycore, RUN);
 	} else {
 		if(wakeup == 0) {
-			printf("make group 1 unrunnable\n");
+			printf("make group %d unrunnable\n", p->group->group_id);
 			action(mycore, SLEEP);
 			wakeup = i+2;
 		}
 	}
 	if(i > 0 && wakeup == i) {
-		printf("make group 1 runnable\n");
+		printf("make group %d runnable\n", p->group->group_id);
 		wakeup = 0;
 		action(mycore, WAKEUP);
 	}

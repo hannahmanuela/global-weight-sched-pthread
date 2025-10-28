@@ -51,6 +51,7 @@ void enqueue(struct process *p) {
 	if (is_unrunnable) {
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
+		printf("sleep %d\n", ticks_sum(p->group->time));
 		ticks_add(p->group->sleeptime, p->group->time);
 		grp_set_init_spec_virt_time(p->group, lh_avg_spec_virt_time_inc(p->group->lh)); 
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);

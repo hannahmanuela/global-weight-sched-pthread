@@ -95,18 +95,19 @@ int grp_get_spec_virt_time(struct group *g) {
 // set initial spec_virt_time when group g becomes runnable
 // caller must hold group lock
 void grp_set_init_spec_virt_time(struct group *g, int avg) {
-	int initial_virt_time = avg;
-	if (g->vt_inc > 0) {
-		if (g->last_virt_time > initial_virt_time + g->vt_inc) {
-			initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
-		} else {
-			initial_virt_time += g->vt_inc;
-		}
-	} else if (g->vt_inc < 0) {
-		initial_virt_time += g->vt_inc; // negative lag always carries over? maybe limit it?
-	}
-	printf("%d: grp_set_init_spec_virt_time: lvt %d inc %d avg %d vt %d\n", g->group_id, g->last_virt_time, g->vt_inc, avg, initial_virt_time);
-	grp_set_spec_virt_time_avg(g, initial_virt_time);
+	// int initial_virt_time = avg;
+	// if (g->vt_inc > 0) {
+		// if (g->last_virt_time > initial_virt_time + g->vt_inc) {
+		// 	initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
+		// } else {
+		// 	initial_virt_time += g->vt_inc;
+		// }
+	// } else if (g->vt_inc < 0) {
+	// 	initial_virt_time += g->vt_inc; // negative lag always carries over? maybe limit it?
+	// }
+	// printf("%d: grp_set_init_spec_virt_time: lvt %d inc %d avg %d vt %d\n", g->group_id, g->last_virt_time, g->vt_inc, avg, initial_virt_time);
+	printf("grp_set_init_spec_virt_time: %d\n", g->last_virt_time);
+	grp_set_spec_virt_time_avg(g, g->last_virt_time);
 }
 
 // remember spec_virt_time for when group becomes runnable again

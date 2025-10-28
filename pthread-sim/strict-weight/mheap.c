@@ -76,7 +76,7 @@ void mh_runtime_stats(struct mheap *mh) {
 	long *ticks = new_ticks();
 	ticks_gettime(ticks);
 	long sum = ticks_sum(ticks);
-	printf("total ticks %dus\n", sum);
+	printf("total ticks %d us\n", sum);
 	for (int i = 0; i < mh->nheap; i++) {
 		for (struct heap_elem *e = heap_first(mh->lh[i]->heap); e != NULL; e = heap_next(mh->lh[i]->heap, e)) {
 			grp_stats(e, sum);

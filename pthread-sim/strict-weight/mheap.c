@@ -25,6 +25,14 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 	return mh;
 }
 
+int mh_time(struct mheap *mh, int tick_length, int w) {
+	return (tick_length/mh->total_weight) * w;
+}
+
+int mh_time_inc(struct mheap *mh, int tick_length, int w) {
+	return tick_length - mh_time(mh, tick_length, w);
+}
+
 int mh_empty(struct group *g) {
 	return g->group_id == DUMMY;
 }

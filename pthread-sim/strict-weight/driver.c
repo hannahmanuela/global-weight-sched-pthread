@@ -31,7 +31,7 @@
 int num_groups = 100;
 int num_cores = 27;
 int tick_length = 1000;
-int num_threads_p_group = 1;
+int num_threads_p_group = 2;
 
 struct tick {
 	long tick;

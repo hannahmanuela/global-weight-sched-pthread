@@ -5,6 +5,7 @@
 
 #include "driver.h"
 #include "lheap.h"
+#include "mheap.h"
 #include "group.h"
 
 struct process *grp_new_process(int id, struct group *group) {
@@ -44,6 +45,9 @@ int grp_cmp(void *e0, void *e1) {
 	// Compare by spec_virt_time; lower is higher priority
 	if (a->spec_virt_time < b->spec_virt_time) return -1;
 	if (a->spec_virt_time > b->spec_virt_time) return 1;
+	// Prefer higher weight
+	if (a->weight > b->weight) return -1;
+	if (a->weight < b->weight) return 1;
 	// tie-breaker by group_id for determinism
 	if (a->group_id < b->group_id) return -1;
 	if (a->group_id > b->group_id) return 1;
@@ -54,11 +58,13 @@ void grp_set_spec_virt_time_avg(struct group *g, int val) {
 	g->spec_virt_time = val;
 	g->lh->heap->sum += val;
 	g->lh->heap->n += 1;
+	g->mh->total_weight += g->weight;
 }
 
 void grp_clear_spec_virt_time_avg(struct group *g) {
 	g->lh->heap->n -= 1;
 	g->lh->heap->sum -= g->spec_virt_time;
+	g->mh->total_weight -= g->weight;
 }
 
 void grp_upd_spec_virt_time_avg(struct group *g, int delta) {
@@ -88,7 +94,7 @@ void grp_set_init_spec_virt_time(struct group *g, int avg) {
 	} else if (g->virt_lag < 0) {
 		initial_virt_time -= g->virt_lag; // negative lag always carries over? maybe limit it?
 	}
-	printf("grp_set_init_spec_virt_time: %d %d\n", avg, initial_virt_time);
+	printf("%d: grp_set_init_spec_virt_time: %d %d\n", g->group_id, avg, initial_virt_time);
 	grp_set_spec_virt_time_avg(g, initial_virt_time);
 }
 
@@ -98,6 +104,7 @@ void grp_lag_spec_virt_time(struct process *p, int avg_spec_virt_time) {
 	int spec_virt_time = p->group->spec_virt_time;
 	p->group->virt_lag = avg_spec_virt_time - spec_virt_time;
 	p->group->last_virt_time = spec_virt_time;
+	printf("%d: grp_lag_spec_virt_time: avg %d svt %d lag %d\n", p->group->group_id, avg_spec_virt_time, spec_virt_time, p->group->virt_lag);
 	grp_clear_spec_virt_time_avg(p->group);
 }
 

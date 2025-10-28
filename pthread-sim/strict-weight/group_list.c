@@ -15,7 +15,7 @@
 struct group_list *gl_new(int nqueue) {
 	struct group_list *glist = (struct group_list *) malloc(sizeof(struct group_list));
 	glist = (struct group_list *) malloc(sizeof(struct group_list));
-	glist->mheap = mh_new(grp_cmp, nqueue);
+	glist->mh = mh_new(grp_cmp, nqueue);
 	return glist;
 }
 
@@ -25,25 +25,25 @@ static void print_elem(struct heap_elem *e) {
 }
 
 void gl_print(struct group_list *gl) {
-	mh_print(gl->mheap, print_elem);
+	mh_print(gl->mh, print_elem);
 }
 
 void gl_lock_stats(struct group_list *glist) {
-	mh_lock_stats(glist->mheap);
+	mh_lock_stats(glist->mh);
 }
 
 void gl_runtime_stats(struct group_list *glist) {
-	mh_runtime_stats(glist->mheap);
+	mh_runtime_stats(glist->mh);
 }
 
 // returns with group and heap locked
 struct group* gl_min_group(struct group_list *gl) {
-	struct group *g = mh_min_group(gl->mheap);
+	struct group *g = mh_min_group(gl->mh);
 	if (g && g->threads_queued == 0) {
 		g = NULL;
 	}
 	if (g) {
-		// mh_check_min_group(gl->mheap, g);
+		// mh_check_min_group(gl->mh, g);
 		pthread_rwlock_wrlock(&g->group_lock);
 	}
 	return g;
@@ -79,9 +79,9 @@ int gl_avg_spec_virt_time(struct group *group_to_ignore) {
 }
 
 void gl_register_group(struct group_list *gl, struct group *g) {
-	mh_add_group(gl->mheap, g);
+	mh_add_group(gl->mh, g);
 }
 
 void gl_unregister_group(struct group_list *gl, struct group *g) {
-	mh_del_group(gl->mheap, g);
+	mh_del_group(gl->mh, g);
 }

@@ -18,7 +18,7 @@ struct process *schedule(struct group_list *gl) {
 
         // gl_min_group returns with heap and group lock held
     
-	int svt_inc = (int)tick_length / min_group->weight;
+	int svt_inc = tick_length - (tick_length / gl->mh->total_weight) * min_group->weight;
 	grp_upd_spec_virt_time_avg(min_group, svt_inc);
 
 	// select the next process

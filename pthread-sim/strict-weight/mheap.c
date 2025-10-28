@@ -30,6 +30,7 @@ int mh_empty(struct group *g) {
 }
 
 void mh_print(struct mheap *mh, void print_elem(struct heap_elem*)) {
+	printf("mh total weight %d\n", mh->total_weight);
 	for (int i = 0; i < mh->nheap; i++) {
 		lh_rdlock_timed(mh->lh[i]);
 		struct heap *h = mh->lh[i]->heap;
@@ -76,6 +77,7 @@ struct lock_heap *mh_heap(struct mheap *mh, int i) {
 void mh_add_group(struct mheap *mh, struct group *g) {
 	int i = random() % mh->nheap;
 	struct lock_heap *lh = mh_heap(mh, i);
+	g->mh = mh;
 	g->lh = lh;
 	lh_lock_timed(lh);
 	heap_push(lh->heap, &g->heap_elem);
@@ -84,6 +86,7 @@ void mh_add_group(struct mheap *mh, struct group *g) {
 
 void mh_del_group(struct mheap *mh, struct group *g) {
 	lh_lock_timed(g->lh);
+	g->mh = NULL;
 	heap_remove_at(g->lh->heap, &g->heap_elem);
 	lh_unlock(g->lh);
 }

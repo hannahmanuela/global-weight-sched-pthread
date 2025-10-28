@@ -33,6 +33,7 @@ struct group {
 	struct process *runqueue_head;
 	struct group *next;
 	struct heap_elem heap_elem;
+	struct mheap *mh;
 	struct lock_heap *lh;
 } __attribute__((aligned(64)));
 

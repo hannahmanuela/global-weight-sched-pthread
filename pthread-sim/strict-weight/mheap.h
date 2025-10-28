@@ -2,6 +2,7 @@
 #include "heap.h"
 
 struct mheap {
+	int total_weight;
 	int nheap;
 	struct lock_heap **lh;
 };

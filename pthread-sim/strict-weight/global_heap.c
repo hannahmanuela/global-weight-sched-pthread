@@ -18,11 +18,13 @@ struct process *schedule(struct group_list *gl) {
 
         // gl_min_group returns with heap and group lock held
     
-	int svt_inc = mh_time_inc(gl->mh, tick_length, min_group->weight);
+	int svt_inc = vt_inc(tick_length, gl->mh->tot_weight, min_group->weight);
 	grp_upd_spec_virt_time_avg(min_group, svt_inc);
 
 	// select the next process
 	struct process *next_p = grp_deq_process(min_group);
+
+	next_p->tot_weight = gl->mh->tot_weight;
 
 	// must be after grp_deq_process, since it may empty the proc queue
 	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
@@ -55,7 +57,7 @@ void enqueue(struct process *p) {
 // process p yields core
 static bool yieldL(struct process *p, int time_passed) {
 	p->group->runtime += time_passed;
-	return grp_adjust_spec_virt_time(p->group, time_passed, tick_length);
+	return grp_adjust_spec_virt_time(p, time_passed, tick_length);
 }
 
 // yield and enqueue

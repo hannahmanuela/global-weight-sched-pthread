@@ -21,7 +21,7 @@ struct group_list *gl_new(int nqueue) {
 
 static void print_elem(struct heap_elem *e) {
 	struct group *g = (struct group *) e->elem;
-	printf("(gid %d svt %d, n %d, q %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued);
+	printf("(gid %d svt %d, n %d, q %d, w %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, g->weight);
 }
 
 void gl_print(struct group_list *gl) {

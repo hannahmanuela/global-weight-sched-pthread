@@ -25,12 +25,12 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 	return mh;
 }
 
-int mh_time(struct mheap *mh, int tick_length, int w) {
-	return (tick_length/mh->total_weight) * w;
+int vt_time(int tick_length, int totw, int w) {
+	return (tick_length/totw) * w;
 }
 
-int mh_time_inc(struct mheap *mh, int tick_length, int w) {
-	return tick_length - mh_time(mh, tick_length, w);
+int vt_inc(int tick_length, int totw, int w) {
+	return tick_length - vt_time(tick_length, totw, w);
 }
 
 int mh_empty(struct group *g) {
@@ -38,7 +38,7 @@ int mh_empty(struct group *g) {
 }
 
 void mh_print(struct mheap *mh, void print_elem(struct heap_elem*)) {
-	printf("mh total weight %d\n", mh->total_weight);
+	printf("mh total weight %d\n", mh->tot_weight);
 	for (int i = 0; i < mh->nheap; i++) {
 		lh_rdlock_timed(mh->lh[i]);
 		struct heap *h = mh->lh[i]->heap;

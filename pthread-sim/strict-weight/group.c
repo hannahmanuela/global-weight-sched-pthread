@@ -58,13 +58,13 @@ void grp_set_spec_virt_time_avg(struct group *g, int val) {
 	g->spec_virt_time = val;
 	g->lh->heap->sum += val;
 	g->lh->heap->n += 1;
-	g->mh->total_weight += g->weight;
+	g->mh->tot_weight += g->weight;
 }
 
 void grp_clear_spec_virt_time_avg(struct group *g) {
 	g->lh->heap->n -= 1;
 	g->lh->heap->sum -= g->spec_virt_time;
-	g->mh->total_weight -= g->weight;
+	g->mh->tot_weight -= g->weight;
 }
 
 void grp_upd_spec_virt_time_avg(struct group *g, int delta) {
@@ -110,11 +110,13 @@ void grp_lag_spec_virt_time(struct process *p, int avg_spec_virt_time) {
 
 
 // adjust spec_virt_time if group's process didn't run for a complete tick
-bool grp_adjust_spec_virt_time(struct group *g, int time_passed, int tick_length) {
+bool grp_adjust_spec_virt_time(struct process *p, int time_passed, int tick_length) {
 	if (time_passed < tick_length) {
-		int diff = (time_passed - tick_length) / g->weight;
-		printf("%d: adjust svt by %d w %d p %d t %d\n", g->group_id, diff, g->weight, time_passed, tick_length);
-		grp_upd_spec_virt_time_avg(g, diff);
+		int old = vt_inc(tick_length, p->tot_weight, p->group->weight);
+		int new = vt_inc(time_passed, p->tot_weight, p->group->weight);
+		int diff = -old + new;
+		printf("%d: adjust svt by %d old %d new %d\n", p->group->group_id, diff, old, new);
+		grp_upd_spec_virt_time_avg(p->group, diff);
 		return 1;
 	}
 	return 0;

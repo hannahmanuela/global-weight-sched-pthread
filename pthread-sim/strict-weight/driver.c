@@ -256,9 +256,7 @@ void action(struct core_state *mycore, int choice) {
 }
 
 void sleepwakeup(struct core_state *mycore) {
-	printf("= before deq: "); gl_print(gs->glist);
 	action(mycore, SLEEP);
-	printf("= before enq: "); gl_print(gs->glist);
 	action(mycore, WAKEUP);
 }
 
@@ -266,7 +264,6 @@ void sleepwakeup(struct core_state *mycore) {
 void grp_switch_runnable(struct core_state *mycore, struct process *p, int i) {
 	static int wakeup = 0;
 	if(!p) return;
-	printf("run %d %d\n", p->group->group_id, i);
 	if (p->group->group_id == 0) {
 		action(mycore, RUN);
 	} else {
@@ -274,12 +271,10 @@ void grp_switch_runnable(struct core_state *mycore, struct process *p, int i) {
 			printf("make group 1 unrunnable\n");
 			action(mycore, SLEEP);
 			wakeup = i+2;
-			printf("= after deq: "); gl_print(gs->glist);
 		}
 	}
 	if(i > 0 && wakeup == i) {
 		printf("make group 1 runnable\n");
-		printf("= before enq: "); gl_print(gs->glist);
 		wakeup = 0;
 		action(mycore, WAKEUP);
 	}
@@ -301,7 +296,6 @@ void *run_core(void* core_num_ptr) {
 
 	int cont = 1;
 	for (int i = 0; us_since(&start_exp) < TIME_TO_RUN; i++) {
-		printf("\n= before schedule: "); gl_print(gs->glist);
 		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
 		if (mycore->current_process) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);

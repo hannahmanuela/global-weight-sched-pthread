@@ -6,7 +6,6 @@ struct group_list {
 } __attribute__((aligned(64)));
 
 struct group_list *gl_new(int nqueue);
-void gl_print(struct group_list *gl);
 void gl_lock_stats(struct group_list *gl);
 void gl_runtime_stats(struct group_list *gl);
 struct group *gl_min_group(struct group_list *);

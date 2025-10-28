@@ -19,15 +19,6 @@ struct group_list *gl_new(int nqueue) {
 	return glist;
 }
 
-static void print_elem(struct heap_elem *e) {
-	struct group *g = (struct group *) e->elem;
-	printf("(gid %d svt %d, n %d, q %d, w %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, g->weight);
-}
-
-void gl_print(struct group_list *gl) {
-	mh_print(gl->mh, print_elem);
-}
-
 void gl_lock_stats(struct group_list *glist) {
 	mh_lock_stats(glist->mh);
 }

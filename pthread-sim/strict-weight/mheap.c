@@ -37,17 +37,22 @@ int mh_empty(struct group *g) {
 	return g->group_id == DUMMY;
 }
 
-void mh_print(struct mheap *mh, void print_elem(struct heap_elem*)) {
-	printf("mh total weight %d\n", mh->tot_weight);
+static void print_elem(struct heap_elem *e) {
+	struct group *g = (struct group *) e->elem;
+	printf("(gid %d svt %d, n %d, q %d, w %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, g->weight);
+}
+
+
+void mh_print(struct mheap *mh) {
+	printf("= mh total weight %d\n", mh->tot_weight);
 	for (int i = 0; i < mh->nheap; i++) {
-		lh_rdlock_timed(mh->lh[i]);
 		struct heap *h = mh->lh[i]->heap;
 		printf("Heap %d size %d sum %d n %d: \n", i, h->heap_size,
 		       h->sum, h->n);
 		heap_iter(mh->lh[i]->heap, print_elem);
 		printf("\n");
-		lh_unlock(mh->lh[i]);
 	}
+	printf("=\n");
 }
 
 void mh_lock_stats(struct mheap *mh) {

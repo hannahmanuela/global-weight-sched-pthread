@@ -12,7 +12,7 @@ struct mheap {
 
 struct mheap *mh_new(int grpcmp(void *, void *), int n); 
 int mh_empty(struct group *g);
-void mh_print(struct mheap *mh, void print(struct heap_elem *));
+void mh_print(struct mheap *mh);
 void mh_lock_stats(struct mheap *mh);
 void mh_runtime_stats(struct mheap *mh);
 struct lock_heap *mh_heap(struct mheap *, int i);

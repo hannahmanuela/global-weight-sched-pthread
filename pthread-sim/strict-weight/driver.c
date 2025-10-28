@@ -31,7 +31,7 @@
 int num_groups = 100;
 int num_cores = 27;
 int tick_length = 1000;
-int num_threads_p_group = 1;
+int num_threads_p_group = 2;
 
 struct tick {
 	long tick;
@@ -74,6 +74,18 @@ void ticks_free(long *ticks) {
 void ticks_gettime(long *ticks) {
 	for (int i = 0; i < num_cores; i++)
 		ticks[i] = atomic_load(&(gs->cores[i].t.tick));
+}
+
+void ticks_sub(long *res, long *sub) {
+	for (int i = 0; i < num_cores; i++) {
+		res[i] -= sub[i];
+	}
+}
+
+void ticks_add(long *res, long *add) {
+	for (int i = 0; i < num_cores; i++) {
+		res[i] += add[i];
+	}
 }
 
 long ticks_sum(long *ticks) {
@@ -301,9 +313,9 @@ void *run_core(void* core_num_ptr) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		action(mycore, RUN);
+		// action(mycore, RUN);
 		// sleepwakeup(mycore);
-		// grp_switch_runnable(mycore, mycore->current_process, i);
+		grp_switch_runnable(mycore, mycore->current_process, i);
 		// int choice = rand() % 3;
 	}
 }
@@ -361,7 +373,6 @@ void main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
 	print_core(&gs->cores[i]);
     }
-    // TODO: um I don't unregister the groups for now
 
     mh_lock_stats(gs->mh);
     mh_runtime_stats(gs->mh);

@@ -66,9 +66,10 @@ static void grp_stats(struct heap_elem *e, long sum) {
 	struct group *g = (struct group *) e->elem;
 	if (g->group_id == DUMMY)
 		return;
-	printf("%d: runtime %dus sleeptime %dus weight %d ticks %0.2f\n", g->group_id,
-	       g->runtime, g->sleeptime,
-	       g->weight, 1.0*g->runtime/sum);
+	long t = ticks_sum(g->sleeptime);
+	printf("%d: runtime %d us sleeptime %d us weight %d ticks %0.2f\n", g->group_id,
+	       g->runtime, t,
+	       g->weight, 1.0*g->runtime/(sum-t));
 }
 
 void mh_runtime_stats(struct mheap *mh) {

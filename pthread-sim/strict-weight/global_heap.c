@@ -9,7 +9,7 @@
 
 extern int tick_length;
 
-// select next process to run
+// Select next process to run
 struct process *schedule(struct mheap *mh) {
 	struct group *min_group = mh_min_group(mh);
 	if (min_group == NULL) {
@@ -39,6 +39,7 @@ struct process *schedule(struct mheap *mh) {
 	return next_p;
 }
 
+// Make p runnable, which may make the group runnable.
 void enqueue(struct process *p) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
@@ -49,9 +50,8 @@ void enqueue(struct process *p) {
 	grp_add_process(p);
 	if (is_unrunnable) {
 		ticks_gettime(p->group->time);
-		long t = p->group->time[p->core_id] - p->group->sleepstart[p->core_id];
-		p->group->sleeptime += t; 
-		printf("enqueueL: %d(%d) sleep time %d\n", p->group->group_id, p->core_id, t);
+		ticks_sub(p->group->time, p->group->sleepstart);
+		ticks_add(p->group->sleeptime, p->group->time);
 		grp_set_init_spec_virt_time(p->group, lh_avg_spec_virt_time_inc(p->group->lh)); 
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	}
@@ -59,13 +59,13 @@ void enqueue(struct process *p) {
 	lh_unlock(p->group->lh);
 }
 
-// process p yields core
+// Process p yields core
 static int yieldL(struct process *p, int time_passed) {
 	p->group->runtime += time_passed;
 	return grp_adjust_spec_virt_time(p, time_passed, tick_length);
 }
 
-// yield and enqueue
+// Yield and enqueue
 void yield(struct process *p, int time_passed) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
@@ -82,7 +82,8 @@ void yield(struct process *p, int time_passed) {
 	lh_unlock(p->group->lh);
 }
 
-// process p is not runnable and yields core
+// Process p is not runnable and yields core, which may make
+// p's group not runnable
 void dequeue(struct process *p, int time_passed) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);

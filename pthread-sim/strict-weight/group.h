@@ -30,8 +30,8 @@ struct group {
 	int last_virt_time; 
 
 	long runtime;  // number of us the group ran
-	long sleeptime; // number of us the group wasn't runnable
-	long *sleepstart; // tick sleep started
+	long *sleeptime; // number of us slots the group wasn't runnable
+	long *sleepstart; // ticks sleep started
 	long *time;
 	
 	struct process *runqueue_head;

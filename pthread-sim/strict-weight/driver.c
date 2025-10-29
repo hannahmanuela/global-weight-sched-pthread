@@ -33,7 +33,7 @@ int num_groups = 100;
 int num_cores = 27;
 t_t tick_length = 1000;
 int num_threads_p_group = 1;
-bool debug = 1;
+bool debug = 0;
 
 struct tick {
 	t_t tick;
@@ -99,7 +99,7 @@ t_t ticks_sum(t_t *ticks) {
 }
 
 void print_core(struct core_state *c) {
-	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) deq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)\n",
+	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) deq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)",
 	       c - gs->cores,
 	       c->nsched, 1.0*c->sched_us/c->nsched, 1.0*c->sched_cycles/c->nsched,
 	       c->nenq, 1.0*c->enq_us/c->nenq, 1.0*c->enq_cycles/c->nenq,
@@ -282,13 +282,13 @@ void grp_switch_runnable(struct core_state *mycore, struct process *p, int i) {
 		action(mycore, RUN);
 	} else {
 		if(wakeup == 0) {
-			printf("make group %d unrunnable\n", p->group->group_id);
+			// printf("make group %d unrunnable\n", p->group->group_id);
 			action(mycore, SLEEP);
 			wakeup = i+2;
 		}
 	}
 	if(i > 0 && wakeup == i) {
-		printf("make group %d runnable\n", p->group->group_id);
+		// printf("make group %d runnable\n", p->group->group_id);
 		wakeup = 0;
 		action(mycore, WAKEUP);
 	}
@@ -371,10 +371,14 @@ void main(int argc, char *argv[]) {
         pthread_create(&threads[i], NULL, run_core, (void*)i);
     }
 
+    printf("= cores: %d\n", num_cores);
     for (int i = 0; i < num_cores; i++) {
         pthread_join(threads[i], NULL);
+	printf("%d: ", i);
 	print_core(&gs->cores[i]);
+	printf("\n");
     }
+    printf("=\n");
 
     mh_lock_stats(gs->mh);
     mh_runtime_stats(gs->mh);

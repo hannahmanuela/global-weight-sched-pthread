@@ -55,7 +55,6 @@ void enqueue(struct process *p) {
 	if (is_unrunnable) {
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
-		printf("%d: sleep time %d\n", p->group->group_id, ticks_sum(p->group->time));
 		ticks_add(p->group->sleeptime, p->group->time);
                 grp_set_init_vruntime(p->group, mh_min(p->group->lh));
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);

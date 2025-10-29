@@ -53,10 +53,12 @@ void mh_print(struct mheap *mh) {
 }
 
 void mh_lock_stats(struct mheap *mh) {
+	printf("= mh: lock stats: \n");
 	for (int i = 0; i < mh->nheap; i++) {
 		printf("== heap %d:\n", i);
 		lh_stats(mh->lh[i]);
 	}
+	printf("=\n");
 }
 
 static void grp_stats(struct heap_elem *e, long sum) {
@@ -73,12 +75,13 @@ void mh_runtime_stats(struct mheap *mh) {
 	t_t *ticks = new_ticks();
 	ticks_gettime(ticks);
 	t_t sum = ticks_sum(ticks);
-	printf("total ticks %d us\n", sum);
+	printf("= mh: runtime stats total ticks %d us\n", sum);
 	for (int i = 0; i < mh->nheap; i++) {
 		for (struct heap_elem *e = heap_first(mh->lh[i]->heap); e != NULL; e = heap_next(mh->lh[i]->heap, e)) {
 			grp_stats(e, sum);
 		}
 	}
+	printf("=\n");
 }
 
 struct lock_heap *mh_heap(struct mheap *mh, int i) {

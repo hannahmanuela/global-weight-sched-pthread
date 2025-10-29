@@ -22,12 +22,12 @@ struct lock_heap *lh_new(int grp_cmp(void *, void*)) {
 
 void lh_stats(struct lock_heap *lh) {
 	if (lh->num_times_wr_heap_locked > 0) {
-		printf("Group list write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+		printf("Heap write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
 		       lh->wait_for_wr_heap_lock_cycles / lh->num_times_wr_heap_locked,
 		       lh->wait_for_wr_heap_lock_cycles, lh->num_times_wr_heap_locked);
 	}
 	if (lh->num_times_rd_heap_locked > 0) {
-		printf("Group list read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
+		printf("Heap read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
 		       lh->wait_for_rd_heap_lock_cycles / lh->num_times_rd_heap_locked,
 		       lh->wait_for_rd_heap_lock_cycles, lh->num_times_rd_heap_locked);
 	}

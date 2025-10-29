@@ -9,6 +9,8 @@
 #include "mheap.h"
 #include "group.h"
 
+extern bool debug;
+
 struct process *grp_new_process(int id, struct group *group) {
     struct process *p = malloc(sizeof(struct process));
     p->process_id = id;
@@ -42,7 +44,7 @@ bool grp_dummy(struct group *g) {
 }
 
 void grp_print(struct group *g) {
-	printf("(gid %d svt %d, n %d, q %d, w %d)", g->group_id, g->vruntime, g->num_threads, g->threads_queued, g->weight);
+	printf("(gid %d vt %d, n %d, q %d, w %d)", g->group_id, g->vruntime, g->num_threads, g->threads_queued, g->weight);
 }	
 
 int grp_cmp(void *e0, void *e1) {
@@ -70,7 +72,8 @@ void grp_upd_vruntime(struct group *g, t_t delta) {
 // caller must hold group lock
 void grp_set_init_vruntime(struct group *g, vt_t min_vt) {
 	vt_t nvt = min_vt + g->vruntime;
-        printf("%d: grp_set_init_vruntime: mvt %ld new vt %ld\n", g->group_id, min_vt, nvt);
+	if(debug)
+		printf("%d: grp_set_init_vruntime: mvt %ld new vt %ld\n", g->group_id, min_vt, nvt);
         g->vruntime = nvt;
 }
 
@@ -84,7 +87,8 @@ void grp_lag_vruntime(struct group *g, vt_t min) {
 bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length) {
 	if (time_passed < tick_length) {
                 int diff = (time_passed - tick_length);
-                printf("%d: adjust vt by %d w %d p %d t %d\n", g->group_id, diff, g->weight, time_passed, tick_length);
+		if(debug) 
+			printf("%d: adjust vt by %ld w %d p %ld t %ld\n", g->group_id, diff, g->weight, time_passed, tick_length);
                 grp_upd_vruntime(g, diff);
 		return 1;
 	}

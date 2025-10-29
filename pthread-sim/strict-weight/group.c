@@ -62,14 +62,14 @@ int grp_cmp(void *e0, void *e1) {
 	return 0;
 }
 
-void grp_upd_vruntime(struct group *g, int delta) {
+void grp_upd_vruntime(struct group *g, t_t delta) {
         g->vruntime += calc_delta(delta, g->weight);
 }
 
 // set initial vruntime when group g becomes runnable
 // caller must hold group lock
 void grp_set_init_vruntime(struct group *g, vt_t min_vt) {
-	long nvt = min_vt + g->vruntime;
+	vt_t nvt = min_vt + g->vruntime;
         printf("%d: grp_set_init_vruntime: mvt %ld new vt %ld\n", g->group_id, min_vt, nvt);
         g->vruntime = nvt;
 }
@@ -81,7 +81,7 @@ void grp_lag_vruntime(struct group *g, vt_t min) {
 }
 
 // adjust vruntime if group's process didn't run for a complete tick
-bool grp_adjust_vruntime(struct group *g, int time_passed, int tick_length) {
+bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length) {
 	if (time_passed < tick_length) {
                 int diff = (time_passed - tick_length);
                 printf("%d: adjust vt by %d w %d p %d t %d\n", g->group_id, diff, g->weight, time_passed, tick_length);

@@ -31,12 +31,12 @@
 
 int num_groups = 100;
 int num_cores = 27;
-int tick_length = 1000;
+t_t tick_length = 1000;
 int num_threads_p_group = 1;
 bool debug = 1;
 
 struct tick {
-	long tick;
+	t_t tick;
 } __attribute__((aligned(64)));
 	
 struct core_state {
@@ -65,33 +65,33 @@ struct global_state {
 
 struct global_state* gs;
 
-long *new_ticks() {
-	return malloc(sizeof(long) * num_cores);
+t_t *new_ticks() {
+	return malloc(sizeof(t_t) * num_cores);
 }
 
-void ticks_free(long *ticks) {
+void ticks_free(t_t *ticks) {
 	free(ticks);
 }
 
-void ticks_gettime(long *ticks) {
+void ticks_gettime(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
 		ticks[i] = atomic_load(&(gs->cores[i].t.tick));
 }
 
-void ticks_sub(long *res, long *sub) {
+void ticks_sub(t_t *res, t_t *sub) {
 	for (int i = 0; i < num_cores; i++) {
 		res[i] -= sub[i];
 	}
 }
 
-void ticks_add(long *res, long *add) {
+void ticks_add(t_t *res, t_t *add) {
 	for (int i = 0; i < num_cores; i++) {
 		res[i] += add[i];
 	}
 }
 
-long ticks_sum(long *ticks) {
-	long sum = 0;
+t_t ticks_sum(t_t *ticks) {
+	t_t sum = 0;
 	for (int i = 0; i < num_cores; i++) {
 		sum += ticks[i];
 	}

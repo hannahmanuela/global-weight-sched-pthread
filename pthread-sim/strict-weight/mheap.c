@@ -63,16 +63,16 @@ static void grp_stats(struct heap_elem *e, long sum) {
 	struct group *g = (struct group *) e->elem;
 	if (g->group_id == DUMMY)
 		return;
-	long t = ticks_sum(g->sleeptime);
+	t_t t = ticks_sum(g->sleeptime);
 	printf("%d: runtime %d us sleeptime %d us weight %d ticks %0.2f\n", g->group_id,
 	       g->runtime, t,
 	       g->weight, 1.0*g->runtime/(sum-t));
 }
 
 void mh_runtime_stats(struct mheap *mh) {
-	long *ticks = new_ticks();
+	t_t *ticks = new_ticks();
 	ticks_gettime(ticks);
-	long sum = ticks_sum(ticks);
+	t_t sum = ticks_sum(ticks);
 	printf("total ticks %d us\n", sum);
 	for (int i = 0; i < mh->nheap; i++) {
 		for (struct heap_elem *e = heap_first(mh->lh[i]->heap); e != NULL; e = heap_next(mh->lh[i]->heap, e)) {

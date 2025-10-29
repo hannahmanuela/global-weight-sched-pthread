@@ -23,10 +23,10 @@ struct group {
 	int threads_queued; // the number of threads runnable and in the q (ie not running)
 	vt_t vruntime; // updated when the group is scheduled, assuming full tick
 
-	long runtime;  // number of us the group ran
-	long *sleeptime; // number of us slots the group wasn't runnable
-	long *sleepstart; // ticks sleep started
-	long *time;
+	t_t runtime;  // number of us the group ran
+	t_t *sleeptime; // number of us slots the group wasn't runnable
+	t_t *sleepstart; // tick slots sleep started
+	t_t *time;
 	
 	struct process *runqueue_head;
 	struct group *next;
@@ -35,17 +35,16 @@ struct group {
 	struct lock_heap *lh;
 } __attribute__((aligned(64)));
 
-
 struct group *grp_new(int id, int weight);
 void grp_print(struct group *group);
 bool grp_dummy(struct group *group);
 struct process *grp_new_process(int id, struct group *group);
 int grp_cmp(void *e0, void *e1);
 vt_t grp_get_vruntime(struct group *g);
-void grp_upd_vruntime(struct group *g, int tick_length);
+void grp_upd_vruntime(struct group *g, t_t tick_length);
 void grp_set_init_vruntime(struct group *g, vt_t min);
 void grp_lag_vruntime(struct group *g, vt_t min);
-bool grp_adjust_vruntime(struct group *g, int time_passed, int tick_length);
+bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length);
 void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);
 

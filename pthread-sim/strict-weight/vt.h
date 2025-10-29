@@ -2,6 +2,7 @@
 
 #define _VT_H_
 
+typedef long t_t;
 typedef long vt_t;
 
 // delta_exec * standard_weight / actual_weight

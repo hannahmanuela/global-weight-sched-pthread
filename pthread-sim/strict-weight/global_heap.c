@@ -8,7 +8,7 @@
 #include "group.h"
 #include "mheap.h"
 
-extern int tick_length;
+extern t_t tick_length;
 extern bool debug;
 
 // Select next process to run
@@ -71,7 +71,7 @@ static bool yieldL(struct process *p, int time_passed) {
 }
 
 // Yield and enqueue
-void yield(struct process *p, int time_passed) {
+void yield(struct process *p, t_t time_passed) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
 
@@ -91,7 +91,7 @@ void yield(struct process *p, int time_passed) {
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void dequeue(struct process *p, int time_passed) {
+void dequeue(struct process *p, t_t time_passed) {
 	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
 

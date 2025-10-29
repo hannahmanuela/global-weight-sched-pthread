@@ -66,29 +66,3 @@ void lh_rdlock_timed(struct lock_heap *lh) {
 	atomic_fetch_add_explicit(&lh->wait_for_rd_heap_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
 	atomic_fetch_add_explicit(&lh->num_times_rd_heap_locked, 1, memory_order_relaxed);
 }
-
-int lh_avg_spec_virt_time_inc(struct lock_heap *lh) {
-       if (lh->heap->n <= 0)
-	       return 0;
-       int sum = lh->heap->sum / lh->heap->n;
-       return sum;
-}
-
-int lh_avg_spec_virt_time(struct group *group_to_ignore) {
-	int total_spec_virt_time = 0;
-	int count = 0;
-	struct lock_heap *lh = group_to_ignore->lh;
-
-	for (struct heap_elem *e = heap_first(lh->heap); e != NULL; e = heap_next(lh->heap, e)) {
-		struct group *g = (struct group *) e->elem;
-		assert(g != NULL);
-		if (g == group_to_ignore) continue;
-		if (grp_empty(g)) continue;
-		total_spec_virt_time += grp_get_spec_virt_time(g);
-		count++;
-	}
-	int sum = lh->heap->sum - group_to_ignore->spec_virt_time;
-	printf("total %d sum %d cnt %d hs %d\n", total_spec_virt_time, sum, count, lh->heap->heap_size-2);
-	if (count == 0) return 0;
-	return total_spec_virt_time / count;
-}

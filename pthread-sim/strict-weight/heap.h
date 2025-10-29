@@ -9,7 +9,8 @@ struct heap {
 	int (*cmp_elem)(void *, void *);
 	int heap_size;
 	int heap_capacity;
-	long sum;
+	
+	int min_vrt;
 	int n;
 	struct heap_elem **heap;
 

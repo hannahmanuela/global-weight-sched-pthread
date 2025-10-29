@@ -22,9 +22,7 @@ struct group *grp_new(int id, int weight) {
     g->weight = weight;
     g->num_threads = 0;
     g->threads_queued = 0;
-    g->spec_virt_time = 0;
-    g->vt_inc = 0;
-    g->last_virt_time = 0;
+    g->vruntime = 0;
     g->runqueue_head = NULL;
     g->next = NULL;
     g->runtime = 0;
@@ -38,12 +36,12 @@ struct group *grp_new(int id, int weight) {
 }
 
 
-bool grp_empty(struct group *g) {
+bool grp_dummy(struct group *g) {
 	return g->group_id == DUMMY;
 }
 
 void grp_print(struct group *g) {
-	printf("(gid %d svt %d, n %d, q %d, w %d)", g->group_id, g->spec_virt_time, g->num_threads, g->threads_queued, g->weight);
+	printf("(gid %d svt %d, n %d, q %d, w %d)", g->group_id, g->vruntime, g->num_threads, g->threads_queued, g->weight);
 }	
 
 int grp_cmp(void *e0, void *e1) {
@@ -51,9 +49,9 @@ int grp_cmp(void *e0, void *e1) {
 	struct group *b = (struct group *) e1;
 	if (a->threads_queued == 0) return 1;
 	if (b->threads_queued == 0) return -1;
-	// Compare by spec_virt_time; lower is higher priority
-	if (a->spec_virt_time < b->spec_virt_time) return -1;
-	if (a->spec_virt_time > b->spec_virt_time) return 1;
+	// Compare by vruntime; lower is higher priority
+	if (a->vruntime < b->vruntime) return -1;
+	if (a->vruntime > b->vruntime) return 1;
 	// Prefer higher weight
 	if (a->weight > b->weight) return -1;
 	if (a->weight < b->weight) return 1;
@@ -63,72 +61,49 @@ int grp_cmp(void *e0, void *e1) {
 	return 0;
 }
 
-void grp_set_spec_virt_time_avg(struct group *g, int val) {
-	g->spec_virt_time = val;
-	g->lh->heap->sum += val;
-	g->lh->heap->n += 1;
-	g->mh->tot_weight += g->weight;
+// delta_exec * standard_weight / actual_weight
+static int __calc_delta(int delta_exec, int standard_weight, int actual_weight)
+{
+        return delta_exec * standard_weight / actual_weight;
 }
 
-void grp_clear_spec_virt_time_avg(struct group *g) {
-	g->lh->heap->n -= 1;
-	g->lh->heap->sum -= g->spec_virt_time;
-	g->mh->tot_weight -= g->weight;
+static inline int calc_delta(int delta, int weight)
+{
+        // if (weight != EXP_WEIGHT)
+        //      delta = __calc_delta(delta, EXP_WEIGHT, weight);
+        printf("delta: %d, weight: %d, %d\n", delta, weight, delta/weight);
+        delta = delta / weight;
+        return delta;
 }
 
-void grp_upd_spec_virt_time_avg(struct group *g, int delta) {
-	g->spec_virt_time += delta;
-	g->lh->heap->sum += delta;
+void grp_upd_vruntime(struct group *g, int delta) {
+        g->vruntime += calc_delta(delta, g->weight);
 }
 
-// XXX obsolete when gl_avg_spec_virt_time is obsolete
-int grp_get_spec_virt_time(struct group *g) {
-	pthread_rwlock_rdlock(&g->group_lock);
-	int curr_spec_virt_time = g->spec_virt_time;
-	if (g->threads_queued == 0) {
-		curr_spec_virt_time = INT_MAX;
-	}
-	pthread_rwlock_unlock(&g->group_lock);
-	return curr_spec_virt_time;
-}
-
-// set initial spec_virt_time when group g becomes runnable
+// set initial vruntime when group g becomes runnable
 // caller must hold group lock
-void grp_set_init_spec_virt_time(struct group *g, int avg) {
-	// int initial_virt_time = avg;
-	// if (g->vt_inc > 0) {
-		// if (g->last_virt_time > initial_virt_time + g->vt_inc) {
-		// 	initial_virt_time = g->last_virt_time; // adding back left over lag only if its still ahead
-		// } else {
-		// 	initial_virt_time += g->vt_inc;
-		// }
-	// } else if (g->vt_inc < 0) {
-	// 	initial_virt_time += g->vt_inc; // negative lag always carries over? maybe limit it?
-	// }
-	// printf("%d: grp_set_init_spec_virt_time: lvt %d inc %d avg %d vt %d\n", g->group_id, g->last_virt_time, g->vt_inc, avg, initial_virt_time);
-	printf("grp_set_init_spec_virt_time: %d\n", g->last_virt_time);
-	grp_set_spec_virt_time_avg(g, g->last_virt_time);
+void grp_set_init_vruntime(struct group *g, int min_vt) {
+	long nvt = min_vt + g->vruntime;
+        printf("%d: grp_set_init_vruntime: mvt %ld new vt %ld\n", g->group_id, min_vt, nvt);
+        g->vruntime = nvt;
+        g->lh->heap->n += 1;
 }
 
-// remember spec_virt_time for when group becomes runnable again
+// remember vruntime for when group becomes runnable again
 // caller must group lock
-void grp_store_spec_virt_time_inc(struct group *g, int vt_inc) {
-	g->vt_inc = vt_inc;
-	g->last_virt_time = g->spec_virt_time;
-	printf("%d: grp_store_spec_virt_time_inc: svt %d vt_inc %d\n", g->group_id, g->last_virt_time, g->vt_inc);
-	grp_clear_spec_virt_time_avg(g);
+void grp_lag_vruntime(struct group *g, int min) {
+        g->vruntime -= min;
+        g->lh->heap->n -= 1;
 }
 
 
-// adjust spec_virt_time if group's process didn't run for a complete tick
-int grp_adjust_spec_virt_time(struct process *p, int time_passed, int tick_length) {
+// adjust vruntime if group's process didn't run for a complete tick
+bool grp_adjust_vruntime(struct group *g, int time_passed, int tick_length) {
 	if (time_passed < tick_length) {
-		int old = vt_inc(tick_length, p->tot_weight, p->group->weight);
-		int new = vt_inc(time_passed, p->tot_weight, p->group->weight);
-		int diff = -old + new;
-		printf("%d: adjust svt by %d old %d new %d\n", p->group->group_id, diff, old, new);
-		grp_upd_spec_virt_time_avg(p->group, diff);
-		return diff;
+                int diff = (time_passed - tick_length);
+                printf("%d: adjust vt by %d w %d p %d t %d\n", g->group_id, diff, g->weight, time_passed, tick_length);
+                grp_upd_vruntime(g, diff);
+		return 1;
 	}
 	return 0;
 }

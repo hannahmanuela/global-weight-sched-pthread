@@ -11,14 +11,6 @@
 
 #define DUMMY  -1
 
-int vt_time(int tick_length, int totw, int w) {
-	return (tick_length/totw) * w;
-}
-
-int vt_inc(int tick_length, int totw, int w) {
-	return tick_length - vt_time(tick_length, totw, w);
-}
-
 struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->lh = (struct lock_heap **) malloc(sizeof(struct lock_heap) * n);
@@ -27,15 +19,20 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 		// insert a dummy element so that the heap always has a min
 		struct group* dummy = grp_new(DUMMY, 0);
 		dummy->threads_queued = 1;
-		dummy->spec_virt_time = INT_MAX;
+		dummy->vruntime = INT_MAX;
 		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
 	}
 	mh->nheap = n;
 	return mh;
 }
 
-int mh_empty(struct group *g) {
-	return g->group_id == DUMMY;
+int mh_min(struct lock_heap *lh) {
+	struct group *min = (struct group *) heap_min(lh->heap);
+	long mvt = 0;
+	if (min && !grp_dummy(min)) {
+		mvt = min->vruntime;
+	}	
+	return mvt;
 }
 
 static void print_elem(struct heap_elem *e) {
@@ -44,11 +41,10 @@ static void print_elem(struct heap_elem *e) {
 }
 
 void mh_print(struct mheap *mh) {
-	printf("= mh total weight %d\n", mh->tot_weight);
+	printf("= mh\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->lh[i]->heap;
-		printf("Heap %d size %d sum %d n %d: \n", i, h->heap_size,
-		       h->sum, h->n);
+		printf("Heap %d size %d sum %d n %d: \n", i, h->heap_size, h->n);
 		heap_iter(mh->lh[i]->heap, print_elem);
 		printf("\n");
 	}
@@ -112,13 +108,13 @@ void mh_check_min_group(struct mheap *mh, struct group *g0) {
 	for (int i = 0; i < mh->nheap; i++) {
 		struct lock_heap *lh = mh_heap(mh, i);
 		struct group *g1 = (struct group *) heap_min(lh->heap);
-		if(g1 && (g0->spec_virt_time > g1->spec_virt_time)) {
+		if(g1 && (g0->vruntime > g1->vruntime)) {
 			min = g1;
 			n++;
 		}
 	}
 	if (min != NULL)
-		printf("%d(%d) min %d(%d) n %d\n", g0->spec_virt_time, g0->group_id, min->spec_virt_time, min->group_id, n);
+		printf("%d(%d) min %d(%d) n %d\n", g0->vruntime, g0->group_id, min->vruntime, min->group_id, n);
 }
 
 
@@ -140,15 +136,15 @@ retry:
 	struct lock_heap *lh_j = mh_heap(mh, j);
 	struct group *g_i = (struct group *) mh_min_atomic(lh_i);
 	struct group *g_j = (struct group *) mh_min_atomic(lh_j);
-	if (mh_empty(g_i) && mh_empty(g_j)) {
+	if (grp_dummy(g_i) && grp_dummy(g_j)) {
 		return NULL;
 	}
-	if (mh_empty(g_i)) {
+	if (grp_dummy(g_i)) {
 		g_i = g_j;
 		lh_i = lh_j;
 	} else if (g_j) {
-		int svt_i =  __atomic_load_n(&g_i->spec_virt_time, __ATOMIC_SEQ_CST);
-		int svt_j =  __atomic_load_n(&g_j->spec_virt_time, __ATOMIC_SEQ_CST);
+		int svt_i =  __atomic_load_n(&g_i->vruntime, __ATOMIC_SEQ_CST);
+		int svt_j =  __atomic_load_n(&g_j->vruntime, __ATOMIC_SEQ_CST);
 		if (svt_i > svt_j) {
 			g_i = g_j;
 			lh_i = lh_j;
@@ -169,7 +165,7 @@ struct group *mh_min_group(struct mheap *mh) {
 		struct lock_heap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
 		struct group *g = (struct group *) heap_min(lh->heap);
-		if(!g || mh_empty(g)) {
+		if(!g || grp_dummy(g)) {
 			lh_unlock(lh);
 			return NULL;
 		}	
@@ -183,25 +179,4 @@ struct group *mh_min_group(struct mheap *mh) {
 		return g;
 	}
 	return mh_sample_min_group(mh);
-}
-
-// compute avg_spec_virt_time for groups in group_to_ignore's heap, ignoring group_to_ignore
-// caller should have heap lock
-int mh_avg_spec_virt_time(struct group *group_to_ignore) {
-	int total_spec_virt_time = 0;
-	int count = 0;
-	struct lock_heap *lh = group_to_ignore->lh;
-
-	for (struct heap_elem *e = heap_first(lh->heap); e != NULL; e = heap_next(lh->heap, e)) {
-		struct group *g = (struct group *) e->elem;
-		assert(g != NULL);
-		if (g == group_to_ignore) continue;
-		if (mh_empty(g)) continue;
-		total_spec_virt_time += grp_get_spec_virt_time(g);
-		count++;
-	}
-	int sum = lh->heap->sum - group_to_ignore->spec_virt_time;
-	printf("total %d sum %d cnt %d hs %d\n", total_spec_virt_time, sum, count, lh->heap->heap_size-2);
-	if (count == 0) return 0;
-	return total_spec_virt_time / count;
 }

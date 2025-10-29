@@ -65,7 +65,7 @@ int grp_cmp(void *e0, void *e1) {
 }
 
 void grp_upd_vruntime(struct group *g, t_t delta) {
-        g->vruntime += calc_delta(delta, g->weight);
+        atomic_fetch_add(&g->vruntime, calc_delta(delta, g->weight));
 }
 
 // set initial vruntime when group g becomes runnable
@@ -74,13 +74,13 @@ void grp_set_init_vruntime(struct group *g, vt_t min_vt) {
 	vt_t nvt = min_vt + g->vruntime;
 	if(debug)
 		printf("%d: grp_set_init_vruntime: mvt %ld new vt %ld\n", g->group_id, min_vt, nvt);
-        g->vruntime = nvt;
+        atomic_store(&g->vruntime, nvt);
 }
 
 // remember vruntime for when group becomes runnable again
 // caller must group lock
 void grp_lag_vruntime(struct group *g, vt_t min) {
-        g->vruntime -= min;
+        atomic_fetch_add(&g->vruntime, -min);
 }
 
 // adjust vruntime if group's process didn't run for a complete tick

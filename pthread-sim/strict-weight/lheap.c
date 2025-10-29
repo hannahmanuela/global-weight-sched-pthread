@@ -64,6 +64,6 @@ void lh_rdlock_timed(struct lock_heap *lh) {
 	int start_tsc = safe_read_tsc();
 	lh_rdlock(lh);
 	int end_tsc = safe_read_tsc();
-	atomic_fetch_add_explicit(&lh->wait_for_rd_heap_lock_cycles, (end_tsc - start_tsc), memory_order_relaxed);
-	atomic_fetch_add_explicit(&lh->num_times_rd_heap_locked, 1, memory_order_relaxed);
+	atomic_fetch_add(&lh->wait_for_rd_heap_lock_cycles, (end_tsc - start_tsc));
+	atomic_fetch_add(&lh->num_times_rd_heap_locked, 1);
 }

@@ -124,7 +124,7 @@ void mh_check_min_group(struct mheap *mh, struct group *g0) {
 
 // caller must ensure there is a min element
 void *mh_min_atomic(struct lock_heap *lh)  {
-        struct heap_elem *e = __atomic_load_n(&(lh->heap->heap[0]), __ATOMIC_ACQUIRE);
+        struct heap_elem *e = atomic_load(&(lh->heap->heap[0]));
         return e->elem;
 }
 
@@ -147,8 +147,8 @@ retry:
 		g_i = g_j;
 		lh_i = lh_j;
 	} else if (g_j) {
-		int svt_i =  __atomic_load_n(&g_i->vruntime, __ATOMIC_SEQ_CST);
-		int svt_j =  __atomic_load_n(&g_j->vruntime, __ATOMIC_SEQ_CST);
+		int svt_i = atomic_load(&g_i->vruntime);
+		int svt_j = atomic_load(&g_j->vruntime);
 		if (svt_i > svt_j) {
 			g_i = g_j;
 			lh_i = lh_j;
@@ -160,6 +160,7 @@ retry:
 		lh_unlock(lh_i);
 		goto retry;
 	}
+	pthread_rwlock_wrlock(&g_i->group_lock);
 	return g_i;
 }
 

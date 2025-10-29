@@ -32,8 +32,8 @@
 int num_groups = 100;
 int num_cores = 27;
 t_t tick_length = 1000;
-int num_threads_p_group = 1;
-bool debug = 0;
+int num_threads_p_group = 2;
+bool debug = 1;
 
 struct tick {
 	t_t tick;
@@ -315,9 +315,9 @@ void *run_core(void* core_num_ptr) {
 			assert_thread_counts_correct(mycore->current_process->group, mycore);
 			// assert_threads_queued_correct(mycore->current_process->group);
 		}
-		// action(mycore, RUN);
+		action(mycore, RUN);
 		// sleepwakeup(mycore);
-		grp_switch_runnable(mycore, mycore->current_process, i);
+		// grp_switch_runnable(mycore, mycore->current_process, i);
 		// int choice = rand() % 3;
 	}
 }

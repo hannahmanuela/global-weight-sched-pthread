@@ -2,6 +2,7 @@
 #include <limits.h>
 #include <stdio.h>
 
+#include "vt.h"
 #include "driver.h"
 #include "lheap.h"
 #include "group.h"

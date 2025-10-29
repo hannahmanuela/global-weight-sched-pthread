@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <limits.h>
 
+#include "vt.h"
 #include "driver.h"
 #include "lheap.h"
 #include "mheap.h"
@@ -61,28 +62,13 @@ int grp_cmp(void *e0, void *e1) {
 	return 0;
 }
 
-// delta_exec * standard_weight / actual_weight
-static int __calc_delta(int delta_exec, int standard_weight, int actual_weight)
-{
-        return delta_exec * standard_weight / actual_weight;
-}
-
-static inline int calc_delta(int delta, int weight)
-{
-        // if (weight != EXP_WEIGHT)
-        //      delta = __calc_delta(delta, EXP_WEIGHT, weight);
-        printf("delta: %d, weight: %d, %d\n", delta, weight, delta/weight);
-        delta = delta / weight;
-        return delta;
-}
-
 void grp_upd_vruntime(struct group *g, int delta) {
         g->vruntime += calc_delta(delta, g->weight);
 }
 
 // set initial vruntime when group g becomes runnable
 // caller must hold group lock
-void grp_set_init_vruntime(struct group *g, int min_vt) {
+void grp_set_init_vruntime(struct group *g, vt_t min_vt) {
 	long nvt = min_vt + g->vruntime;
         printf("%d: grp_set_init_vruntime: mvt %ld new vt %ld\n", g->group_id, min_vt, nvt);
         g->vruntime = nvt;
@@ -90,7 +76,7 @@ void grp_set_init_vruntime(struct group *g, int min_vt) {
 
 // remember vruntime for when group becomes runnable again
 // caller must group lock
-void grp_lag_vruntime(struct group *g, int min) {
+void grp_lag_vruntime(struct group *g, vt_t min) {
         g->vruntime -= min;
 }
 

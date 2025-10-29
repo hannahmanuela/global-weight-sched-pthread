@@ -5,6 +5,7 @@
 #include <stdatomic.h>
 
 #include "util.h"
+#include "vt.h"
 #include "group.h"
 #include "lheap.h"
 

@@ -4,6 +4,7 @@
 #include <stdatomic.h>
 #include <limits.h>
 
+#include "vt.h"
 #include "driver.h"
 #include "group.h"
 #include "lheap.h"
@@ -16,7 +17,7 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
 	mh->lh = (struct lock_heap **) malloc(sizeof(struct lock_heap) * n);
 	for (int i=0; i < n; i++) {
 		mh->lh[i] = lh_new(grp_cmp);
-		// insert a dummy element so that the heap always has a min
+		// insert a dummy element so that the heap always has one elemement
 		struct group* dummy = grp_new(DUMMY, 0);
 		dummy->threads_queued = 1;
 		dummy->vruntime = INT_MAX;

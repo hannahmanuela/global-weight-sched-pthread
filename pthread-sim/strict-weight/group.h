@@ -1,9 +1,10 @@
 #include <pthread.h>
 #include <stdint.h> 
 
-#include "heap.h"
-
 #define DUMMY  -1
+
+#include "vt.h"
+#include "heap.h"
 
 struct process {
 	int process_id;
@@ -20,7 +21,7 @@ struct group {
 
 	int num_threads; // the total number of threads in the system
 	int threads_queued; // the number of threads runnable and in the q (ie not running)
-	long vruntime; // updated when the group is scheduled, assuming full tick
+	vt_t vruntime; // updated when the group is scheduled, assuming full tick
 
 	long runtime;  // number of us the group ran
 	long *sleeptime; // number of us slots the group wasn't runnable
@@ -40,10 +41,10 @@ void grp_print(struct group *group);
 bool grp_dummy(struct group *group);
 struct process *grp_new_process(int id, struct group *group);
 int grp_cmp(void *e0, void *e1);
-int grp_get_vruntime(struct group *g);
+vt_t grp_get_vruntime(struct group *g);
 void grp_upd_vruntime(struct group *g, int tick_length);
-void grp_set_init_vruntime(struct group *g, int min);
-void grp_lag_vruntime(struct group *g, int min);
+void grp_set_init_vruntime(struct group *g, vt_t min);
+void grp_lag_vruntime(struct group *g, vt_t min);
 bool grp_adjust_vruntime(struct group *g, int time_passed, int tick_length);
 void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);

@@ -14,10 +14,11 @@
 #include <sys/resource.h>
 #include <stdatomic.h>
 
+#include "vt.h"
+#include "group.h"
 #include "heap.h"
 #include "lheap.h"
 #include "mheap.h"
-#include "group.h"
 #include "global_heap.h"
 #include "util.h"
 

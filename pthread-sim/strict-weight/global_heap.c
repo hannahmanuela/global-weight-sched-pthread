@@ -12,7 +12,7 @@ extern t_t tick_length;
 extern bool debug;
 
 // Select next process to run
-struct process *schedule(struct mheap *mh) {
+struct process *schedule(int core, struct mheap *mh) {
 	struct group *min_group = mh_min_group(mh);
 	if (min_group == NULL) {
 		return NULL;
@@ -21,7 +21,7 @@ struct process *schedule(struct mheap *mh) {
         // gl_min_group returns with heap and group lock held
     
 	if(debug) {
-		printf("%d: schedule\n", min_group->group_id);
+		printf("%d(%d): schedule\n", min_group->group_id, core);
 		mh_print(min_group->mh);
 	}
 
@@ -47,7 +47,7 @@ void enqueue(struct process *p) {
 	bool is_unrunnable = p->group->threads_queued == 0;
 
 	if(debug) {
-		printf("%d: enqueue is_unrunnable %d\n", p->group->group_id, is_unrunnable);
+		printf("%d(%d): enqueue is_unrunnable %d\n", p->group->group_id, p->core_id, is_unrunnable);
 		mh_print(p->group->mh);
 	}
 
@@ -75,7 +75,7 @@ void yield(struct process *p, t_t time_passed) {
 	pthread_rwlock_wrlock(&p->group->group_lock);
 
 	if(debug) {
-		printf("%d: yield time_passed %d\n", p->group->group_id, time_passed);
+		printf("%d(%d): yield time_passed %d\n", p->group->group_id, p->core_id, time_passed);
 		mh_print(p->group->mh);
 	}
 
@@ -95,7 +95,7 @@ void dequeue(struct process *p, t_t time_passed) {
 	pthread_rwlock_wrlock(&p->group->group_lock);
 
 	if(debug) {
-		printf("%d: dequeue %d\n", p->group->group_id, time_passed);
+		printf("%d(%d): dequeue %d\n", p->group->group_id, p->core_id, time_passed);
 		mh_print(p->group->mh);
 	}
 

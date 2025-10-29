@@ -32,8 +32,8 @@
 int num_groups = 100;
 int num_cores = 27;
 t_t tick_length = 1000;
-int num_threads_p_group = 2;
-bool debug = 1;
+int num_threads_p_group = 3;
+bool debug = 0;
 
 struct tick {
 	t_t tick;
@@ -210,7 +210,7 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	if(p) p->core_id = mycore - gs->cores; 
 	switch(op) {
 	case SCHEDULE:
-		mycore->current_process = schedule(gs->mh);
+		mycore->current_process = schedule(mycore-gs->cores, gs->mh);
 		break;
 	case YIELD:
 		if(p) {
@@ -356,8 +356,8 @@ void main(int argc, char *argv[]) {
     gs->mh = mh_new(grp_cmp, atoi(argv[4]));
 
     for (int i = 0; i < num_groups; i++) {
-	    // struct group *g = grp_new(i, 10);
-	    struct group *g = grp_new(i, 10*(i+1));
+	    struct group *g = grp_new(i, 10);
+	    // struct group *g = grp_new(i, 10*(i+1));
 	    mh_add_group(gs->mh, g);
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(i*num_threads_p_group+j, g);

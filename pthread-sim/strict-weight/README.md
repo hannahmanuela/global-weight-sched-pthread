@@ -24,7 +24,7 @@ is 20 so its vruntime will only be updated to be 1000/20 = 50. We thus ensures a
 If a process doesn't run for a full tick length, its vruntime is
 moved down by the difference. For instance, if the initial process from g1 in 
 the example above exist after 500us, then the group's vruntime would be updated by
-the diff to the expected (-500) divided by the weight (1); leaving the group with a 
+the diff to the expected (-500) divided by the weight (10) = -50; leaving the group with a 
 vruntime as if the core had only added the time it actually ran.
 
 When a group's last process exits, the group "goes to sleep". In that case, the 

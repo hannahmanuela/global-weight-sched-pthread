@@ -12,7 +12,8 @@
 
 #define DUMMY  -1
 
-struct mheap *mh_new(int grp_cmp(void *, void *), int n) {
+struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed) {
+	srandom(seed);
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->lh = (struct lock_heap **) malloc(sizeof(struct lock_heap) * n);
 	for (int i=0; i < n; i++) {

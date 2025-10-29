@@ -8,8 +8,8 @@
 #include "group.h"
 #include "mheap.h"
 
-extern t_t tick_length;
-extern bool debug;
+t_t tick_length = 1000;
+bool debug;
 
 // Select next process to run
 struct process *schedule(int core, struct mheap *mh) {

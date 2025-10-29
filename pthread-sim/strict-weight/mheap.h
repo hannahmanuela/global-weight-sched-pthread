@@ -7,7 +7,7 @@ struct mheap {
 	struct lock_heap **lh;
 };
 
-struct mheap *mh_new(int grpcmp(void *, void *), int n); 
+struct mheap *mh_new(int grpcmp(void *, void *), int n, int seed); 
 int mh_empty(struct group *g);
 void mh_print(struct mheap *mh);
 int mh_min(struct lock_heap *lh);

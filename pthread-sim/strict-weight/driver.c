@@ -15,6 +15,7 @@
 #include <stdatomic.h>
 
 #include "vt.h"
+#include "ticks.h"
 #include "group.h"
 #include "heap.h"
 #include "lheap.h"
@@ -31,14 +32,11 @@
 
 int num_groups = 100;
 int num_cores = 27;
-t_t tick_length = 1000;
 int num_threads_p_group = 3;
-bool debug = 0;
 
-struct tick {
-	t_t tick;
-} __attribute__((aligned(64)));
-	
+extern bool debug;
+extern t_t tick_length;
+
 struct core_state {
 	int core_id;
 	struct tick work;
@@ -67,14 +65,6 @@ struct global_state {
 
 struct global_state* gs;
 
-t_t *new_ticks() {
-	return malloc(sizeof(t_t) * num_cores);
-}
-
-void ticks_free(t_t *ticks) {
-	free(ticks);
-}
-
 void ticks_gettime(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
 		ticks[i] = atomic_load(&(gs->cores[i].total.tick));
@@ -91,25 +81,6 @@ void ticks_getwork(t_t *ticks) {
 }
 
 
-void ticks_sub(t_t *res, t_t *sub) {
-	for (int i = 0; i < num_cores; i++) {
-		res[i] -= sub[i];
-	}
-}
-
-void ticks_add(t_t *res, t_t *add) {
-	for (int i = 0; i < num_cores; i++) {
-		res[i] += add[i];
-	}
-}
-
-t_t ticks_sum(t_t *ticks) {
-	t_t sum = 0;
-	for (int i = 0; i < num_cores; i++) {
-		sum += ticks[i];
-	}
-	return sum;
-}
 
 void print_core(struct core_state *c) {
 	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) deq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)",
@@ -370,11 +341,12 @@ void main(int argc, char *argv[]) {
         gs->cores[i].nenq = 0;
         gs->cores[i].nyield = 0;
     }
-    gs->mh = mh_new(grp_cmp, atoi(argv[4]));
+    int seed = 1;
+    gs->mh = mh_new(grp_cmp, atoi(argv[4]), seed);
 
     for (int i = 0; i < num_groups; i++) {
-	    struct group *g = grp_new(i, 10);
-	    // struct group *g = grp_new(i, 10*(i+1));
+	    // struct group *g = grp_new(i, 10);
+	    struct group *g = grp_new(i, 10*(i+1));
 	    mh_add_group(gs->mh, g);
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(i*num_threads_p_group+j, g);

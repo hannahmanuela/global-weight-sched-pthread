@@ -74,11 +74,15 @@ static void grp_stats(struct heap_elem *e, long sum) {
 void mh_runtime_stats(struct mheap *mh) {
 	t_t *ticks = new_ticks();
 	ticks_gettime(ticks);
-	t_t sum = ticks_sum(ticks);
-	printf("= mh: runtime stats total ticks %d us\n", sum);
+	t_t tot = ticks_sum(ticks);
+	ticks_getwork(ticks);
+	t_t work = ticks_sum(ticks);
+	ticks_getidle(ticks);
+	t_t idle = ticks_sum(ticks);
+	printf("= mh: runtime stats total ticks %ld us work %ld us idle %ld us\n", tot, work, idle);
 	for (int i = 0; i < mh->nheap; i++) {
 		for (struct heap_elem *e = heap_first(mh->lh[i]->heap); e != NULL; e = heap_next(mh->lh[i]->heap, e)) {
-			grp_stats(e, sum);
+			grp_stats(e, tot);
 		}
 	}
 	printf("=\n");

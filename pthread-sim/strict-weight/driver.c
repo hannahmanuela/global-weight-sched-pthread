@@ -41,7 +41,9 @@ struct tick {
 	
 struct core_state {
 	int core_id;
-	struct tick t;
+	struct tick work;
+	struct tick idle;
+	struct tick total;
 	struct process *current_process;
 	struct process *pool;
 	long sched_us;
@@ -75,8 +77,19 @@ void ticks_free(t_t *ticks) {
 
 void ticks_gettime(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i].t.tick));
+		ticks[i] = atomic_load(&(gs->cores[i].total.tick));
 }
+
+void ticks_getidle(t_t *ticks) {
+	for (int i = 0; i < num_cores; i++)
+		ticks[i] = atomic_load(&(gs->cores[i].idle.tick));
+}
+
+void ticks_getwork(t_t *ticks) {
+	for (int i = 0; i < num_cores; i++)
+		ticks[i] = atomic_load(&(gs->cores[i].work.tick));
+}
+
 
 void ticks_sub(t_t *res, t_t *sub) {
 	for (int i = 0; i < num_cores; i++) {
@@ -213,9 +226,12 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 		mycore->current_process = schedule(mycore-gs->cores, gs->mh);
 		break;
 	case YIELD:
+		atomic_fetch_add(&(mycore->total.tick), tick_length);
 		if(p) {
-			atomic_fetch_add_explicit(&(mycore->t.tick), tick_length, memory_order_relaxed);
+			atomic_fetch_add(&(mycore->work.tick), tick_length);
 			yield(p, tick_length);
+		} else {
+			atomic_fetch_add(&(mycore->idle.tick), tick_length);
 		}
 		mycore->current_process = NULL;
 		break;
@@ -223,7 +239,8 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	        enqueue(p);
 		break;
 	case DEQ:
-		atomic_fetch_add_explicit(&(mycore->t.tick), tick_length/2, memory_order_relaxed);
+		atomic_fetch_add(&(mycore->total.tick), tick_length);
+		atomic_fetch_add(&(mycore->work.tick), tick_length/2);
 		dequeue(p, tick_length/2);
 		mycore->current_process = NULL;
 		break;
@@ -318,7 +335,7 @@ void *run_core(void* core_num_ptr) {
 		action(mycore, RUN);
 		// sleepwakeup(mycore);
 		// grp_switch_runnable(mycore, mycore->current_process, i);
-		// int choice = rand() % 3;
+		// action(mycore, rand() % 3);
 	}
 }
 

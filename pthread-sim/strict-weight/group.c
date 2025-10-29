@@ -86,16 +86,13 @@ void grp_set_init_vruntime(struct group *g, int min_vt) {
 	long nvt = min_vt + g->vruntime;
         printf("%d: grp_set_init_vruntime: mvt %ld new vt %ld\n", g->group_id, min_vt, nvt);
         g->vruntime = nvt;
-        g->lh->heap->n += 1;
 }
 
 // remember vruntime for when group becomes runnable again
 // caller must group lock
 void grp_lag_vruntime(struct group *g, int min) {
         g->vruntime -= min;
-        g->lh->heap->n -= 1;
 }
-
 
 // adjust vruntime if group's process didn't run for a complete tick
 bool grp_adjust_vruntime(struct group *g, int time_passed, int tick_length) {

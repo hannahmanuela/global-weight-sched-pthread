@@ -44,7 +44,7 @@ void mh_print(struct mheap *mh) {
 	printf("= mh\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->lh[i]->heap;
-		printf("Heap %d size %d sum %d n %d: \n", i, h->heap_size, h->n);
+		printf("Heap %d size %d: \n", i, h->heap_size);
 		heap_iter(mh->lh[i]->heap, print_elem);
 		printf("\n");
 	}

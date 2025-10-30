@@ -134,6 +134,7 @@ void main(int argc, char *argv[]) {
 	test_mheap(1);
 	test_mheap(2);
 	test_mheap_many_grp(1);
+	test_mheap_many_grp(2);
 	test_worst(112);
 }
 

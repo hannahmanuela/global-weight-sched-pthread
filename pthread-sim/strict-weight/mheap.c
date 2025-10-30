@@ -152,11 +152,19 @@ retry:
 		g_i = g_j;
 		lh_i = lh_j;
 	} else if (g_j) {
-		int svt_i = atomic_load(&g_i->vruntime);
-		int svt_j = atomic_load(&g_j->vruntime);
-		if (svt_i > svt_j) {
+		int vt_i = atomic_load(&g_i->vruntime);
+		int vt_j = atomic_load(&g_j->vruntime);
+		if (vt_i > vt_j) {
 			g_i = g_j;
 			lh_i = lh_j;
+		}
+		if (vt_i == vt_j) {
+			int w_i = atomic_load(&g_i->weight);
+			int w_j = atomic_load(&g_j->weight);
+			if (w_j > w_i) {	
+				g_i = g_j;
+				lh_i = lh_j;
+			}
 		}
 	}
 	if(lh_try_lock(lh_i) != 0)

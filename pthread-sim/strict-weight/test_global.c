@@ -54,7 +54,8 @@ void test_mheap(int nheap) {
 
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
-	struct mheap *mh = mk_mheap(nheap, GRP2, NPROC, 1000, gs, ws);
+	int tl = 1000;
+	struct mheap *mh = mk_mheap(nheap, GRP2, NPROC, tl, gs, ws);
 	struct process *p;
 
 	// run the two groups to get off vt 0
@@ -81,6 +82,7 @@ void test_mheap(int nheap) {
 void test_mheap_many_grp(int nheap) {
 	printf("test_%d_mheap grp %d\n", nheap, GRP10); 
 	int n = 100000;
+	int tl = 4000;
 	struct group *gs[GRP10];
 	int ticks[GRP10];
 	int ws[GRP10];
@@ -88,7 +90,7 @@ void test_mheap_many_grp(int nheap) {
 		ws[i] = (i+1)*5;
 		ticks[i] = 0;
 	}
-	struct mheap *mh = mk_mheap(nheap, GRP10, NPROC, 4000, gs, ws);
+	struct mheap *mh = mk_mheap(nheap, GRP10, NPROC, tl, gs, ws);
 	for (int i = 0; i < n; i++) {
 		struct process *p = schedule_retry(0, mh);
 		yield(p, mh->tick_length);
@@ -107,11 +109,12 @@ void test_mheap_many_grp(int nheap) {
 
 void test_worst(int nheap) {
 	int n = 10000;
+	int tl = 1000;
 	int sum = 0;
 	int seed = getpid();
 	int worst;
 	for(int t = 0; t < n; t++) {
-		struct mheap *mh = mh_new(grp_cmp, nheap, seed+t, 1000);
+		struct mheap *mh = mh_new(grp_cmp, nheap, seed+t, tl);
 		struct group *g = grp_new(0, 10);
 		mh_add_group(mh, g);
 

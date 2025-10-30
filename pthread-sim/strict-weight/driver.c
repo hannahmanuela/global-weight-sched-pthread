@@ -35,7 +35,6 @@ int num_cores = 27;
 int num_threads_p_group = 3;
 
 extern bool debug;
-extern t_t tick_length;
 
 struct core_state {
 	int core_id;
@@ -197,12 +196,12 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 		mycore->current_process = schedule(mycore-gs->cores, gs->mh);
 		break;
 	case YIELD:
-		atomic_fetch_add(&(mycore->total.tick), tick_length);
+		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
 		if(p) {
-			atomic_fetch_add(&(mycore->work.tick), tick_length);
-			yield(p, tick_length);
+			atomic_fetch_add(&(mycore->work.tick), gs->mh->tick_length);
+			yield(p, gs->mh->tick_length);
 		} else {
-			atomic_fetch_add(&(mycore->idle.tick), tick_length);
+			atomic_fetch_add(&(mycore->idle.tick), gs->mh->tick_length);
 		}
 		mycore->current_process = NULL;
 		break;
@@ -210,9 +209,9 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	        enqueue(p);
 		break;
 	case DEQ:
-		atomic_fetch_add(&(mycore->total.tick), tick_length);
-		atomic_fetch_add(&(mycore->work.tick), tick_length/2);
-		dequeue(p, tick_length/2);
+		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
+		atomic_fetch_add(&(mycore->work.tick), gs->mh->tick_length/2);
+		dequeue(p, gs->mh->tick_length/2);
 		mycore->current_process = NULL;
 		break;
 	}
@@ -322,7 +321,7 @@ void main(int argc, char *argv[]) {
 	    exit(1);
     }
     num_cores = atoi(argv[1]);
-    tick_length = atoi(argv[2]);
+    int tick_length = atoi(argv[2]);
     num_groups = atoi(argv[3]);
 
     gs = malloc(sizeof(struct global_state));
@@ -342,7 +341,7 @@ void main(int argc, char *argv[]) {
         gs->cores[i].nyield = 0;
     }
     int seed = 1;
-    gs->mh = mh_new(grp_cmp, atoi(argv[4]), seed);
+    gs->mh = mh_new(grp_cmp, atoi(argv[4]), seed, tick_length);
 
     for (int i = 0; i < num_groups; i++) {
 	    // struct group *g = grp_new(i, 10);

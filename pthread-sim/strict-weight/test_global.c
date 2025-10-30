@@ -16,7 +16,6 @@
 #define NPROC 2
 
 int num_cores;
-extern int tick_length;
 
 void ticks_gettime(t_t *ticks) {
 }
@@ -37,8 +36,8 @@ struct process *schedule_retry(int core, struct mheap *mh) {
 	assert(0);
 }
 
-struct mheap *mk_mheap(int nheap, int ngrp, int nproc, struct group *gs[], int ws[]) {
-	struct mheap *mh = mh_new(grp_cmp, nheap, 1);
+struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group *gs[], int ws[]) {
+	struct mheap *mh = mh_new(grp_cmp, nheap, 1, tl);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(i, ws[i]);
 		mh_add_group(mh, gs[i]);
@@ -55,27 +54,27 @@ void test_mheap(int nheap) {
 
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
-	struct mheap *mh = mk_mheap(nheap, GRP2, NPROC, gs, ws);
+	struct mheap *mh = mk_mheap(nheap, GRP2, NPROC, 1000, gs, ws);
 	struct process *p;
 
 	// run the two groups to get off vt 0
 	p = schedule_retry(0, mh);
-	yield(p, tick_length);
+	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
-	yield(p, tick_length);
+	yield(p, mh->tick_length);
 
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == GRP2-1);
 	assert(p->group->vruntime == 100);
-	yield(p, tick_length);
+	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == GRP2-1);
 	assert(p->group->vruntime == 150);
-	yield(p, tick_length);
+	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == 0);
 	assert(p->group->vruntime == 200);
-	yield(p, tick_length);
+	yield(p, mh->tick_length);
 	printf("test_%d_mheap ok\n", nheap);
 }
 
@@ -89,11 +88,10 @@ void test_mheap_many_grp(int nheap) {
 		ws[i] = (i+1)*5;
 		ticks[i] = 0;
 	}
-	struct mheap *mh = mk_mheap(nheap, GRP10, NPROC, gs, ws);
-	tick_length = 4000;
+	struct mheap *mh = mk_mheap(nheap, GRP10, NPROC, 4000, gs, ws);
 	for (int i = 0; i < n; i++) {
 		struct process *p = schedule_retry(0, mh);
-		yield(p, tick_length);
+		yield(p, mh->tick_length);
 		ticks[p->group->group_id] += 1;
 	}	
 	for (int i = 1; i < GRP10; i++) {
@@ -113,7 +111,7 @@ void test_worst(int nheap) {
 	int seed = getpid();
 	int worst;
 	for(int t = 0; t < n; t++) {
-		struct mheap *mh = mh_new(grp_cmp, nheap, seed+t);
+		struct mheap *mh = mh_new(grp_cmp, nheap, seed+t, 1000);
 		struct group *g = grp_new(0, 10);
 		mh_add_group(mh, g);
 

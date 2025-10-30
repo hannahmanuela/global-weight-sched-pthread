@@ -10,7 +10,7 @@
 #include "global_heap.h"
 #include "util.h"
 
-#define N 1000
+#define N 100000
 
 int num_cores;
 

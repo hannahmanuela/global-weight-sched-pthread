@@ -12,6 +12,7 @@
 #include "util.h"
 
 #define GRP2 2
+#define GRP10 10
 #define NPROC 2
 
 int num_cores;
@@ -36,25 +37,26 @@ struct process *schedule_retry(int core, struct mheap *mh) {
 	assert(0);
 }
 
+struct mheap *mk_mheap(int nheap, int ngrp, int nproc, struct group *gs[], int ws[]) {
+	struct mheap *mh = mh_new(grp_cmp, nheap, 1);
+	for (int i = 0; i < ngrp; i++) {
+		gs[i] = grp_new(i, ws[i]);
+		mh_add_group(mh, gs[i]);
+		for (int j = 0; j < nproc; j++) {
+			struct process *p = grp_new_process(j, gs[i]);
+			enqueue(p);
+		}
+	}
+	return mh;
+}
 
 void test_mheap(int nheap) {
 	printf("test_%d_mheap start\n", nheap);
 
-	struct mheap *mh = mh_new(grp_cmp, nheap, 1);
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
+	struct mheap *mh = mk_mheap(nheap, GRP2, NPROC, gs, ws);
 	struct process *p;
-	
-	for (int i = 0; i < GRP2; i++) {
-		gs[i] = grp_new(i, ws[i]);
-		mh_add_group(mh, gs[i]);
-		for (int j = 0; j < NPROC; j++) {
-			struct process *p = grp_new_process(j, gs[i]);
-			enqueue(p);
-		}
-
-	}
-
 
 	// run the two groups to get off vt 0
 	p = schedule_retry(0, mh);
@@ -63,21 +65,39 @@ void test_mheap(int nheap) {
 	yield(p, tick_length);
 
 	p = schedule_retry(0, mh);
-	assert(p != NULL);
 	assert(p->group->group_id == GRP2-1);
 	assert(p->group->vruntime == 100);
+	yield(p, tick_length);
 	p = schedule_retry(0, mh);
-	assert(p != NULL);
 	assert(p->group->group_id == GRP2-1);
 	assert(p->group->vruntime == 150);
+	yield(p, tick_length);
 	p = schedule_retry(0, mh);
-	assert(p != NULL);
 	assert(p->group->group_id == 0);
 	assert(p->group->vruntime == 200);
+	yield(p, tick_length);
 	printf("test_%d_mheap ok\n", nheap);
 }
 
-void test_mheap_many(int nheap) {
+void test_mheap_many_grp(int nheap) {
+	int n = 1000;
+	struct group *gs[GRP10];
+	int ticks[GRP10];
+	int ws[GRP10];
+	for (int i = 0; i < GRP10; i++) {
+		ws[i] = (i+1)*5;
+		ticks[i] = 0;
+	}
+	struct mheap *mh = mk_mheap(nheap, GRP10, NPROC, gs, ws);
+
+	for (int i = 0; i < n; i++) {
+		struct process *p = schedule_retry(0, mh);
+		yield(p, tick_length);
+		ticks[p->group->group_id] += 1;
+	}	
+	for (int i = 0; i < GRP10; i++) {
+		printf("%d: ticks %d\n", i, ticks[i]);
+	}
 }
 
 void test_worst(int nheap) {
@@ -108,6 +128,7 @@ void test_worst(int nheap) {
 void main(int argc, char *argv[]) {
 	test_mheap(1);
 	test_mheap(2);
+	test_mheap_many_grp(1);
 	test_worst(112);
 }
 

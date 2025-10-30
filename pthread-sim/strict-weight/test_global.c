@@ -15,6 +15,7 @@
 #define NPROC 2
 
 int num_cores;
+extern int tick_length;
 
 void ticks_gettime(t_t *ticks) {
 }
@@ -25,15 +26,27 @@ void ticks_getidle(t_t *ticks) {
 void ticks_getwork(t_t *ticks) {
 }
 
-void test_one_heap() {
-	printf("test_one_heap start\n");
+struct process *schedule_retry(int core, struct mheap *mh) {
+	struct process *p;
+	for (int i = 0; i < 10; i++) {
+		p = schedule(0, mh);
+		if(p != NULL)
+			return p;
+	}
+	assert(0);
+}
 
-	struct mheap *mh = mh_new(grp_cmp, 1, 1);
-	struct group *gs[2];
+
+void test_mheap(int nheap) {
+	printf("test_%d_mheap start\n", nheap);
+
+	struct mheap *mh = mh_new(grp_cmp, nheap, 1);
+	struct group *gs[GRP2];
+	int ws[GRP2] = {10, 20};
 	struct process *p;
 	
 	for (int i = 0; i < GRP2; i++) {
-		gs[i] = grp_new(i, 10 * (i+1));
+		gs[i] = grp_new(i, ws[i]);
 		mh_add_group(mh, gs[i]);
 		for (int j = 0; j < NPROC; j++) {
 			struct process *p = grp_new_process(j, gs[i]);
@@ -41,19 +54,31 @@ void test_one_heap() {
 		}
 
 	}
-	p = schedule(0, mh);
+
+
+	// run the two groups to get off vt 0
+	p = schedule_retry(0, mh);
+	yield(p, tick_length);
+	p = schedule_retry(0, mh);
+	yield(p, tick_length);
+
+	p = schedule_retry(0, mh);
 	assert(p != NULL);
 	assert(p->group->group_id == GRP2-1);
-	assert(p->group->vruntime == 50);
-	p = schedule(0, mh);
+	assert(p->group->vruntime == 100);
+	p = schedule_retry(0, mh);
+	assert(p != NULL);
+	assert(p->group->group_id == GRP2-1);
+	assert(p->group->vruntime == 150);
+	p = schedule_retry(0, mh);
 	assert(p != NULL);
 	assert(p->group->group_id == 0);
-	assert(p->group->vruntime == 100);
-
-	printf("test_one_heap ok\n");
+	assert(p->group->vruntime == 200);
+	printf("test_%d_mheap ok\n", nheap);
 }
 
 void main(int argc, char *argv[]) {
-	test_one_heap();
+	test_mheap(1);
+	test_mheap(2);
 }
 

@@ -80,6 +80,7 @@ void test_mheap(int nheap) {
 }
 
 void test_mheap_many_grp(int nheap) {
+	printf("test_%d_mheap grp %d\n", nheap, GRP10); 
 	int n = 100000;
 	struct group *gs[GRP10];
 	int ticks[GRP10];
@@ -89,7 +90,7 @@ void test_mheap_many_grp(int nheap) {
 		ticks[i] = 0;
 	}
 	struct mheap *mh = mk_mheap(nheap, GRP10, NPROC, gs, ws);
-	tick_length = 10000;
+	tick_length = 4000;
 	for (int i = 0; i < n; i++) {
 		struct process *p = schedule_retry(0, mh);
 		yield(p, tick_length);
@@ -100,9 +101,10 @@ void test_mheap_many_grp(int nheap) {
 		float m = 0.1;
 		float l = (i+1)-m;
 		float h = (i+1)+m; 
-		// printf("%0.2f %0.2f %0.2f\n", w, l, h);
+		printf("%0.2f %0.2f %0.2f\n", w, l, h);
 		assert(w >= l && w <= h);
 	}
+	printf("test_%d_mheap grp %d: OK\n", nheap, GRP10); 
 }
 
 void test_worst(int nheap) {
@@ -135,6 +137,7 @@ void main(int argc, char *argv[]) {
 	test_mheap(2);
 	test_mheap_many_grp(1);
 	test_mheap_many_grp(2);
+	test_mheap_many_grp(5);
 	test_worst(112);
 }
 

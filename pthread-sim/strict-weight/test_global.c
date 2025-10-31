@@ -104,7 +104,7 @@ void test_mheap_many_grp(int nheap) {
 		float m = 0.1;
 		float l = (i+1)-m;
 		float h = (i+1)+m; 
-		printf("%0.2f %0.2f %0.2f\n", w, l, h);
+		// printf("%0.2f %0.2f %0.2f\n", w, l, h);
 		assert(w >= l && w <= h);
 	}
 	printf("test_%d_mheap grp %d: OK\n", nheap, GRP10); 
@@ -143,8 +143,11 @@ void test_mheap_sleep(int nheap) {
 			sleeper = NULL;
 		}
 	}	
-	printf("ticks %d sleep %d %0.2f\n", ticks[sleep_id], sleep[sleep_id],
-	       1.0*ticks[sleep_id]/(n-sleep[sleep_id])); 
+	float f = 1.0*ticks[sleep_id]/(n-sleep[sleep_id]);
+	float g = 1.0 * 20 /(10+20);
+	float m = 0.1;
+        // printf("ticks %d sleep %d %0.2f\n", ticks[sleep_id], sleep[sleep_id], f);
+	assert(f >= (g - m) && f < (g+m));
 	printf("test_%d_mheap_sleep grp %d: OK\n", nheap, GRP10); 
 }
 

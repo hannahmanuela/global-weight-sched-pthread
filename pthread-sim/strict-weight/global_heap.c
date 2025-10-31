@@ -8,7 +8,6 @@
 #include "group.h"
 #include "mheap.h"
 
-t_t tick_length = 1000;
 bool debug;
 
 // Select next process to run
@@ -25,7 +24,7 @@ struct process *schedule(int core, struct mheap *mh) {
 		mh_print(min_group->mh);
 	}
 
-	grp_upd_vruntime(min_group, tick_length);
+	grp_upd_vruntime(min_group, mh->tick_length);
 
 	// select the next process
 	struct process *next_p = grp_deq_process(min_group);
@@ -66,7 +65,7 @@ void enqueue(struct process *p) {
 // Process p yields core
 static bool yieldL(struct process *p, int time_passed) {
 	p->group->runtime += time_passed;
-	return grp_adjust_vruntime(p->group, time_passed, tick_length);
+	return grp_adjust_vruntime(p->group, time_passed, p->group->mh->tick_length);
 }
 
 // Yield and enqueue

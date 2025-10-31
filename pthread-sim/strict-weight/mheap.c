@@ -25,6 +25,7 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed, int tick_leng
 		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
 	}
 	mh->nheap = n;
+	mh->tick_length = tick_length;
 	return mh;
 }
 
@@ -43,7 +44,7 @@ static void print_elem(struct heap_elem *e) {
 }
 
 void mh_print(struct mheap *mh) {
-	printf("= mh\n");
+	printf("= mh tl %d\n", mh->tick_length);
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->lh[i]->heap;
 		printf("Heap %d size %d: \n", i, h->heap_size);

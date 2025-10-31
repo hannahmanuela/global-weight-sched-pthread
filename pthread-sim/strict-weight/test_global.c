@@ -13,7 +13,8 @@
 
 #define GRP2 2
 #define GRP10 10
-#define NPROC 2
+#define PROC2 2
+#define PROC1 1
 
 int num_cores;
 
@@ -55,15 +56,17 @@ void test_mheap(int nheap) {
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
 	int tl = 1000;
-	struct mheap *mh = mk_mheap(nheap, GRP2, NPROC, tl, gs, ws);
+	struct mheap *mh = mk_mheap(nheap, GRP2, PROC2, tl, gs, ws);
 	struct process *p;
 
+	mh_print(mh);
 	// run the two groups to get off vt 0
 	p = schedule_retry(0, mh);
 	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
 	yield(p, mh->tick_length);
 
+	mh_print(mh);
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == GRP2-1);
 	assert(p->group->vruntime == 100);
@@ -90,7 +93,7 @@ void test_mheap_many_grp(int nheap) {
 		ws[i] = (i+1)*5;
 		ticks[i] = 0;
 	}
-	struct mheap *mh = mk_mheap(nheap, GRP10, NPROC, tl, gs, ws);
+	struct mheap *mh = mk_mheap(nheap, GRP10, PROC2, tl, gs, ws);
 	for (int i = 0; i < n; i++) {
 		struct process *p = schedule_retry(0, mh);
 		yield(p, mh->tick_length);
@@ -105,6 +108,43 @@ void test_mheap_many_grp(int nheap) {
 		assert(w >= l && w <= h);
 	}
 	printf("test_%d_mheap grp %d: OK\n", nheap, GRP10); 
+}
+
+void test_mheap_sleep(int nheap) {
+	printf("test_%d_mheap_sleep grp %d\n", nheap, GRP10); 
+	int n = 10000;
+	int tl = 1000;
+	struct group *gs[GRP2];
+	int ticks[GRP2];
+	int sleep[GRP2];
+	int ws[GRP2] = {10, 20};
+	int sleep_id = 1;
+	struct process *sleeper = NULL;
+	int sleeping = 0;
+
+	struct mheap *mh = mk_mheap(nheap, GRP10, PROC1, tl, gs, ws);
+	for (int i = 0; i < n; i++) {
+		if(sleeping > 0) {
+			sleep[sleep_id] += 1;
+		}
+		struct process *p = schedule_retry(0, mh);
+		if(p->group->group_id != sleep_id) {
+			yield(p, mh->tick_length);
+			ticks[p->group->group_id] += 1;
+		} else {
+			dequeue(p, mh->tick_length);
+			ticks[p->group->group_id] += 1;
+			sleeping = i;
+			sleeper = p;
+		}
+		if (sleeping > 0 && (sleep - 4)) {
+			enqueue(p);
+			sleeping = 0;
+		}
+	}	
+	printf("ticks %d sleep %d %0.2f\n", ticks[sleep_id], sleep[sleep_id],
+	       1.0*ticks[sleep_id]/(n-sleep[sleep_id])); 
+	printf("test_%d_mheap_sleep grp %d: OK\n", nheap, GRP10); 
 }
 
 void test_worst(int nheap) {

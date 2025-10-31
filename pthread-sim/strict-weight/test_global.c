@@ -37,7 +37,7 @@ static struct process *schedule_retry(int core, struct mheap *mh) {
 	assert(0);
 }
 
-static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group *gs[], int ws[]) {
+static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
 	struct mheap *mh = mh_new(grp_cmp, nheap, 1, tl);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(i, ws[i]);
@@ -139,25 +139,40 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 	}	
 }
 
-void test_mheap_sleep(int nheap, int sleep_id) {
-	printf("test_%d_mheap_sleep %d grp %d\n", nheap, sleep_id, GRP2); 
+void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
+	printf("test_%d_mheap_sleep %d grp %d\n", nheap, sleep_id, ngrp); 
 	int n = 100000;
 	// int n = 20;
 	int tl = 1000;
-	struct group *gs[GRP2];
-	int ticks[GRP2] = {0,0};
-	int sleep[GRP2] = {0,0};
-	int ws[GRP2] = {10, 20};
-
-	struct mheap *mh = mk_mheap(nheap, GRP2, PROC1, tl, gs, ws);
+	struct group **gs = malloc(sizeof(struct group *) *ngrp);
+	int *ticks = malloc(sizeof(int) * ngrp);
+	int *sleep = malloc(sizeof(int) * ngrp);
+	int *ws = malloc(sizeof(int) * ngrp); 
+	int tot_ws = 0;
+	for(int i = 0; i < ngrp; i++) {
+		ws[i] = 10*(i+1);
+		tot_ws += ws[i];
+	}
+		
+	struct mheap *mh = mk_mheap(nheap, ngrp, PROC1, tl, gs, ws);
 	mheap_sleeper(mh, n, sleep_id, ticks, sleep);
 
-	float f = 1.0*ticks[sleep_id]/(n-sleep[sleep_id]);
-	float g = 1.0 * ws[sleep_id] /(10+20);
-	float m = 0.1;
-        printf("ticks %d sleep %d %0.2f g %0.2f\n", ticks[sleep_id], sleep[sleep_id], f, g);
-	assert(f >= (g - m) && f < (g+m));
-	printf("test_%d_mheap_sleep grp %d: OK\n", nheap, GRP2); 
+	for (int i = 0; i < ngrp; i++) {
+		if (i == sleep_id) {
+			float f = 1.0*ticks[sleep_id]/(n-sleep[sleep_id]);
+			float g = 1.0 * ws[sleep_id] /tot_ws;
+			float m = 0.1;
+			printf("ticks %d sleep %d %0.2f g %0.2f\n", ticks[sleep_id], sleep[sleep_id], f, g);
+			assert(f >= (g - m) && f < (g+m));
+		} else {
+			float f = 1.0*ticks[i]/n;
+			float g = 1.0 * ws[i] /tot_ws;
+			float m = 0.1;
+			printf("ticks %d sleep %d %0.2f g %0.2f\n", ticks[i], sleep[i], f, g);
+			assert(f >= g);
+		}
+	}
+	printf("test_%d_mheap_sleep grp %d: OK\n", nheap, ngrp); 
 }
 
 void test_worst(int nheap) {
@@ -192,8 +207,9 @@ void main(int argc, char *argv[]) {
 	test_mheap_many_grp(1);
 	test_mheap_many_grp(2);
 	test_mheap_many_grp(5);
-	test_mheap_sleep(1, 0);
-	test_mheap_sleep(1, 1);
+	test_mheap_sleep(1, 0, GRP2);
+	test_mheap_sleep(1, 1, GRP2);
+	test_mheap_sleep(1, 2, 3);
 	test_worst(112);
 }
 

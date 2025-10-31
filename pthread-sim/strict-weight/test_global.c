@@ -111,21 +111,21 @@ void test_mheap_many_grp(int nheap) {
 }
 
 void test_mheap_sleep(int nheap) {
-	printf("test_%d_mheap_sleep grp %d\n", nheap, GRP10); 
-	int n = 10000;
+	printf("test_%d_mheap_sleep grp %d\n", nheap, GRP2); 
+	int n = 100000;
 	int tl = 1000;
 	struct group *gs[GRP2];
 	int ticks[GRP2];
 	int sleep[GRP2];
 	int ws[GRP2] = {10, 20};
-	int sleep_id = 1;
 	struct process *sleeper = NULL;
 	int sleeping = 0;
+	int sleep_id = 1;
 
-	struct mheap *mh = mk_mheap(nheap, GRP10, PROC1, tl, gs, ws);
+	struct mheap *mh = mk_mheap(nheap, GRP2, PROC2, tl, gs, ws);
 	for (int i = 0; i < n; i++) {
-		if(sleeping > 0) {
-			sleep[sleep_id] += 1;
+		if(sleeper != NULL) {
+			sleep[sleeper->group->group_id] += 1;
 		}
 		struct process *p = schedule_retry(0, mh);
 		if(p->group->group_id != sleep_id) {
@@ -137,9 +137,10 @@ void test_mheap_sleep(int nheap) {
 			sleeping = i;
 			sleeper = p;
 		}
-		if (sleeping > 0 && (sleep - 4)) {
-			enqueue(p);
+		if (sleeping > 0 && (i-sleeping > 4)) {
+			enqueue(sleeper);
 			sleeping = 0;
+			sleeper = NULL;
 		}
 	}	
 	printf("ticks %d sleep %d %0.2f\n", ticks[sleep_id], sleep[sleep_id],
@@ -179,6 +180,7 @@ void main(int argc, char *argv[]) {
 	test_mheap_many_grp(1);
 	test_mheap_many_grp(2);
 	test_mheap_many_grp(5);
+	test_mheap_sleep(1);
 	test_worst(112);
 }
 

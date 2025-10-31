@@ -51,7 +51,7 @@ static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct gro
 }
 
 void test_mheap(int nheap) {
-	printf("test_%d_mheap start\n", nheap);
+	printf("== test_%d_mheap start\n", nheap);
 
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
@@ -59,14 +59,12 @@ void test_mheap(int nheap) {
 	struct mheap *mh = mk_mheap(nheap, GRP2, PROC2, tl, gs, ws);
 	struct process *p;
 
-	mh_print(mh);
 	// run the two groups to get off vt 0
 	p = schedule_retry(0, mh);
 	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
 	yield(p, mh->tick_length);
 
-	mh_print(mh);
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == GRP2-1);
 	assert(p->group->vruntime == 100);
@@ -79,15 +77,15 @@ void test_mheap(int nheap) {
 	assert(p->group->group_id == 0);
 	assert(p->group->vruntime == 200);
 	yield(p, mh->tick_length);
-	printf("test_%d_mheap ok\n", nheap);
+	printf("-- test_%d_mheap ok\n", nheap);
 }
 
 void test_mheap_many_grp(int nheap) {
-	printf("test_%d_mheap grp %d\n", nheap, GRP10); 
+	printf("== test_%d_mheap grp %d\n", nheap, GRP10); 
 	int n = 100000;
 	int tl = 4000;
 	struct group *gs[GRP10];
-	int ticks[GRP10];
+	long ticks[GRP10];
 	int ws[GRP10];
 	for (int i = 0; i < GRP10; i++) {
 		ws[i] = (i+1)*5;
@@ -97,7 +95,7 @@ void test_mheap_many_grp(int nheap) {
 	for (int i = 0; i < n; i++) {
 		struct process *p = schedule_retry(0, mh);
 		yield(p, mh->tick_length);
-		ticks[p->group->group_id] += 1;
+		ticks[p->group->group_id] += mh->tick_length;
 	}	
 	for (int i = 1; i < GRP10; i++) {
 		float w = (1.0 * ticks[i])/ticks[0];
@@ -107,7 +105,7 @@ void test_mheap_many_grp(int nheap) {
 		// printf("%0.2f %0.2f %0.2f\n", w, l, h);
 		assert(w >= l && w <= h);
 	}
-	printf("test_%d_mheap grp %d: OK\n", nheap, GRP10); 
+	printf("-- test_%d_mheap grp %d: OK\n", nheap, GRP10); 
 }
 
 void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep[]) {
@@ -140,7 +138,7 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 }
 
 void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
-	printf("test_%d_mheap_sleep %d grp %d\n", nheap, sleep_id, ngrp); 
+	printf("== test_%d_mheap_sleep %d grp %d\n", nheap, sleep_id, ngrp); 
 	int n = 100000;
 	// int n = 20;
 	int tl = 1000;
@@ -172,7 +170,7 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 			assert(f >= g);
 		}
 	}
-	printf("test_%d_mheap_sleep grp %d: OK\n", nheap, ngrp); 
+	printf("-- test_%d_mheap_sleep grp %d: OK\n", nheap, ngrp); 
 }
 
 void test_worst(int nheap) {
@@ -198,7 +196,7 @@ void test_worst(int nheap) {
 			}
 		}
 	}
-	printf("test_worst: avg %d worst %d\n", sum/n, worst);
+	printf("== test_worst: avg %d worst %d\n", sum/n, worst);
 }
 
 void main(int argc, char *argv[]) {

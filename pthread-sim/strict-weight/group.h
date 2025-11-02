@@ -21,6 +21,7 @@ struct group {
 
 	int num_threads; // the total number of threads in the system
 	int threads_queued; // the number of threads runnable and in the q (ie not running)
+	int nrunning;
 	vt_t vruntime; // updated when the group is scheduled, assuming full tick
 
 	t_t runtime;  // number of us the group ran
@@ -36,9 +37,9 @@ struct group {
 } __attribute__((aligned(64)));
 
 struct group *grp_new(struct mheap *mh, int id, int weight);
-void grp_print(struct group *group);
-bool grp_dummy(struct group *group);
-struct process *grp_new_process(int id, struct group *group);
+void grp_print(struct group *g);
+bool grp_dummy(struct group *g);
+struct process *grp_new_process(int id, struct group *g);
 int grp_cmp(void *e0, void *e1);
 vt_t grp_get_vruntime(struct group *g);
 void grp_upd_vruntime(struct group *g, t_t tick_length);
@@ -48,6 +49,7 @@ bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length);
 void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);
 void grp_enqueue(struct group *g);
+bool grp_is_sleep(struct group *g);
 
 
 

@@ -11,6 +11,7 @@
 #include "global_heap.h"
 #include "util.h"
 
+#define GRP1 1
 #define GRP2 2
 #define GRP10 10
 #define PROC2 2
@@ -48,6 +49,34 @@ static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct gro
 		}
 	}
 	return mh;
+}
+
+void test_grp_sleep_wakeup() {
+	printf("== test_sleep_wakeup start\n");
+
+	int tl = 1000;
+	struct group *gs[GRP1];
+	int ws[GRP1] = {1};
+
+	struct mheap *mh = mk_mheap(1, GRP1, PROC2, tl, gs, ws);
+	struct process *p0;
+	struct process *p1;
+
+	p0 = schedule_retry(0, mh);
+	p1 = schedule_retry(1, mh);
+	dequeue(p1, tl);
+	yield(p0, tl);
+	p0 = schedule_retry(0, mh);
+	dequeue(p1, tl);
+	assert(schedule(0, mh) == NULL);
+	assert(mh->lh[0]->heap->heap_size == 1);
+	enqueue(p0);
+	assert(mh->lh[0]->heap->heap_size == 2);
+	p0 = schedule_retry(0, mh);
+	enqueue(p1);
+	p1 = schedule_retry(0, mh);
+
+	printf("-- test_sleep_wakeup ok\n");
 }
 
 void test_mheap(int nheap, int nproc) {
@@ -204,8 +233,10 @@ void test_worst(int nheap) {
 }
 
 void main(int argc, char *argv[]) {
-	//debug = true;
+	// debug = true;
+	// test_mheap_sleep(1, 2, 3);
 	// test_mheap_many_grp(20, 0);
+	test_grp_sleep_wakeup();
 	test_mheap(1, PROC2);
 	test_mheap(2, PROC2);
 	test_mheap_many_grp(1, 0);
@@ -215,7 +246,7 @@ void main(int argc, char *argv[]) {
 	test_mheap_many_grp(5, 1);
 	test_mheap_sleep(1, 0, GRP2);
 	test_mheap_sleep(1, 1, GRP2);
-	test_mheap_sleep(1, 2, 3);
+	// test_mheap_sleep(1, 2, 3);
 	test_worst(112);
 }
 

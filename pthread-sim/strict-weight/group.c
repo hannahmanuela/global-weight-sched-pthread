@@ -25,6 +25,7 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     g->weight = weight;
     g->num_threads = 0;
     g->threads_queued = 0;
+    g->nrunning = 0;
     g->vruntime = 0;
     g->runqueue_head = NULL;
     g->next = NULL;
@@ -39,20 +40,25 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     return g;
 }
 
+// caller must hold group lock
+bool grp_is_sleep(struct group *g) {
+	return g->nrunning == 0 && g->threads_queued == 0;
+}
 
 bool grp_dummy(struct group *g) {
 	return g->group_id == DUMMY;
 }
 
 void grp_print(struct group *g) {
-	printf("(gid %d vt %d, n %d, q %d, w %d)", g->group_id, g->vruntime, g->num_threads, g->threads_queued, g->weight);
+	printf("(gid %d vt %d, n %d, r %d, q %d, w %d)", g->group_id, g->vruntime, g->num_threads, g->nrunning, g->threads_queued, g->weight);
 }	
 
+// caller must hold group lock for both groups
 int grp_cmp(void *e0, void *e1) {
 	struct group *a = (struct group *) e0;
 	struct group *b = (struct group *) e1;
-	if (a->threads_queued == 0) return 1;
-	if (b->threads_queued == 0) return -1;
+	// if (a->threads_queued == 0) return 1;
+	// if (b->threads_queued == 0) return -1;
 	// Compare by vruntime; lower is higher priority
 	if (a->vruntime < b->vruntime) return -1;
 	if (a->vruntime > b->vruntime) return 1;
@@ -79,12 +85,13 @@ void grp_set_init_vruntime(struct group *g, vt_t min_vt) {
 }
 
 // remember vruntime for when group becomes runnable again
-// caller must group lock
+// caller must hold group lock
 void grp_lag_vruntime(struct group *g, vt_t min) {
         atomic_fetch_add(&g->vruntime, -min);
 }
 
 // adjust vruntime if group's process didn't run for a complete tick
+// caller must hold group lock
 bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length) {
 	if (time_passed < tick_length) {
                 int diff = (time_passed - tick_length);
@@ -95,6 +102,7 @@ bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length) {
 	}
 	return 0;
 }
+
 // add p to its group.
 // caller must hold group lock
 void grp_add_process(struct process *p) {

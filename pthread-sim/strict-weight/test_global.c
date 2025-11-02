@@ -17,6 +17,7 @@
 #define PROC1 1
 
 int num_cores;
+extern bool debug;
 
 void ticks_gettime(t_t *ticks) {
 }
@@ -40,8 +41,7 @@ static struct process *schedule_retry(int core, struct mheap *mh) {
 static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
 	struct mheap *mh = mh_new(grp_cmp, nheap, 1, tl);
 	for (int i = 0; i < ngrp; i++) {
-		gs[i] = grp_new(i, ws[i]);
-		mh_add_group(mh, gs[i]);
+		gs[i] = grp_new(mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
 			struct process *p = grp_new_process(j, gs[i]);
 			enqueue(p);
@@ -50,13 +50,13 @@ static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct gro
 	return mh;
 }
 
-void test_mheap(int nheap) {
+void test_mheap(int nheap, int nproc) {
 	printf("== test_%d_mheap start\n", nheap);
 
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
 	int tl = 1000;
-	struct mheap *mh = mk_mheap(nheap, GRP2, PROC2, tl, gs, ws);
+	struct mheap *mh = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
 	struct process *p;
 
 	// run the two groups to get off vt 0
@@ -106,7 +106,7 @@ void test_mheap_many_grp(int nheap, bool rand) {
 		float m = 0.12;
 		float l = (i+1)-m;
 		float h = (i+1)+m; 
-		// printf("ticks %0.2f l %0.2f h %0.2f\n", w, l, h);
+		printf("ticks %0.2f l %0.2f h %0.2f\n", w, l, h);
 		assert(w >= l && w <= h);
 	}
 	printf("-- test_%d_mheap grp %d: OK\n", nheap, GRP10); 
@@ -185,8 +185,8 @@ void test_worst(int nheap) {
 	int worst;
 	for(int t = 0; t < n; t++) {
 		struct mheap *mh = mh_new(grp_cmp, nheap, seed+t, tl);
-		struct group *g = grp_new(0, 10);
-		mh_add_group(mh, g);
+		struct group *g = grp_new(mh, 0, 10);
+		struct lock_heap *lh = mh_choose_heap(mh);
 
 		struct process *p = grp_new_process(1, g);
 		enqueue(p);
@@ -204,8 +204,10 @@ void test_worst(int nheap) {
 }
 
 void main(int argc, char *argv[]) {
-	test_mheap(1);
-	test_mheap(2);
+	//debug = true;
+	// test_mheap_many_grp(20, 0);
+	test_mheap(1, PROC2);
+	test_mheap(2, PROC2);
 	test_mheap_many_grp(1, 0);
 	test_mheap_many_grp(2, 0);
 	test_mheap_many_grp(5, 0);

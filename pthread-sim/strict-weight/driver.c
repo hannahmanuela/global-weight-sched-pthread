@@ -324,8 +324,7 @@ void main(int argc, char *argv[]) {
 
     for (int i = 0; i < num_groups; i++) {
 	    // struct group *g = grp_new(i, 10);
-	    struct group *g = grp_new(i, 10*(i+1));
-	    mh_add_group(gs->mh, g);
+	    struct group *g = grp_new(gs->mh, i, 10*(i+1));
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(i*num_threads_p_group+j, g);
 		    enqueue(p);

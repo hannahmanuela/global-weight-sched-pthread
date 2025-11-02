@@ -10,8 +10,6 @@
 #include "lheap.h"
 #include "mheap.h"
 
-#define DUMMY  -1
-
 struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed, int tick_length) {
 	srandom(seed);
 	struct mheap *mh = malloc(sizeof(struct mheap));
@@ -19,7 +17,7 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed, int tick_leng
 	for (int i=0; i < n; i++) {
 		mh->lh[i] = lh_new(grp_cmp);
 		// insert a dummy element so that the heap always has one elemement
-		struct group* dummy = grp_new(DUMMY, 0);
+		struct group* dummy = grp_new(mh, DUMMY, 0);
 		dummy->threads_queued = 1;
 		dummy->vruntime = INT_MAX;
 		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
@@ -94,21 +92,25 @@ struct lock_heap *mh_heap(struct mheap *mh, int i) {
 	return mh->lh[i];
 }
 
-void mh_add_group(struct mheap *mh, struct group *g) {
+struct lock_heap *mh_choose_heap(struct mheap *mh) {
+retry:
 	int i = random() % mh->nheap;
 	struct lock_heap *lh = mh_heap(mh, i);
-	g->mh = mh;
-	g->lh = lh;
-	lh_lock_timed(lh);
-	heap_push(lh->heap, &g->heap_elem);
-	lh_unlock(lh);
+	if(lh_try_lock(lh) != 0)
+		goto retry;
+	return lh;
 }
 
+// caller must hold heap and group lock
+void mh_add_group(struct group *g, struct lock_heap *lh) {
+	g->lh = lh;
+	heap_push(lh->heap, &g->heap_elem);
+}
+
+// caller must hold heap and group lock
 void mh_del_group(struct mheap *mh, struct group *g) {
-	lh_lock_timed(g->lh);
-	g->mh = NULL;
 	heap_remove_at(g->lh->heap, &g->heap_elem);
-	lh_unlock(g->lh);
+	g->lh = NULL;
 }
 
 // to sanity check; run with 1 core

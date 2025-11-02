@@ -28,6 +28,7 @@ struct process *schedule(int core, struct mheap *mh) {
 
 	// select the next process
 	struct process *next_p = grp_deq_process(min_group);
+	assert(next_p != NULL);
 
 	// must be after grp_deq_process, since it may empty the proc queue
 	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
@@ -40,26 +41,22 @@ struct process *schedule(int core, struct mheap *mh) {
 
 // Make p runnable, which may make the group runnable.
 void enqueue(struct process *p) {
-	lh_lock_timed(p->group->lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
 	p->group->num_threads += 1;
 	bool is_unrunnable = p->group->threads_queued == 0;
-
+		 
 	if(debug) {
-		printf("%d(%d): enqueue is_unrunnable %d\n", p->group->group_id, p->core_id, is_unrunnable);
+		printf("%d(%d): enqueue is_unrunnable %d(%p)\n", p->group->group_id, p->core_id, is_unrunnable, p->group->lh);
 		mh_print(p->group->mh);
 	}
 
 	grp_add_process(p);
-	if (is_unrunnable) {
-		ticks_gettime(p->group->time);
-		ticks_sub(p->group->time, p->group->sleepstart);
-		ticks_add(p->group->sleeptime, p->group->time);
-                grp_set_init_vruntime(p->group, mh_min(p->group->lh));
-		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
-	}
+
 	pthread_rwlock_unlock(&p->group->group_lock);
-	lh_unlock(p->group->lh);
+
+	if (is_unrunnable) {
+		grp_enqueue(p->group);
+	} 
 }
 
 // Process p yields core
@@ -90,7 +87,8 @@ void yield(struct process *p, t_t time_passed) {
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
 void dequeue(struct process *p, t_t time_passed) {
-	lh_lock_timed(p->group->lh);
+	struct lock_heap *lh = p->group->lh;
+	lh_lock_timed(lh);
 	pthread_rwlock_wrlock(&p->group->group_lock);
 
 	if(debug) {
@@ -102,13 +100,14 @@ void dequeue(struct process *p, t_t time_passed) {
 	assert(p->group->num_threads >= p->group->threads_queued);
 	bool fix_heap = yieldL(p, time_passed);
 	bool is_unrunnable = p->group->threads_queued == 0;
-	if (fix_heap || is_unrunnable) {
-		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
+	if (fix_heap) {
+		heap_fix_index(lh->heap, &p->group->heap_elem);
 	}
 	if (is_unrunnable) {
-		grp_lag_vruntime(p->group, mh_min(p->group->lh));
+		grp_lag_vruntime(p->group, mh_min(lh));
 		ticks_gettime(p->group->sleepstart);
+		mh_del_group(p->group->mh, p->group);
 	}
 	pthread_rwlock_unlock(&p->group->group_lock);
-	lh_unlock(p->group->lh);
+	lh_unlock(lh);
 }

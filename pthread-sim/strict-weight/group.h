@@ -35,7 +35,7 @@ struct group {
 	struct lock_heap *lh;
 } __attribute__((aligned(64)));
 
-struct group *grp_new(int id, int weight);
+struct group *grp_new(struct mheap *mh, int id, int weight);
 void grp_print(struct group *group);
 bool grp_dummy(struct group *group);
 struct process *grp_new_process(int id, struct group *group);
@@ -47,6 +47,7 @@ void grp_lag_vruntime(struct group *g, vt_t min);
 bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length);
 void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);
+void grp_enqueue(struct group *g);
 
 
 

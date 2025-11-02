@@ -19,7 +19,7 @@ struct process *grp_new_process(int id, struct group *group) {
     return p;
 }
 
-struct group *grp_new(int id, int weight) {
+struct group *grp_new(struct mheap *mh, int id, int weight) {
     struct group *g = malloc(sizeof(struct group));
     g->group_id = id;
     g->weight = weight;
@@ -34,6 +34,7 @@ struct group *grp_new(int id, int weight) {
     g->sleeptime = new_ticks();
     g->time = new_ticks();
     heap_elem_init(&g->heap_elem, g);
+    g->mh = mh;
     pthread_rwlock_init(&g->group_lock, NULL);
     return g;
 }
@@ -94,7 +95,6 @@ bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length) {
 	}
 	return 0;
 }
-
 // add p to its group.
 // caller must hold group lock
 void grp_add_process(struct process *p) {
@@ -118,4 +118,23 @@ struct process *grp_deq_process(struct group *g) {
 	g->threads_queued -= 1;
 	assert(g->threads_queued >= 0);
 	return p;
+}
+
+// two threads may try to enqueue grp concurrently, so
+// check that it hasn't enqueued yet.
+void grp_enqueue(struct group *g) {
+	struct lock_heap *lh = mh_choose_heap(g->mh);
+	pthread_rwlock_wrlock(&g->group_lock);
+	if(g->lh == NULL) {
+		if(debug) {
+			printf("grp_enqueue: %d %p\n", g->group_id, lh);
+		}
+		ticks_gettime(g->time);
+		ticks_sub(g->time, g->sleepstart);
+		ticks_add(g->sleeptime, g->time);
+		grp_set_init_vruntime(g, mh_min(lh));
+		mh_add_group(g, lh);
+	}
+	pthread_rwlock_unlock(&g->group_lock);
+	lh_unlock(lh);
 }

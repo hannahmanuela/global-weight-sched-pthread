@@ -44,6 +44,7 @@ struct process *schedule(int core, struct mheap *mh) {
 void enqueue(struct process *p) {
 	pthread_rwlock_wrlock(&p->group->group_lock);
 	p->group->nthread += 1;
+	bool none_queued = p->group->nqueued == 0;
 	bool was_sleep = grp_is_sleep(p->group);
 		 
 	if(debug) {
@@ -52,6 +53,8 @@ void enqueue(struct process *p) {
 	}
 
 	grp_add_process(p);
+	if(none_queued && !was_sleep)
+		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 
 	pthread_rwlock_unlock(&p->group->group_lock);
 
@@ -76,9 +79,10 @@ void yield(struct process *p, t_t time_passed) {
 		printf("%d(%d): yield time_passed %d\n", p->group->group_id, p->core_id, time_passed);
 		mh_print(p->group->mh);
 	}
+	bool none_queued = p->group->nqueued == 0;
 	bool fix_heap = yieldL(p, time_passed);
-	grp_add_process(p);
-	if(fix_heap)
+	grp_add_process(p);   // now group has procs queued; fix heap
+	if(none_queued || fix_heap)
 		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
 	pthread_rwlock_unlock(&p->group->group_lock);
 	lh_unlock(p->group->lh);

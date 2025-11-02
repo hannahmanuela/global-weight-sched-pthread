@@ -57,8 +57,10 @@ void grp_print(struct group *g) {
 int grp_cmp(void *e0, void *e1) {
 	struct group *a = (struct group *) e0;
 	struct group *b = (struct group *) e1;
-	// if (a->nqueued == 0) return 1;
-	// if (b->nqueued == 0) return -1;
+	// ignore group with no runnable threads
+	// (it may be still in the heap if it has running threads.)
+	if (a->nqueued == 0) return 1;
+	if (b->nqueued == 0) return -1;
 	// Compare by vruntime; lower is higher priority
 	if (a->vruntime < b->vruntime) return -1;
 	if (a->vruntime > b->vruntime) return 1;

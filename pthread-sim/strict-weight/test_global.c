@@ -62,6 +62,8 @@ void test_grp_sleep_wakeup() {
 	struct process *p0;
 	struct process *p1;
 
+	mh_print(mh);
+	
 	p0 = schedule_retry(0, mh);
 	p1 = schedule_retry(1, mh);
 	dequeue(p1, tl);
@@ -234,7 +236,6 @@ void test_worst(int nheap) {
 
 void main(int argc, char *argv[]) {
 	// debug = true;
-	// test_mheap_sleep(1, 2, 3);
 	// test_mheap_many_grp(20, 0);
 	test_grp_sleep_wakeup();
 	test_mheap(1, PROC2);
@@ -246,7 +247,7 @@ void main(int argc, char *argv[]) {
 	test_mheap_many_grp(5, 1);
 	test_mheap_sleep(1, 0, GRP2);
 	test_mheap_sleep(1, 1, GRP2);
-	// test_mheap_sleep(1, 2, 3);
+	test_mheap_sleep(1, 2, 3);
 	test_worst(112);
 }
 

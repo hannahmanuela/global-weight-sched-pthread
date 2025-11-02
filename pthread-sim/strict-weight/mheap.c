@@ -18,7 +18,7 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed, int tick_leng
 		mh->lh[i] = lh_new(grp_cmp);
 		// insert a dummy element so that the heap always has one elemement
 		struct group* dummy = grp_new(mh, DUMMY, 0);
-		dummy->threads_queued = 1;
+		dummy->nqueued = 1;
 		dummy->vruntime = INT_MAX;
 		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
 	}
@@ -190,7 +190,7 @@ struct group *mh_min_group(struct mheap *mh) {
 			lh_unlock(lh);
 			return NULL;
 		}	
-		if (g && g->threads_queued == 0) {
+		if (g && g->nqueued == 0) {
 			lh_unlock(lh);
 			g = NULL;
 		}

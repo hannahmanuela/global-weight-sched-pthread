@@ -23,8 +23,8 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     struct group *g = malloc(sizeof(struct group));
     g->group_id = id;
     g->weight = weight;
-    g->num_threads = 0;
-    g->threads_queued = 0;
+    g->nthread = 0;
+    g->nqueued = 0;
     g->nrunning = 0;
     g->vruntime = 0;
     g->runqueue_head = NULL;
@@ -42,7 +42,7 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 
 // caller must hold group lock
 bool grp_is_sleep(struct group *g) {
-	return g->nrunning == 0 && g->threads_queued == 0;
+	return g->nrunning == 0 && g->nqueued == 0;
 }
 
 bool grp_dummy(struct group *g) {
@@ -50,15 +50,15 @@ bool grp_dummy(struct group *g) {
 }
 
 void grp_print(struct group *g) {
-	printf("(gid %d vt %d, n %d, r %d, q %d, w %d)", g->group_id, g->vruntime, g->num_threads, g->nrunning, g->threads_queued, g->weight);
+	printf("(gid %d vt %d, n %d, r %d, q %d, w %d)", g->group_id, g->vruntime, g->nthread, g->nrunning, g->nqueued, g->weight);
 }	
 
 // caller must hold group lock for both groups
 int grp_cmp(void *e0, void *e1) {
 	struct group *a = (struct group *) e0;
 	struct group *b = (struct group *) e1;
-	// if (a->threads_queued == 0) return 1;
-	// if (b->threads_queued == 0) return -1;
+	// if (a->nqueued == 0) return 1;
+	// if (b->nqueued == 0) return -1;
 	// Compare by vruntime; lower is higher priority
 	if (a->vruntime < b->vruntime) return -1;
 	if (a->vruntime > b->vruntime) return 1;
@@ -114,7 +114,7 @@ void grp_add_process(struct process *p) {
 		p->next = curr_head;
 		p->group->runqueue_head = p;
 	}
-	p->group->threads_queued += 1;
+	p->group->nqueued += 1;
 }
 
 // remove p from its group.
@@ -123,8 +123,8 @@ struct process *grp_deq_process(struct group *g) {
 	struct process *p = g->runqueue_head;
 	g->runqueue_head = p->next;
 	p->next = NULL;
-	g->threads_queued -= 1;
-	assert(g->threads_queued >= 0);
+	g->nqueued -= 1;
+	assert(g->nqueued >= 0);
 	return p;
 }
 

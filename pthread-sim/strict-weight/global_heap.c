@@ -43,7 +43,7 @@ struct process *schedule(int core, struct mheap *mh) {
 // Make p runnable, which may make the group runnable.
 void enqueue(struct process *p) {
 	pthread_rwlock_wrlock(&p->group->group_lock);
-	p->group->num_threads += 1;
+	p->group->nthread += 1;
 	bool was_sleep = grp_is_sleep(p->group);
 		 
 	if(debug) {
@@ -96,8 +96,8 @@ void dequeue(struct process *p, t_t time_passed) {
 		mh_print(p->group->mh);
 	}
 
-	p->group->num_threads -= 1;
-	assert(p->group->num_threads >= p->group->threads_queued);
+	p->group->nthread -= 1;
+	assert(p->group->nthread >= p->group->nqueued);
 	bool fix_heap = yieldL(p, time_passed);
 	bool is_sleep = grp_is_sleep(p->group);
 	if (fix_heap) {

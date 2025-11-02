@@ -19,9 +19,9 @@ struct group {
 
 	pthread_rwlock_t group_lock;
 
-	int num_threads; // the total number of threads in the system
-	int threads_queued; // the number of threads runnable and in the q (ie not running)
-	int nrunning;
+	int nthread; // number of threads in the group
+	int nqueued; // number of threads runnable
+	int nrunning; // number of threads running
 	vt_t vruntime; // updated when the group is scheduled, assuming full tick
 
 	t_t runtime;  // number of us the group ran

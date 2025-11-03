@@ -17,9 +17,12 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed, int tick_leng
 	for (int i=0; i < n; i++) {
 		mh->lh[i] = lh_new(grp_cmp);
 		// insert a dummy element so that the heap always has one elemement
-		struct group* dummy = grp_new(mh, DUMMY, 0);
+		struct group *dummy_grp = grp_new(mh, DUMMY, 0);
+		struct group_shard* dummy = malloc(sizeof(struct group_shard));
+		dummy->group = dummy_grp;
 		dummy->nqueued = 1;
 		dummy->vruntime = INT_MAX;
+		heap_elem_init(&dummy->heap_elem, dummy);
 		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
 	}
 	mh->nheap = n;
@@ -27,18 +30,18 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed, int tick_leng
 	return mh;
 }
 
-int mh_min(struct lock_heap *lh) {
-	struct group *min = (struct group *) heap_min(lh->heap);
+int mh_min_vrt(struct lock_heap *lh) {
+	struct group_shard *min = (struct group_shard *) heap_min(lh->heap);
 	long mvt = 0;
-	if (min && !grp_dummy(min)) {
+	if (min && !grp_shard_dummy(min)) {
 		mvt = min->vruntime;
 	}	
 	return mvt;
 }
 
 static void print_elem(struct heap_elem *e) {
-	struct group *g = (struct group *) e->elem;
-	grp_print(g);
+	struct group_shard *s = (struct group_shard *) e->elem;
+	grp_shard_print(s);
 }
 
 void mh_print(struct mheap *mh) {
@@ -102,31 +105,31 @@ retry:
 }
 
 // caller must hold heap and group lock
-void mh_add_group(struct group *g, struct lock_heap *lh) {
-	g->lh = lh;
-	heap_push(lh->heap, &g->heap_elem);
+void mh_add_group_shard(struct group_shard *s, struct lock_heap *lh) {
+	s->lh = lh;
+	heap_push(lh->heap, &s->heap_elem);
 }
 
 // caller must hold heap and group lock
-void mh_del_group(struct mheap *mh, struct group *g) {
+void mh_del_group_shard(struct mheap *mh, struct group_shard *g) {
 	heap_remove_at(g->lh->heap, &g->heap_elem);
 	g->lh = NULL;
 }
 
 // to sanity check; run with 1 core
-void mh_check_min_group(struct mheap *mh, struct group *g0) {
-	struct group *min;
+void mh_check_min_group(struct mheap *mh, struct group_shard *s0) {
+	struct group_shard *min;
 	int n = 0;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct lock_heap *lh = mh_heap(mh, i);
-		struct group *g1 = (struct group *) heap_min(lh->heap);
-		if(g1 && (g0->vruntime > g1->vruntime)) {
-			min = g1;
+		struct group_shard *s1 = (struct group_shard *) heap_min(lh->heap);
+		if(s1 && (s0->vruntime > s1->vruntime)) {
+			min = s1;
 			n++;
 		}
 	}
 	if (min != NULL)
-		printf("%ld(%d) min %ld(%d) n %d\n", g0->vruntime, g0->group_id, min->vruntime, min->group_id, n);
+		printf("%ld(g%d,s%d) min %ld(g%d,s%d) n %d\n", s0->vruntime, s0->group->group_id, s0->shard_id, min->vruntime, min->group->group_id, min->shard_id, n);
 }
 
 
@@ -137,7 +140,7 @@ void *mh_min_atomic(struct lock_heap *lh)  {
 }
 
 // https://dl.acm.org/doi/10.1145/2755573.2755616
-struct group *mh_sample_min_group(struct mheap *mh) {
+struct group_shard *mh_sample_min_group_shard(struct mheap *mh) {
 retry:
 	int i = random() % mh->nheap;
 	int j = random() % mh->nheap;
@@ -146,58 +149,58 @@ retry:
 	}
 	struct lock_heap *lh_i = mh_heap(mh, i);
 	struct lock_heap *lh_j = mh_heap(mh, j);
-	struct group *g_i = (struct group *) mh_min_atomic(lh_i);
-	struct group *g_j = (struct group *) mh_min_atomic(lh_j);
-	if (grp_dummy(g_i) && grp_dummy(g_j)) {
+	struct group_shard *s_i = (struct group_shard *) mh_min_atomic(lh_i);
+	struct group_shard *s_j = (struct group_shard *) mh_min_atomic(lh_j);
+	if (grp_shard_dummy(s_i) && grp_shard_dummy(s_j)) {
 		return NULL;
 	}
-	if (grp_dummy(g_i)) {
-		g_i = g_j;
+	if (grp_shard_dummy(s_i)) {
+		s_i = s_j;
 		lh_i = lh_j;
-	} else if (g_j) {
-		int vt_i = atomic_load(&g_i->vruntime);
-		int vt_j = atomic_load(&g_j->vruntime);
+	} else if (s_j) {
+		int vt_i = atomic_load(&s_i->vruntime);
+		int vt_j = atomic_load(&s_j->vruntime);
 		if (vt_i > vt_j) {
-			g_i = g_j;
+			s_i = s_j;
 			lh_i = lh_j;
 		}
 		if (vt_i == vt_j) {
-			int w_i = atomic_load(&g_i->weight);
-			int w_j = atomic_load(&g_j->weight);
+			int w_i = atomic_load(&s_i->weight);
+			int w_j = atomic_load(&s_j->weight);
 			if (w_j > w_i) {	
-				g_i = g_j;
+				s_i = s_j;
 				lh_i = lh_j;
 			}
 		}
 	}
 	if(lh_try_lock(lh_i) != 0)
 		goto retry;
-	if ((struct group *) heap_min(lh_i->heap) != g_i) {
+	if ((struct group_shard *) heap_min(lh_i->heap) != s_i) {
 		lh_unlock(lh_i);
 		goto retry;
 	}
-	pthread_rwlock_wrlock(&g_i->group_lock);
-	return g_i;
+	pthread_rwlock_wrlock(&s_i->shard_lock);
+	return s_i;
 }
 
-// returns with heap and group locked
-struct group *mh_min_group(struct mheap *mh) {
+// returns with heap and shard locked
+struct group_shard *mh_min_group_shard(struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct lock_heap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
-		struct group *g = (struct group *) heap_min(lh->heap);
-		if(!g || grp_dummy(g)) {
+		struct group_shard *s = (struct group_shard *) heap_min(lh->heap);
+		if(!s || grp_shard_dummy(s)) {
 			lh_unlock(lh);
 			return NULL;
 		}	
-		if (g && g->nqueued == 0) {
+		if (s && s->nqueued == 0) {
 			lh_unlock(lh);
-			g = NULL;
+			s = NULL;
 		}
-		if (g) {
-			pthread_rwlock_wrlock(&g->group_lock);
+		if (s) {
+			pthread_rwlock_wrlock(&s->shard_lock);
 		}
-		return g;
+		return s;
 	}
-	return mh_sample_min_group(mh);
+	return mh_sample_min_group_shard(mh);
 }

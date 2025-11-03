@@ -295,13 +295,14 @@ void main(int argc, char *argv[]) {
     // sched_param.sched_priority = 99;
     // sched_setscheduler(0, SCHED_FIFO, &sched_param);
 
-    if (argc != 5) {
-	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_groups> <num_heaps>\n");
+    if (argc != 6) {
+	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_groups> <num_heaps> <threads-per-group>\n");
 	    exit(1);
     }
     num_cores = atoi(argv[1]);
     int tick_length = atoi(argv[2]);
     num_groups = atoi(argv[3]);
+    num_threads_p_group = atoi(argv[5]);
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
@@ -320,7 +321,7 @@ void main(int argc, char *argv[]) {
         gs->cores[i].nyield = 0;
     }
     int seed = 1;
-    gs->mh = mh_new(grp_cmp, atoi(argv[4]), seed, tick_length);
+    gs->mh = mh_new(grp_shard_cmp, atoi(argv[4]), seed, tick_length);
 
     for (int i = 0; i < num_groups; i++) {
 	    // struct group *g = grp_new(i, 10);

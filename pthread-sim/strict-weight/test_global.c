@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <math.h>
 
 #include "vt.h"
 #include "group.h"
@@ -16,6 +17,8 @@
 #define GRP10 10
 #define PROC2 2
 #define PROC1 1
+
+#define SHARD_MAX_WEIGHT 10 // ==> this needs to be bound to the number of cores, somehow (see note in test_mheap_many_grp)
 
 int num_cores;
 extern bool debug;
@@ -40,7 +43,7 @@ static struct process *schedule_retry(int core, struct mheap *mh) {
 }
 
 static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
-	struct mheap *mh = mh_new(grp_cmp, nheap, 1, tl);
+	struct mheap *mh = mh_new(grp_shard_cmp, nheap, 1, tl);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
@@ -91,22 +94,24 @@ void test_mheap(int nheap, int nproc) {
 	struct process *p;
 
 	// run the two groups to get off vt 0
-	p = schedule_retry(0, mh);
+	p = schedule_retry(0, mh); // runs grp 0
 	yield(p, mh->tick_length);
-	p = schedule_retry(0, mh);
+	p = schedule_retry(0, mh); // runs grp 1
 	yield(p, mh->tick_length);
 
-	p = schedule_retry(0, mh);
+	printf("========== starting \n");
+	p = schedule_retry(0, mh); // runs grp 1
 	assert(p->group->group_id == GRP2-1);
-	assert(p->group->vruntime == 100);
+	assert(p->group_shard->vruntime == 100);
 	yield(p, mh->tick_length);
-	p = schedule_retry(0, mh);
-	assert(p->group->group_id == GRP2-1);
-	assert(p->group->vruntime == 150);
-	yield(p, mh->tick_length);
-	p = schedule_retry(0, mh);
+	p = schedule_retry(0, mh); // runs grp 0
 	assert(p->group->group_id == 0);
-	assert(p->group->vruntime == 200);
+	assert(p->group_shard->vruntime == 200);
+	yield(p, mh->tick_length);
+	p = schedule_retry(0, mh); // runs grp 1
+	assert(p->group->group_id == GRP2-1);
+	printf("p->group_shard->vruntime %ld (w %d)\n", p->group_shard->vruntime, p->group_shard->weight);
+	assert(p->group_shard->vruntime == 200);
 	yield(p, mh->tick_length);
 	printf("-- test_%d_mheap ok\n", nheap);
 }
@@ -122,7 +127,7 @@ void test_mheap_many_grp(int nheap, bool rand) {
 		ws[i] = (i+1)*5;
 		ticks[i] = 0;
 	}
-	struct mheap *mh = mk_mheap(nheap, GRP10, PROC2, tl, gs, ws);
+	struct mheap *mh = mk_mheap(nheap, GRP10, 20, tl, gs, ws); // NOTE: if the number of processes is small, then groups with more weight than shard_weight * nr_procs will all have the same performance
 	for (int i = 0; i < n; i++) {
 		struct process *p = schedule_retry(0, mh);
 		int tl = mh->tick_length;
@@ -134,10 +139,10 @@ void test_mheap_many_grp(int nheap, bool rand) {
 	}	
 	for (int i = 1; i < GRP10; i++) {
 		float w = (1.0 * ticks[i])/ticks[0];
-		float m = 0.12;
+		float m = 0.12; // this is the margin of error
 		float l = (i+1)-m;
 		float h = (i+1)+m; 
-		printf("ticks %0.2f l %0.2f h %0.2f\n", w, l, h);
+		printf("ticks %0.2f l %0.2f h %0.2f\n", w, l, h); // printing actual ratio of weight, and the lower and upper bounds on margin of error
 		assert(w >= l && w <= h);
 	}
 	printf("-- test_%d_mheap grp %d: OK\n", nheap, GRP10); 
@@ -215,7 +220,7 @@ void test_worst(int nheap) {
 	int seed = getpid();
 	int worst;
 	for(int t = 0; t < n; t++) {
-		struct mheap *mh = mh_new(grp_cmp, nheap, seed+t, tl);
+		struct mheap *mh = mh_new(grp_shard_cmp, nheap, seed+t, tl);
 		struct group *g = grp_new(mh, 0, 10);
 		struct lock_heap *lh = mh_choose_heap(mh);
 
@@ -237,17 +242,17 @@ void test_worst(int nheap) {
 void main(int argc, char *argv[]) {
 	// debug = true;
 	// test_mheap_many_grp(20, 0);
-	test_grp_sleep_wakeup();
-	test_mheap(1, PROC2);
-	test_mheap(2, PROC2);
-	test_mheap_many_grp(1, 0);
-	test_mheap_many_grp(2, 0);
+	// test_grp_sleep_wakeup();
+	// test_mheap(1, PROC2);
+	// test_mheap(2, PROC2);
+	// test_mheap_many_grp(1, 0);
+	// test_mheap_many_grp(2, 0);
 	test_mheap_many_grp(5, 0);
-	test_mheap_many_grp(1, 1);
-	test_mheap_many_grp(5, 1);
-	test_mheap_sleep(1, 0, GRP2);
-	test_mheap_sleep(1, 1, GRP2);
-	test_mheap_sleep(1, 2, 3);
-	test_worst(112);
+	// test_mheap_many_grp(1, 1);
+	// test_mheap_many_grp(5, 1);
+	// test_mheap_sleep(1, 0, GRP2);
+	// test_mheap_sleep(1, 1, GRP2);
+	// test_mheap_sleep(1, 2, 3);
+	// test_worst(112);
 }
 

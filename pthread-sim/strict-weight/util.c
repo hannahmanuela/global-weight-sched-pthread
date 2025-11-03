@@ -7,3 +7,6 @@ long safe_read_tsc() {
 	return ret_val;
 }
 
+int min_int(int a, int b) {
+	return a < b ? a : b;
+}

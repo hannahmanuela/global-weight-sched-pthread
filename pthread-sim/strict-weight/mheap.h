@@ -2,6 +2,9 @@
 #include "heap.h"
 #include "lheap.h"
 
+#ifndef MHEAP_H
+#define MHEAP_H
+
 struct mheap {
 	int nheap;
 	int tick_length;
@@ -20,4 +23,4 @@ void mh_check_min_group(struct mheap *mh, struct group *g);
 struct lock_heap *mh_choose_heap(struct mheap *mh);
 void mh_add_group(struct group *g, struct lock_heap *lh);
 void mh_del_group(struct mheap *mh, struct group *g);
-
+#endif

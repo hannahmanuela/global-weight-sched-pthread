@@ -1,10 +1,14 @@
 #include <pthread.h>
 #include <stdint.h> 
+#include <stdbool.h>
 
 #define DUMMY  -1
 
 #include "vt.h"
 #include "heap.h"
+
+#ifndef GROUP_H
+#define GROUP_H
 
 struct process {
 	int process_id;
@@ -52,4 +56,4 @@ void grp_enqueue(struct group *g);
 bool grp_is_sleep(struct group *g);
 
 
-
+#endif

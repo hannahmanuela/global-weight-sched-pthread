@@ -50,7 +50,7 @@ bool grp_dummy(struct group *g) {
 }
 
 void grp_print(struct group *g) {
-	printf("(gid %d vt %d, n %d, r %d, q %d, w %d)", g->group_id, g->vruntime, g->nthread, g->nrunning, g->nqueued, g->weight);
+	printf("(gid %d vt %ld, n %d, r %d, q %d, w %d)", g->group_id, g->vruntime, g->nthread, g->nrunning, g->nqueued, g->weight);
 }	
 
 // caller must hold group lock for both groups
@@ -98,7 +98,7 @@ bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length) {
 	if (time_passed < tick_length) {
                 int diff = (time_passed - tick_length);
 		if(debug) 
-			printf("%d: adjust vt by %ld w %d p %ld t %ld\n", g->group_id, diff, g->weight, time_passed, tick_length);
+			printf("%d: adjust vt by %d w %d p %ld t %ld\n", g->group_id, diff, g->weight, time_passed, tick_length);
                 grp_upd_vruntime(g, diff);
 		return 1;
 	}

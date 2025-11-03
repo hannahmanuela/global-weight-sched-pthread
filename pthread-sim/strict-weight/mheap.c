@@ -66,7 +66,7 @@ static void grp_stats(struct heap_elem *e, long sum) {
 	if (g->group_id == DUMMY)
 		return;
 	t_t t = ticks_sum(g->sleeptime);
-	printf("%d: runtime %d us sleeptime %d us weight %d ticks %0.2f\n", g->group_id,
+	printf("%d: runtime %ld us sleeptime %ld us weight %d ticks %0.2f\n", g->group_id,
 	       g->runtime, t,
 	       g->weight, 1.0*g->runtime/(sum-t));
 }
@@ -126,7 +126,7 @@ void mh_check_min_group(struct mheap *mh, struct group *g0) {
 		}
 	}
 	if (min != NULL)
-		printf("%d(%d) min %d(%d) n %d\n", g0->vruntime, g0->group_id, min->vruntime, min->group_id, n);
+		printf("%ld(%d) min %ld(%d) n %d\n", g0->vruntime, g0->group_id, min->vruntime, min->group_id, n);
 }
 
 

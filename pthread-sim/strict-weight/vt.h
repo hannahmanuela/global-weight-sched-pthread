@@ -1,5 +1,4 @@
 #ifndef _VT_H_
-
 #define _VT_H_
 
 typedef long t_t;

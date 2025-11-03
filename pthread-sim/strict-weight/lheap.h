@@ -3,6 +3,9 @@
 
 #include "heap.h"
 
+#ifndef LHEAP_H
+#define LHEAP_H
+
 struct lock_heap {
 	pthread_rwlock_t heap_lock;
 	struct heap *heap;
@@ -21,3 +24,4 @@ void lh_stats(struct lock_heap *lh);
 int lh_try_lock(struct lock_heap *lh);
 void *lh_min_atomic(struct lock_heap *lh);
 int lh_avg_spec_virt_time_inc(struct lock_heap *lh);
+#endif

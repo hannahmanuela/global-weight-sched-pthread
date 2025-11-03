@@ -76,7 +76,7 @@ void yield(struct process *p, t_t time_passed) {
 	pthread_rwlock_wrlock(&p->group->group_lock);
 
 	if(debug) {
-		printf("%d(%d): yield time_passed %d\n", p->group->group_id, p->core_id, time_passed);
+		printf("%d(%d): yield time_passed %ld\n", p->group->group_id, p->core_id, time_passed);
 		mh_print(p->group->mh);
 	}
 	bool none_queued = p->group->nqueued == 0;
@@ -96,7 +96,7 @@ void dequeue(struct process *p, t_t time_passed) {
 	pthread_rwlock_wrlock(&p->group->group_lock);
 
 	if(debug) {
-		printf("%d(%d): dequeue %d\n", p->group->group_id, p->core_id, time_passed);
+		printf("%d(%d): dequeue %ld\n", p->group->group_id, p->core_id, time_passed);
 		mh_print(p->group->mh);
 	}
 

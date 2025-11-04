@@ -320,7 +320,7 @@ void main(int argc, char *argv[]) {
         gs->cores[i].nyield = 0;
     }
     int seed = 1;
-    gs->mh = mh_new(grp_cmp, atoi(argv[4]), seed, tick_length);
+    gs->mh = mh_new(proc_cmp, atoi(argv[4]), seed, tick_length);
 
     for (int i = 0; i < num_groups; i++) {
 	    // struct group *g = grp_new(i, 10);

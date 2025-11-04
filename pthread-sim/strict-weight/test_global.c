@@ -40,10 +40,9 @@ static struct process *schedule_retry(int core, struct mheap *mh) {
 }
 
 static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
-	struct mheap *mh = mh_new(grp_cmp, nheap, 1, tl);
+	struct mheap *mh = mh_new(proc_cmp, nheap, 1, tl);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(mh, i, ws[i]);
-		mh_print(mh);
 		for (int j = 0; j < nproc; j++) {
 			struct process *p = grp_new_process(mh, i * nproc + j, gs[i]);
 			enqueue(p);
@@ -91,23 +90,27 @@ void test_mheap(int nheap, int nproc) {
 	struct mheap *mh = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
 	struct process *p;
 
+	mh_print(mh);
+	
 	// run the two groups to get off vt 0
 	p = schedule_retry(0, mh);
 	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
 	yield(p, mh->tick_length);
 
+	printf("==="); mh_print(mh);
+
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == GRP2-1);
-	assert(p->group->vruntime == 100);
+	assert(p->vruntime == 100);
 	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == GRP2-1);
-	assert(p->group->vruntime == 150);
+	assert(p->vruntime == 150);
 	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == 0);
-	assert(p->group->vruntime == 200);
+	assert(p->vruntime == 200);
 	yield(p, mh->tick_length);
 	printf("-- test_%d_mheap ok\n", nheap);
 }
@@ -216,7 +219,7 @@ void test_worst(int nheap) {
 	int seed = getpid();
 	int worst;
 	for(int t = 0; t < n; t++) {
-		struct mheap *mh = mh_new(grp_cmp, nheap, seed+t, tl);
+		struct mheap *mh = mh_new(proc_cmp, nheap, seed+t, tl);
 		struct group *g = grp_new(mh, 0, 10);
 		struct lock_heap *lh = mh_choose_heap(mh);
 
@@ -236,9 +239,9 @@ void test_worst(int nheap) {
 }
 
 void main(int argc, char *argv[]) {
-	// debug = true;
+	debug = true;
 	// test_mheap_many_grp(20, 0);
-	test_grp_sleep_wakeup();
+	// test_grp_sleep_wakeup();
 	test_mheap(1, PROC2);
 	test_mheap(2, PROC2);
 	test_mheap_many_grp(1, 0);

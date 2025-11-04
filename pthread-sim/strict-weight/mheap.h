@@ -16,8 +16,8 @@ void mh_lock_stats(struct mheap *mh);
 void mh_runtime_stats(struct mheap *mh);
 struct lock_heap *mh_heap(struct mheap *, int i);
 struct process *mh_min_proc(struct mheap *mh);
-void mh_check_min_group(struct mheap *mh, struct group *g);
+void mh_check_min_process(struct mheap *mh, struct process *g);
 struct lock_heap *mh_choose_heap(struct mheap *mh);
-void mh_add_group(struct group *g, struct lock_heap *lh);
-void mh_del_group(struct mheap *mh, struct group *g);
+void mh_add_process(struct process *p, struct lock_heap *lh);
+void mh_del_process(struct mheap *mh, struct process *p);
 

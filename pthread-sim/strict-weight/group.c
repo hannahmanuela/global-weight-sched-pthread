@@ -39,7 +39,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     ticks_gettime(g->sleepstart);
     g->sleeptime = new_ticks();
     g->time = new_ticks();
-    heap_elem_init(&g->heap_elem, g);
     g->mh = mh;
     pthread_rwlock_init(&g->group_lock, NULL);
     return g;
@@ -55,28 +54,8 @@ bool proc_dummy(struct process *p) {
 }
 
 void proc_print(struct process *p) {
-	printf("(proc %d(%d) vt %d, w %d)", p->process_id, (p->group != NULL) ? p->group->group_id : DUMMY, p->vruntime, p->weight);
+	printf("(pid %d(%d) vt %d, w %d)", p->process_id, (p->group != NULL) ? p->group->group_id : DUMMY, p->vruntime, p->weight);
 }	
-
-// caller must hold group lock for both groups
-int grp_cmp(void *e0, void *e1) {
-	struct group *a = (struct group *) e0;
-	struct group *b = (struct group *) e1;
-	// ignore group with no runnable threads queued
-	// (it may be still in the heap if it has running threads.)
-	if (a->nqueued == 0) return 1;
-	if (b->nqueued == 0) return -1;
-	// Compare by vruntime; lower is higher priority
-	if (a->vruntime < b->vruntime) return -1;
-	if (a->vruntime > b->vruntime) return 1;
-	// Prefer higher weight
-	if (a->weight > b->weight) return -1;
-	if (a->weight < b->weight) return 1;
-	// tie-breaker by group_id for determinism
-	if (a->group_id < b->group_id) return -1;
-	if (a->group_id > b->group_id) return 1;
-	return 0;
-}
 
 // caller must hold group lock for both groups
 int proc_cmp(void *e0, void *e1) {
@@ -100,17 +79,17 @@ void proc_upd_vruntime(struct process *p, t_t delta) {
 
 // set initial vruntime when group g becomes runnable
 // caller must hold group lock
-void grp_set_init_vruntime(struct group *g, vt_t min_vt) {
-	vt_t nvt = min_vt + g->vruntime;
+void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
+	vt_t nvt = min_vt + p->vruntime;
 	if(debug)
-		printf("%d: grp_set_init_vruntime: mvt %ld new vt %ld\n", g->group_id, min_vt, nvt);
-        atomic_store(&g->vruntime, nvt);
+		printf("%d(%d): grp_set_init_vruntime: mvt %ld new vt %ld\n", p->process_id, p->group->group_id, min_vt, nvt);
+        atomic_store(&p->vruntime, nvt);
 }
 
 // remember vruntime for when group becomes runnable again
 // caller must hold group lock
-void grp_lag_vruntime(struct group *g, vt_t min) {
-        atomic_fetch_add(&g->vruntime, -min);
+void proc_lag_vruntime(struct process *p, vt_t min) {
+        atomic_fetch_add(&p->vruntime, -min);
 }
 
 // adjust vruntime if group's process didn't run for a complete tick
@@ -137,8 +116,7 @@ void grp_add_process(struct process *p) {
 		p->next = curr_head;
 		p->group->runqueue_head = p;
 	}
-	p->group->nqueued += 1;
-	p->weight = p->group->weight/p->group->nqueued;
+	p->group->nthread += 1;
 }
 
 // remove p from its group.
@@ -147,26 +125,6 @@ struct process *grp_deq_process(struct group *g) {
 	struct process *p = g->runqueue_head;
 	g->runqueue_head = p->next;
 	p->next = NULL;
-	g->nqueued -= 1;
-	assert(g->nqueued >= 0);
+	p->group->nthread -= 1;
 	return p;
-}
-
-// two threads may try to enqueue grp concurrently, so
-// check that it hasn't enqueued yet.
-void grp_enqueue(struct group *g) {
-	struct lock_heap *lh = mh_choose_heap(g->mh);
-	pthread_rwlock_wrlock(&g->group_lock);
-	if(g->lh == NULL) {
-		if(debug) {
-			printf("grp_enqueue: %d %p\n", g->group_id, lh);
-		}
-		ticks_gettime(g->time);
-		ticks_sub(g->time, g->sleepstart);
-		ticks_add(g->sleeptime, g->time);
-		grp_set_init_vruntime(g, mh_min(lh));
-		mh_add_group(g, lh);
-	}
-	pthread_rwlock_unlock(&g->group_lock);
-	lh_unlock(lh);
 }

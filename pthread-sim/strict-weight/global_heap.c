@@ -17,102 +17,104 @@ struct process *schedule(int core, struct mheap *mh) {
 		return NULL;
 	}
 
-        // gl_min_group returns with heap and group lock held
+        // gl_min_group returns with heap and proc lock held
     
 	if(debug) {
-		printf("%d(%d): schedule\n", min_proc->group->group_id, core);
+		printf("%d: schedule %d(%d)\n", core, min_proc->process_id, min_proc->group->group_id);
 		mh_print(min_proc->mh);
 	}
-
-	proc_upd_vruntime(min_proc, mh->tick_length);
 
 	// select the next process
 	// struct process *next_p = grp_deq_process(min_group);
 	// assert(next_p != NULL);
-	min_proc->group->nrunning += 1;
 	min_proc->group->nqueued -= 1;
+	min_proc->group->nrunning += 1;
 	
 	// must be after grp_deq_process, since it may empty the proc queue
 	// heap_fix_index(min_proc->lh->heap, &min_group->heap_elem);
 
-	pthread_rwlock_unlock(&min_proc->group->group_lock);
-	lh_unlock(min_proc->lh);
+	pthread_rwlock_unlock(&min_proc->proc_lock);
 
 	return min_proc;
 }
 
-// Make p runnable, which may make the group runnable.
+// Add p to group and make p runnable
 void enqueue(struct process *p) {
-	pthread_rwlock_wrlock(&p->group->group_lock);
-	p->group->nthread += 1;
-	bool none_queued = p->group->nqueued == 0;
-	bool was_sleep = grp_is_sleep(p->group);
+	struct lock_heap *lh = mh_choose_heap(p->mh);
+
+	pthread_rwlock_wrlock(&p->proc_lock);
+	assert(p->lh == NULL);
+
+	grp_add_process(p);
+
+	p->weight = p->group->weight/p->group->nthread;
 		 
 	if(debug) {
-		printf("%d(%d): enqueue was_sleep %d lh%p\n", p->group->group_id, p->core_id, was_sleep, p->group->lh);
+		printf("%d(%d): enqueue nthread %d lh%p\n", p->process_id, p->group->group_id, p->group->nthread, p->group->lh);
 		mh_print(p->group->mh);
 	}
 
-	grp_add_process(p);
-	if(none_queued && !was_sleep)
-		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
+	if(p->group->nthread == 1) {  // group is runnable
+		ticks_gettime(p->group->time);
+		ticks_sub(p->group->time, p->group->sleepstart);
+		ticks_add(p->group->sleeptime, p->group->time);
+	}
 
-	pthread_rwlock_unlock(&p->group->group_lock);
+	proc_set_init_vruntime(p, mh_min(lh));
+	mh_add_process(p, lh);
+	p->group->nqueued += 1;
 
-	if (was_sleep) {
-		grp_enqueue(p->group);
-	} 
+	pthread_rwlock_unlock(&p->proc_lock);
+	lh_unlock(p->lh);
 }
 
 // Process p yields core
-static bool yieldL(struct process *p, int time_passed) {
+static void yieldL(struct process *p, int time_passed) {
 	p->group->runtime += time_passed;
 	p->group->nrunning -= 1;
-	return proc_adjust_vruntime(p, time_passed, p->mh->tick_length);
+	proc_upd_vruntime(p, time_passed);
 }
 
 // Yield and enqueue
 void yield(struct process *p, t_t time_passed) {
-	lh_lock_timed(p->group->lh);
-	pthread_rwlock_wrlock(&p->group->group_lock);
+	struct lock_heap *lh = mh_choose_heap(p->mh);
+	pthread_rwlock_wrlock(&p->proc_lock);
+
+	p->weight = p->group->weight/p->group->nthread;
+
+	yieldL(p, time_passed);
+	p->group->nqueued += 1;
+	mh_add_process(p, lh);
 
 	if(debug) {
-		printf("%d(%d): yield time_passed %d\n", p->group->group_id, p->core_id, time_passed);
+		printf("%d(%d): yield time_passed %d %d\n", p->process_id, p->group->group_id, time_passed, p->group->nthread);
 		mh_print(p->group->mh);
 	}
-	bool none_queued = p->group->nqueued == 0;
-	bool fix_heap = yieldL(p, time_passed);
-	grp_add_process(p);   // now group has procs queued; fix heap
-	if(none_queued || fix_heap)
-		heap_fix_index(p->group->lh->heap, &p->group->heap_elem);
-	pthread_rwlock_unlock(&p->group->group_lock);
-	lh_unlock(p->group->lh);
+
+	pthread_rwlock_unlock(&p->proc_lock);
+	lh_unlock(p->lh);
 }
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
 void dequeue(struct process *p, t_t time_passed) {
-	struct lock_heap *lh = p->group->lh;
+	struct lock_heap *lh = p->lh;
 	lh_lock_timed(lh);
-	pthread_rwlock_wrlock(&p->group->group_lock);
+	pthread_rwlock_wrlock(&p->proc_lock);
 
 	if(debug) {
-		printf("%d(%d): dequeue %d\n", p->group->group_id, p->core_id, time_passed);
+		printf("%d(%d): dequeue %d\n", p->process_id, p->group->group_id, time_passed);
 		mh_print(p->group->mh);
 	}
 
-	p->group->nthread -= 1;
+	yieldL(p, time_passed);
 	assert(p->group->nthread >= p->group->nqueued);
-	bool fix_heap = yieldL(p, time_passed);
-	bool is_sleep = grp_is_sleep(p->group);
-	if (fix_heap) {
-		heap_fix_index(lh->heap, &p->group->heap_elem);
-	}
-	if (is_sleep) {
-		grp_lag_vruntime(p->group, mh_min(lh));
-		mh_del_group(p->group->mh, p->group);
+	p->group->nthread -= 1;
+
+	if (grp_is_sleep(p->group)) {
+		proc_lag_vruntime(p, mh_min(lh));
 		ticks_gettime(p->group->sleepstart);
 	}
-	pthread_rwlock_unlock(&p->group->group_lock);
+	pthread_rwlock_unlock(&p->proc_lock);
 	lh_unlock(lh);
 }

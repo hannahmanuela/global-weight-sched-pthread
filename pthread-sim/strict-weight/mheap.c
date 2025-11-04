@@ -100,32 +100,32 @@ retry:
 	return lh;
 }
 
-// caller must hold heap and group lock
-void mh_add_group(struct group *g, struct lock_heap *lh) {
-	g->lh = lh;
-	heap_push(lh->heap, &g->heap_elem);
+// caller must hold heap and proc lock
+void mh_add_process(struct process *p, struct lock_heap *lh) {
+	p->lh = lh;
+	heap_push(lh->heap, &p->heap_elem);
 }
 
 // caller must hold heap and group lock
-void mh_del_group(struct mheap *mh, struct group *g) {
-	heap_remove_at(g->lh->heap, &g->heap_elem);
-	g->lh = NULL;
+void mh_del_process(struct mheap *mh, struct process *p) {
+	heap_remove_at(p->lh->heap, &p->heap_elem);
+	p->lh = NULL;
 }
 
 // to sanity check; run with 1 core
-void mh_check_min_group(struct mheap *mh, struct group *g0) {
-	struct group *min;
+void mh_check_min_process(struct mheap *mh, struct process *g0) {
+	struct process *min;
 	int n = 0;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct lock_heap *lh = mh_heap(mh, i);
-		struct group *g1 = (struct group *) heap_min(lh->heap);
+		struct process *g1 = (struct process *) heap_min(lh->heap);
 		if(g1 && (g0->vruntime > g1->vruntime)) {
 			min = g1;
 			n++;
 		}
 	}
 	if (min != NULL)
-		printf("%d(%d) min %d(%d) n %d\n", g0->vruntime, g0->group_id, min->vruntime, min->group_id, n);
+		printf("%d(%d) min %d(%d) n %d\n", g0->process_id, g0->group->group_id, g0->vruntime, min->vruntime, n);
 }
 
 
@@ -176,10 +176,13 @@ retry:
 		goto retry;
 	}
 	pthread_rwlock_wrlock(&g_i->proc_lock);
+	assert(g_i->lh == lh_i);
+	mh_del_process(g_i->mh, g_i);
+	lh_unlock(lh_i);
 	return g_i;
 }
 
-// returns with heap and proc locked
+// returns with proc locked
 struct process *mh_min_proc(struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct lock_heap *lh = mh_heap(mh, 0);
@@ -189,9 +192,10 @@ struct process *mh_min_proc(struct mheap *mh) {
 			lh_unlock(lh);
 			return NULL;
 		}	
-		if (g) {
-			pthread_rwlock_wrlock(&g->proc_lock);
-		}
+		pthread_rwlock_wrlock(&g->proc_lock);
+		assert(g->lh == lh);
+		mh_del_process(g->mh, g);
+		lh_unlock(lh);
 		return g;
 	}
 	return mh_sample_min_group(mh);

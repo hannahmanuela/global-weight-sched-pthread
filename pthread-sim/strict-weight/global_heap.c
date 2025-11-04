@@ -104,7 +104,7 @@ void dequeue(struct process *p, t_t time_passed) {
 	pthread_rwlock_wrlock(&p->group_shard->shard_lock);
 
 	if(debug) {
-		printf("%d(%d): dequeue %ld\n", p->group->group_id, p->core_id, time_passed);
+		printf("g%d,s%d(%d): dequeue %ld\n", p->group->group_id, p->group_shard->shard_id, p->core_id, time_passed);
 		mh_print(p->group_shard->mh);
 	}
 

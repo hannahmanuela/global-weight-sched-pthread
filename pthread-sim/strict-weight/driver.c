@@ -309,7 +309,7 @@ void main(int argc, char *argv[]) {
     for (int i = 0; i < num_cores; i++) {
         gs->cores[i].core_id = i;
         gs->cores[i].current_process = NULL;
-	gs->cores[i].pool = NULL;
+		gs->cores[i].pool = NULL;
         gs->cores[i].sched_us = 0;
         gs->cores[i].enq_us = 0;
         gs->cores[i].yield_us = 0;

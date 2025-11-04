@@ -53,7 +53,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 		weight_left -= s->weight;
 		shard_id++;
 	}
-	printf("init grp %d, weight %d num shards %d \n", g->group_id, g->weight, shard_id);
 
     g->next = NULL;
     g->nthread = 0;

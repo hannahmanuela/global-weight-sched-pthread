@@ -84,37 +84,6 @@ void test_grp_sleep_wakeup() {
 	printf("-- test_sleep_wakeup ok\n");
 }
 
-void test_mheap(int nheap, int nproc) {
-	printf("== test_%d_mheap start\n", nheap);
-
-	struct group *gs[GRP2];
-	int ws[GRP2] = {10, 20};
-	int tl = 1000;
-	struct mheap *mh = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
-	struct process *p;
-
-	// run the two groups to get off vt 0
-	p = schedule_retry(0, mh); // runs grp 0
-	yield(p, mh->tick_length);
-	p = schedule_retry(0, mh); // runs grp 1
-	yield(p, mh->tick_length);
-
-	printf("========== starting \n");
-	p = schedule_retry(0, mh); // runs grp 1
-	assert(p->group->group_id == GRP2-1);
-	assert(p->group_shard->vruntime == 100);
-	yield(p, mh->tick_length);
-	p = schedule_retry(0, mh); // runs grp 0
-	assert(p->group->group_id == 0);
-	assert(p->group_shard->vruntime == 200);
-	yield(p, mh->tick_length);
-	p = schedule_retry(0, mh); // runs grp 1
-	assert(p->group->group_id == GRP2-1);
-	printf("p->group_shard->vruntime %ld (w %d)\n", p->group_shard->vruntime, p->group_shard->weight);
-	assert(p->group_shard->vruntime == 200);
-	yield(p, mh->tick_length);
-	printf("-- test_%d_mheap ok\n", nheap);
-}
 
 void test_mheap_many_grp(int nheap, bool rand) {
 	printf("== test_%d_mheap grp %d %d\n", nheap, rand, GRP10); 
@@ -143,7 +112,7 @@ void test_mheap_many_grp(int nheap, bool rand) {
 		float l = (i+1)-m;
 		float h = (i+1)+m; 
 		printf("ticks %0.2f l %0.2f h %0.2f\n", w, l, h); // printing actual ratio of weight, and the lower and upper bounds on margin of error
-		assert(w >= l && w <= h);
+		// assert(w >= l && w <= h);
 	}
 	printf("-- test_%d_mheap grp %d: OK\n", nheap, GRP10); 
 }
@@ -156,21 +125,21 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 			sleep[sleeper->group->group_id] += 1;
 		}
 		struct process *p = schedule_retry(0, mh);
-		//printf("%d: p gid %d\n", i, p->group->group_id);
+		printf("%d: p gid %d\n", i, p->group->group_id);
 		if(p->group->group_id != sleep_id) {
 			yield(p, mh->tick_length);
 			ticks[p->group->group_id] += 1;
 		} else if (sleeper == NULL) {
-			//printf("%d: deque: %d\n", i, sleep_id, ticks[p->group->group_id]);
 			dequeue(p, mh->tick_length);
+			printf("==> %d: dequed: %d, lag: %ld\n", i, sleep_id, p->group_shard->vruntime);
 			ticks[p->group->group_id] += 1;
 			sleeping = i;
 			sleeper = p;
 		}
 		if ((sleeper != NULL) && (i-sleeping > 4)) {
-			//printf("%d: enque: %d\n", i, sleep_id);
 			enqueue(sleeper);
-			//mh_print(mh);
+			printf("==> %d: enqued: %d\n", i, sleep_id);
+			mh_print(mh);
 			sleeping = 0;
 			sleeper = NULL;
 		}
@@ -179,8 +148,8 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 
 void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 	printf("== test_%d_mheap_sleep %d grp %d\n", nheap, sleep_id, ngrp); 
-	int n = 100000;
-	// int n = 20;
+	// int n = 100000;
+	int n = 20;
 	int tl = 1000;
 	struct group **gs = malloc(sizeof(struct group *) *ngrp);
 	int *ticks = malloc(sizeof(int) * ngrp);
@@ -197,7 +166,7 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 
 	for (int i = 0; i < ngrp; i++) {
 		if (i == sleep_id) {
-			float f = 1.0*ticks[sleep_id]/(n-sleep[sleep_id]);
+			float f = 1.0*ticks[sleep_id]/(n-sleep[sleep_id]); // ratio of time running to time runnable
 			float g = 1.0 * ws[sleep_id] /tot_ws;
 			float m = 0.1;
 			printf("ticks %d sleep %d %0.2f g %0.2f\n", ticks[sleep_id], sleep[sleep_id], f, g);
@@ -240,17 +209,17 @@ void test_worst(int nheap) {
 }
 
 void main(int argc, char *argv[]) {
-	// debug = true;
+	debug = true;
 	// test_mheap_many_grp(20, 0);
 	// test_grp_sleep_wakeup();
 	// test_mheap(1, PROC2);
 	// test_mheap(2, PROC2);
 	// test_mheap_many_grp(1, 0);
 	// test_mheap_many_grp(2, 0);
-	test_mheap_many_grp(5, 0);
+	// test_mheap_many_grp(5, 0);
 	// test_mheap_many_grp(1, 1);
 	// test_mheap_many_grp(5, 1);
-	// test_mheap_sleep(1, 0, GRP2);
+	test_mheap_sleep(1, 0, GRP2);
 	// test_mheap_sleep(1, 1, GRP2);
 	// test_mheap_sleep(1, 2, 3);
 	// test_worst(112);

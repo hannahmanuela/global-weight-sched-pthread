@@ -93,10 +93,10 @@ void test_mheap(int nheap, int nproc) {
 	mh_print(mh);
 	
 	// run the two groups to get off vt 0
-	p = schedule_retry(0, mh);
-	yield(p, mh->tick_length);
-	p = schedule_retry(0, mh);
-	yield(p, mh->tick_length);
+	for (int i = 0; i < nproc * GRP2; i++) {
+		p = schedule_retry(0, mh);
+		yield(p, mh->tick_length);
+	}
 
 	printf("==="); mh_print(mh);
 
@@ -113,7 +113,6 @@ void test_mheap(int nheap, int nproc) {
 	assert(p->vruntime == 100);
 	yield(p, mh->tick_length);
 	printf("-- test_%d_mheap ok\n", nheap);
-	exit(1);
 }
 
 void test_mheap_many_grp(int nheap, bool rand) {
@@ -243,8 +242,10 @@ void main(int argc, char *argv[]) {
 	debug = true;
 	// test_mheap_many_grp(20, 0);
 	// test_grp_sleep_wakeup();
-	test_mheap(1, 1);
+	test_mheap(1, PROC1);
+	exit(1);
 	test_mheap(1, PROC2);
+	
 	test_mheap(2, PROC2);
 	test_mheap_many_grp(1, 0);
 	test_mheap_many_grp(2, 0);

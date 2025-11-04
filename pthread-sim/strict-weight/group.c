@@ -18,7 +18,7 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     p->next = NULL;
     p->mh = mh;
     p->vruntime = 0;
-    p->weight = 0;
+    p->weight = (group != NULL) ? group->weight : 0;
     heap_elem_init(&p->heap_elem, p);
     pthread_rwlock_init(&p->proc_lock, NULL);
     return p;
@@ -73,8 +73,8 @@ int proc_cmp(void *e0, void *e1) {
 	return 0;
 }
 
-void proc_upd_vruntime(struct process *p, t_t delta) {
-        atomic_fetch_add(&p->vruntime, calc_delta(delta, p->weight));
+void proc_upd_vruntime(struct process *p, vt_t vt) {
+        atomic_fetch_add(&p->vruntime, vt);
 }
 
 // set initial vruntime when group g becomes runnable
@@ -116,7 +116,6 @@ void grp_add_process(struct process *p) {
 		p->next = curr_head;
 		p->group->runqueue_head = p;
 	}
-	p->group->nthread += 1;
 }
 
 // remove p from its group.
@@ -125,6 +124,5 @@ struct process *grp_deq_process(struct group *g) {
 	struct process *p = g->runqueue_head;
 	g->runqueue_head = p->next;
 	p->next = NULL;
-	p->group->nthread -= 1;
 	return p;
 }

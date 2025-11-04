@@ -47,32 +47,32 @@ void enqueue(struct process *p) {
 
 	grp_add_process(p);
 
-	p->weight = p->group->weight/p->group->nthread;
-		 
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh%p\n", p->process_id, p->group->group_id, p->group->nthread, p->group->lh);
 		mh_print(p->group->mh);
 	}
 
-	if(p->group->nthread == 1) {  // group is runnable
+	if(p->group->nthread == 0) {  // group is runnable
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
 	}
 
-	proc_set_init_vruntime(p, mh_min(lh));
+	vt_t wvt = calc_delta(p->mh->tick_length, p->weight) * p->group->nthread;
+	proc_set_init_vruntime(p, mh_min(lh) + wvt);
 	mh_add_process(p, lh);
 	p->group->nqueued += 1;
+	p->group->nthread += 1;
 
 	pthread_rwlock_unlock(&p->proc_lock);
 	lh_unlock(p->lh);
 }
 
 // Process p yields core
-static void yieldL(struct process *p, int time_passed) {
+static void yieldL(struct process *p, vt_t time_passed, vt_t vt) {
 	p->group->runtime += time_passed;
 	p->group->nrunning -= 1;
-	proc_upd_vruntime(p, time_passed);
+	proc_upd_vruntime(p, vt);
 }
 
 // Yield and enqueue
@@ -80,19 +80,14 @@ void yield(struct process *p, t_t time_passed) {
 	struct lock_heap *lh = mh_choose_heap(p->mh);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
-	int w = p->weight;
-	p->weight = p->group->weight/p->group->nthread;
-	vt_t vt = calc_delta(p->mh->tick_length, p->weight);
-	if(w != p->weight && p->vruntime != 0) {
-		printf("%d(%d): was scheduled too early vt %d vt %d weight; %d %d\n", p->process_id, p->group->group_id, p->vruntime, vt, w, p->weight);
-	}
-
-	yieldL(p, time_passed);
+	vt_t vt = calc_delta(time_passed, p->weight);
+	vt += calc_delta(p->mh->tick_length, p->weight) * (p->group->nthread-1);
+	yieldL(p, time_passed, vt);
 	p->group->nqueued += 1;
 	mh_add_process(p, lh);
 
 	if(debug) {
-		printf("%d(%d): yield time_passed %d %d\n", p->process_id, p->group->group_id, time_passed, p->group->nthread);
+		printf("%d(%d): yield time_passed %d nt %d w %d\n", p->process_id, p->group->group_id, time_passed, p->group->nthread, p->weight);
 		mh_print(p->group->mh);
 	}
 
@@ -112,12 +107,14 @@ void dequeue(struct process *p, t_t time_passed) {
 		mh_print(p->group->mh);
 	}
 
-	yieldL(p, time_passed);
+	vt_t vt = calc_delta(time_passed, p->weight);
+	yieldL(p, time_passed, vt);
+	proc_lag_vruntime(p, mh_min(lh));
+
 	assert(p->group->nthread >= p->group->nqueued);
 	p->group->nthread -= 1;
 
 	if (grp_is_sleep(p->group)) {
-		proc_lag_vruntime(p, mh_min(lh));
 		ticks_gettime(p->group->sleepstart);
 	}
 	pthread_rwlock_unlock(&p->proc_lock);

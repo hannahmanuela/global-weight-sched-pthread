@@ -20,7 +20,7 @@ struct process *schedule(int core, struct mheap *mh) {
         // gl_min_group returns with heap and proc lock held
     
 	if(debug) {
-		printf("%d: schedule %d(%d)\n", core, min_proc->process_id, min_proc->group->group_id);
+		printf("%d: schedule %d(%d) vt %d\n", core, min_proc->process_id, min_proc->group->group_id, min_proc->vruntime);
 		mh_print(min_proc->mh);
 	}
 
@@ -80,7 +80,12 @@ void yield(struct process *p, t_t time_passed) {
 	struct lock_heap *lh = mh_choose_heap(p->mh);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
+	int w = p->weight;
 	p->weight = p->group->weight/p->group->nthread;
+	vt_t vt = calc_delta(p->mh->tick_length, p->weight);
+	if(w != p->weight && p->vruntime != 0) {
+		printf("%d(%d): was scheduled too early vt %d vt %d weight; %d %d\n", p->process_id, p->group->group_id, p->vruntime, vt, w, p->weight);
+	}
 
 	yieldL(p, time_passed);
 	p->group->nqueued += 1;

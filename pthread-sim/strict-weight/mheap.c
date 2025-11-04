@@ -10,15 +10,14 @@
 #include "lheap.h"
 #include "mheap.h"
 
-struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed, int tick_length) {
+struct mheap *mh_new(int proc_cmp(void *, void *), int n, int seed, int tick_length) {
 	srandom(seed);
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->lh = (struct lock_heap **) malloc(sizeof(struct lock_heap) * n);
 	for (int i=0; i < n; i++) {
-		mh->lh[i] = lh_new(grp_cmp);
+		mh->lh[i] = lh_new(proc_cmp);
 		// insert a dummy element so that the heap always has one elemement
-		struct group* dummy = grp_new(mh, DUMMY, 0);
-		dummy->nqueued = 1;
+		struct process* dummy = grp_new_process(mh, DUMMY, NULL);
 		dummy->vruntime = INT_MAX;
 		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
 	}
@@ -28,17 +27,17 @@ struct mheap *mh_new(int grp_cmp(void *, void *), int n, int seed, int tick_leng
 }
 
 int mh_min(struct lock_heap *lh) {
-	struct group *min = (struct group *) heap_min(lh->heap);
+	struct process *min = (struct process *) heap_min(lh->heap);
 	long mvt = 0;
-	if (min && !grp_dummy(min)) {
+	if (min && !proc_dummy(min)) {
 		mvt = min->vruntime;
 	}	
 	return mvt;
 }
 
 static void print_elem(struct heap_elem *e) {
-	struct group *g = (struct group *) e->elem;
-	grp_print(g);
+	struct process *p = (struct process *) e->elem;
+	proc_print(p);
 }
 
 void mh_print(struct mheap *mh) {
@@ -137,7 +136,7 @@ void *mh_min_atomic(struct lock_heap *lh)  {
 }
 
 // https://dl.acm.org/doi/10.1145/2755573.2755616
-struct group *mh_sample_min_group(struct mheap *mh) {
+struct process *mh_sample_min_group(struct mheap *mh) {
 retry:
 	int i = random() % mh->nheap;
 	int j = random() % mh->nheap;
@@ -146,12 +145,12 @@ retry:
 	}
 	struct lock_heap *lh_i = mh_heap(mh, i);
 	struct lock_heap *lh_j = mh_heap(mh, j);
-	struct group *g_i = (struct group *) mh_min_atomic(lh_i);
-	struct group *g_j = (struct group *) mh_min_atomic(lh_j);
-	if (grp_dummy(g_i) && grp_dummy(g_j)) {
+	struct process *g_i = (struct process *) mh_min_atomic(lh_i);
+	struct process *g_j = (struct process *) mh_min_atomic(lh_j);
+	if (proc_dummy(g_i) && proc_dummy(g_j)) {
 		return NULL;
 	}
-	if (grp_dummy(g_i)) {
+	if (proc_dummy(g_i)) {
 		g_i = g_j;
 		lh_i = lh_j;
 	} else if (g_j) {
@@ -172,30 +171,26 @@ retry:
 	}
 	if(lh_try_lock(lh_i) != 0)
 		goto retry;
-	if ((struct group *) heap_min(lh_i->heap) != g_i) {
+	if ((struct process *) heap_min(lh_i->heap) != g_i) {
 		lh_unlock(lh_i);
 		goto retry;
 	}
-	pthread_rwlock_wrlock(&g_i->group_lock);
+	pthread_rwlock_wrlock(&g_i->proc_lock);
 	return g_i;
 }
 
-// returns with heap and group locked
-struct group *mh_min_group(struct mheap *mh) {
+// returns with heap and proc locked
+struct process *mh_min_proc(struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct lock_heap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
-		struct group *g = (struct group *) heap_min(lh->heap);
-		if(!g || grp_dummy(g)) {
+		struct process *g = (struct process *) heap_min(lh->heap);
+		if(!g || proc_dummy(g)) {
 			lh_unlock(lh);
 			return NULL;
 		}	
-		if (g && g->nqueued == 0) {
-			lh_unlock(lh);
-			g = NULL;
-		}
 		if (g) {
-			pthread_rwlock_wrlock(&g->group_lock);
+			pthread_rwlock_wrlock(&g->proc_lock);
 		}
 		return g;
 	}

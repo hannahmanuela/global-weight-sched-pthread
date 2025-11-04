@@ -43,8 +43,9 @@ static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct gro
 	struct mheap *mh = mh_new(grp_cmp, nheap, 1, tl);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(mh, i, ws[i]);
+		mh_print(mh);
 		for (int j = 0; j < nproc; j++) {
-			struct process *p = grp_new_process(j, gs[i]);
+			struct process *p = grp_new_process(mh, i * nproc + j, gs[i]);
 			enqueue(p);
 		}
 	}
@@ -219,7 +220,7 @@ void test_worst(int nheap) {
 		struct group *g = grp_new(mh, 0, 10);
 		struct lock_heap *lh = mh_choose_heap(mh);
 
-		struct process *p = grp_new_process(1, g);
+		struct process *p = grp_new_process(mh, 1, g);
 		enqueue(p);
 
 		for (int i = 0; ; i++) {

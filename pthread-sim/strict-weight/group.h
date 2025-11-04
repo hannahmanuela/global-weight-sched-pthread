@@ -8,9 +8,19 @@
 
 struct process {
 	int process_id;
+
+	vt_t vruntime; 
+
+	pthread_rwlock_t proc_lock;
+
 	struct group *group;
 	int core_id;
 	struct process *next;
+
+	int weight;
+	struct heap_elem heap_elem;
+	struct mheap *mh;
+	struct lock_heap *lh;
 } __attribute__((aligned(64)));
 
 struct group {
@@ -37,15 +47,15 @@ struct group {
 } __attribute__((aligned(64)));
 
 struct group *grp_new(struct mheap *mh, int id, int weight);
-void grp_print(struct group *g);
-bool grp_dummy(struct group *g);
-struct process *grp_new_process(int id, struct group *g);
+void proc_print(struct process *p);
+bool proc_dummy(struct process *p);
+struct process *grp_new_process(struct mheap *mh, int id, struct group *g);
 int grp_cmp(void *e0, void *e1);
-vt_t grp_get_vruntime(struct group *g);
-void grp_upd_vruntime(struct group *g, t_t tick_length);
+vt_t proc_get_vruntime(struct process *p);
+void proc_upd_vruntime(struct process *p, t_t tick_length);
 void grp_set_init_vruntime(struct group *g, vt_t min);
 void grp_lag_vruntime(struct group *g, vt_t min);
-bool grp_adjust_vruntime(struct group *g, t_t time_passed, t_t tick_length);
+bool proc_adjust_vruntime(struct process *p, t_t time_passed, t_t tick_length);
 void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);
 void grp_enqueue(struct group *g);

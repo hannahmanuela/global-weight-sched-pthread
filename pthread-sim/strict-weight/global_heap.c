@@ -12,32 +12,33 @@ bool debug;
 
 // Select next process to run
 struct process *schedule(int core, struct mheap *mh) {
-	struct group *min_group = mh_min_group(mh);
-	if (min_group == NULL) {
+	struct process *min_proc = mh_min_proc(mh);
+	if (min_proc == NULL) {
 		return NULL;
 	}
 
         // gl_min_group returns with heap and group lock held
     
 	if(debug) {
-		printf("%d(%d): schedule\n", min_group->group_id, core);
-		mh_print(min_group->mh);
+		printf("%d(%d): schedule\n", min_proc->group->group_id, core);
+		mh_print(min_proc->mh);
 	}
 
-	grp_upd_vruntime(min_group, mh->tick_length);
+	proc_upd_vruntime(min_proc, mh->tick_length);
 
 	// select the next process
-	struct process *next_p = grp_deq_process(min_group);
-	assert(next_p != NULL);
-	next_p->group->nrunning += 1;
+	// struct process *next_p = grp_deq_process(min_group);
+	// assert(next_p != NULL);
+	min_proc->group->nrunning += 1;
+	min_proc->group->nqueued -= 1;
 	
 	// must be after grp_deq_process, since it may empty the proc queue
-	heap_fix_index(min_group->lh->heap, &min_group->heap_elem);
+	// heap_fix_index(min_proc->lh->heap, &min_group->heap_elem);
 
-	pthread_rwlock_unlock(&next_p->group->group_lock);
-	lh_unlock(min_group->lh);
+	pthread_rwlock_unlock(&min_proc->group->group_lock);
+	lh_unlock(min_proc->lh);
 
-	return next_p;
+	return min_proc;
 }
 
 // Make p runnable, which may make the group runnable.
@@ -67,7 +68,7 @@ void enqueue(struct process *p) {
 static bool yieldL(struct process *p, int time_passed) {
 	p->group->runtime += time_passed;
 	p->group->nrunning -= 1;
-	return grp_adjust_vruntime(p->group, time_passed, p->group->mh->tick_length);
+	return proc_adjust_vruntime(p, time_passed, p->mh->tick_length);
 }
 
 // Yield and enqueue

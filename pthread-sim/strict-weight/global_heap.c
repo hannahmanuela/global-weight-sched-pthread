@@ -120,3 +120,18 @@ void dequeue(struct process *p, t_t time_passed) {
 	pthread_rwlock_unlock(&p->proc_lock);
 	lh_unlock(lh);
 }
+
+void stats(struct group *grps[], int n) {
+	t_t *ticks = new_ticks();
+	ticks_gettime(ticks);
+	t_t tot = ticks_sum(ticks);
+	ticks_getwork(ticks);
+	t_t work = ticks_sum(ticks);
+	ticks_getidle(ticks);
+	t_t idle = ticks_sum(ticks);
+	printf("= stats total ticks %ld us work %ld us idle %ld us\n", tot, work, idle);
+	for(int i = 0; i < n; i++) {
+		grp_stats(grps[i], tot);
+	}
+	printf("=\n");
+}

@@ -126,3 +126,13 @@ struct process *grp_deq_process(struct group *g) {
 	p->next = NULL;
 	return p;
 }
+
+void grp_stats(struct group *g, long sum) {
+	if (g->group_id == DUMMY)
+		return;
+	t_t t = ticks_sum(g->sleeptime);
+	printf("%d: runtime %d us sleeptime %d us weight %d ticks %0.2f\n", g->group_id,
+	       g->runtime, t,
+	       g->weight, 1.0*g->runtime/(sum-t));
+}
+

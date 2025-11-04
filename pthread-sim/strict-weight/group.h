@@ -60,6 +60,7 @@ void grp_add_process(struct process *p);
 struct process *grp_deq_process(struct group *g);
 void grp_enqueue(struct group *g);
 bool grp_is_sleep(struct group *g);
+void grp_stats(struct group *g, long tot);
 
 
 

@@ -112,6 +112,9 @@ void test_mheap(int nheap, int nproc) {
 	assert(p->group->group_id == 0);
 	assert(p->vruntime == 100);
 	yield(p, mh->tick_length);
+
+	stats(gs, GRP2);
+
 	printf("-- test_%d_mheap ok\n", nheap);
 }
 

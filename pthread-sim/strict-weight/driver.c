@@ -347,7 +347,7 @@ void main(int argc, char *argv[]) {
     printf("=\n");
 
     mh_lock_stats(gs->mh);
-    mh_runtime_stats(gs->mh);
+    // stats(gs->grps);
 }
 
 

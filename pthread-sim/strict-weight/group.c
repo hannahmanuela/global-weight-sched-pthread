@@ -33,7 +33,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     g->nrunning = 0;
     g->vruntime = 0;
     g->runqueue_head = NULL;
-    g->next = NULL;
     g->runtime = 0;
     g->sleepstart = new_ticks();
     ticks_gettime(g->sleepstart);

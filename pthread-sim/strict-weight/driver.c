@@ -190,7 +190,6 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 	struct timeval start;
 	gettimeofday(&start, NULL);
 	long ts = safe_read_tsc();
-	if(p) p->core_id = mycore - gs->cores; 
 	switch(op) {
 	case SCHEDULE:
 		mycore->current_process = schedule(mycore-gs->cores, gs->mh);

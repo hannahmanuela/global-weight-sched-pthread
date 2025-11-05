@@ -10,14 +10,13 @@ struct process {
 	int process_id;
 
 	vt_t vruntime; 
+	int weight;
 
 	pthread_rwlock_t proc_lock;
 
 	struct group *group;
-	int core_id;
 	struct process *next;
 
-	int weight;
 	struct heap_elem heap_elem;
 	struct mheap *mh;
 	struct lock_heap *lh;
@@ -40,10 +39,7 @@ struct group {
 	t_t *time;
 	
 	struct process *runqueue_head;
-	struct group *next;
-	struct heap_elem heap_elem;
 	struct mheap *mh;
-	struct lock_heap *lh;
 } __attribute__((aligned(64)));
 
 struct group *grp_new(struct mheap *mh, int id, int weight);

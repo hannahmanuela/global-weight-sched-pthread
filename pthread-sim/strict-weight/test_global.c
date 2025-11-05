@@ -246,8 +246,9 @@ void main(int argc, char *argv[]) {
 	// test_mheap_many_grp(20, 0);
 	// test_grp_sleep_wakeup();
 	test_mheap(1, PROC1);
-	exit(1);
+	
 	test_mheap(1, PROC2);
+	exit(1);
 	
 	test_mheap(2, PROC2);
 	test_mheap_many_grp(1, 0);

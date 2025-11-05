@@ -13,7 +13,6 @@ extern bool debug;
 
 struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     struct process *p = malloc(sizeof(struct process));
-    printf("alloc proc %p\n",p); 
     p->process_id = id;
     p->vruntime = 0;
     p->weight = (group != NULL) ? group->weight : 0;

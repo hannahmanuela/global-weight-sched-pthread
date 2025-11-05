@@ -100,7 +100,6 @@ static void heap_sift_down(struct heap *h, int idx) {
 void heap_ensure_capacity(struct heap *h) {
 	if (h->heap_size < h->heap_capacity) return;
 	int new_capacity = h->heap_capacity == 0 ? 16 : h->heap_capacity * 2;
-	printf("heap alloc %d\n", new_capacity);
 	h->heap = realloc(h->heap, sizeof(struct heap_elem*) * new_capacity);
 	h->heap_capacity = new_capacity;
 }

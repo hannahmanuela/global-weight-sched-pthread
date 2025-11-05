@@ -14,6 +14,7 @@ struct heap {
 
 
 struct heap *heap_new(int cmp_elem(void *, void *));
+void heap_free(struct heap *h);
 void heap_elem_init(struct heap_elem *h, void *e);
 int heap_elem_idx(struct heap_elem *h);
 void *heap_min(struct heap *h);

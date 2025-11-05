@@ -9,7 +9,13 @@ struct heap *heap_new(int cmp(void *, void *)) {
 	h->cmp_elem = cmp;
 	h->heap_size = 0;
 	h->heap_capacity = 0;
+	h->heap = NULL;
 	return h;
+}
+
+void heap_free(struct heap *h) {
+	printf("heap_free c %d\n", h->heap_capacity);
+	free(h->heap);
 }
 
 void heap_elem_init(struct heap_elem *h, void *e) {
@@ -94,6 +100,7 @@ static void heap_sift_down(struct heap *h, int idx) {
 void heap_ensure_capacity(struct heap *h) {
 	if (h->heap_size < h->heap_capacity) return;
 	int new_capacity = h->heap_capacity == 0 ? 16 : h->heap_capacity * 2;
+	printf("heap alloc %d\n", new_capacity);
 	h->heap = realloc(h->heap, sizeof(struct heap_elem*) * new_capacity);
 	h->heap_capacity = new_capacity;
 }

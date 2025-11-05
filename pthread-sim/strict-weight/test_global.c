@@ -51,6 +51,10 @@ static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct gro
 	return mh;
 }
 
+static void cleanup(struct mheap *mh) {
+	mh_free(mh);
+}
+
 void test_grp_sleep_wakeup() {
 	printf("== test_sleep_wakeup start\n");
 
@@ -77,6 +81,8 @@ void test_grp_sleep_wakeup() {
 	p0 = schedule_retry(0, mh);
 	enqueue(p1);
 	p1 = schedule_retry(0, mh);
+
+	cleanup(mh);
 
 	printf("-- test_sleep_wakeup ok\n");
 }
@@ -114,11 +120,13 @@ void test_mheap(int nheap, int nproc) {
 
 	stats(gs, GRP2);
 
+	cleanup(mh);
+
 	printf("-- test_%d_mheap ok\n", nheap);
 }
 
 void test_mheap_many_grp(int nheap, bool rand) {
-	printf("== test_%d_mheap grp %d %d\n", nheap, rand, GRP10); 
+	printf("== test_%d_mheap grp r %d n %d\n", nheap, rand, GRP10); 
 	int n = 100000;
 	int tl = 4000;
 	struct group *gs[GRP10];
@@ -146,6 +154,7 @@ void test_mheap_many_grp(int nheap, bool rand) {
 		printf("ticks %0.2f l %0.2f h %0.2f\n", w, l, h);
 		assert(w >= l && w <= h);
 	}
+	cleanup(mh);
 	printf("-- test_%d_mheap grp %d: OK\n", nheap, GRP10); 
 }
 
@@ -211,6 +220,7 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 			assert(f >= g);
 		}
 	}
+	cleanup(mh);
 	printf("-- test_%d_mheap_sleep grp %d: OK\n", nheap, ngrp); 
 }
 
@@ -236,12 +246,13 @@ void test_worst(int nheap) {
 				break;
 			}
 		}
+		cleanup(mh);
 	}
 	printf("== test_worst: avg %d worst %d\n", sum/n, worst);
 }
 
 void main(int argc, char *argv[]) {
-	debug = true;
+	// debug = true;
 	// test_mheap_many_grp(20, 0);
 	test_grp_sleep_wakeup();
 	test_mheap(1, PROC1);

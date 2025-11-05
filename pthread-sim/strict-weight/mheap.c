@@ -26,6 +26,17 @@ struct mheap *mh_new(int proc_cmp(void *, void *), int n, int seed, int tick_len
 	return mh;
 }
 
+static void mh_free_item(struct heap_elem *e) {
+	free(e->elem);
+}
+
+void mh_free(struct mheap *mh) {
+	for (int i = 0; i < mh->nheap; i++) {
+		heap_iter(mh->lh[i]->heap, mh_free_item);
+		heap_free(mh->lh[i]->heap);
+	}
+}
+
 int mh_min(struct lock_heap *lh) {
 	struct process *min = (struct process *) heap_min(lh->heap);
 	long mvt = 0;

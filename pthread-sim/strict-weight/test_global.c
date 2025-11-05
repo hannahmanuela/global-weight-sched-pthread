@@ -62,14 +62,14 @@ void test_grp_sleep_wakeup() {
 	struct process *p0;
 	struct process *p1;
 
-	mh_print(mh);
+	printf("==="); mh_print(mh);
 	
 	p0 = schedule_retry(0, mh);
 	p1 = schedule_retry(1, mh);
 	dequeue(p1, tl);
 	yield(p0, tl);
 	p0 = schedule_retry(0, mh);
-	dequeue(p1, tl);
+	dequeue(p0, tl);
 	assert(schedule(0, mh) == NULL);
 	assert(mh->lh[0]->heap->heap_size == 1);
 	enqueue(p0);
@@ -93,12 +93,11 @@ void test_mheap(int nheap, int nproc) {
 	mh_print(mh);
 	
 	// run the two groups to get off vt 0
-	for (int i = 0; i < nproc * GRP2; i++) {
+	for (int i = 0; i < GRP2; i++) {
 		p = schedule_retry(0, mh);
+		assert(p->vruntime == 0);
 		yield(p, mh->tick_length);
 	}
-
-	printf("==="); mh_print(mh);
 
 	p = schedule_retry(0, mh);
 	assert(p->group->group_id == GRP2-1);
@@ -244,12 +243,9 @@ void test_worst(int nheap) {
 void main(int argc, char *argv[]) {
 	debug = true;
 	// test_mheap_many_grp(20, 0);
-	// test_grp_sleep_wakeup();
+	test_grp_sleep_wakeup();
 	test_mheap(1, PROC1);
-	
 	test_mheap(1, PROC2);
-	exit(1);
-	
 	test_mheap(2, PROC2);
 	test_mheap_many_grp(1, 0);
 	test_mheap_many_grp(2, 0);

@@ -72,7 +72,7 @@ void enqueue(struct process *p) {
 static void yieldL(struct process *p, vt_t time_passed, vt_t vt) {
 	p->group->runtime += time_passed;
 	p->group->nrunning -= 1;
-	proc_upd_vruntime(p, vt);
+	proc_add_vruntime(p, vt);
 }
 
 // Yield and enqueue
@@ -101,6 +101,7 @@ void dequeue(struct process *p, t_t time_passed) {
 	struct lock_heap *lh = p->lh;
 	lh_lock_timed(lh);
 	pthread_rwlock_wrlock(&p->proc_lock);
+	
 
 	if(debug) {
 		printf("%d(%d): dequeue %d\n", p->process_id, p->group->group_id, time_passed);
@@ -111,6 +112,7 @@ void dequeue(struct process *p, t_t time_passed) {
 	yieldL(p, time_passed, vt);
 	proc_lag_vruntime(p, mh_min(lh));
 
+	p->lh = NULL;
 	assert(p->group->nthread >= p->group->nqueued);
 	p->group->nthread -= 1;
 

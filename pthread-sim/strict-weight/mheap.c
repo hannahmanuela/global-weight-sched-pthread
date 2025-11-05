@@ -37,7 +37,7 @@ int mh_min(struct lock_heap *lh) {
 
 static void print_elem(struct heap_elem *e) {
 	struct process *p = (struct process *) e->elem;
-	proc_print(p);
+	printf("[%d: ", e->heap_index); proc_print(p); printf("]");
 }
 
 void mh_print(struct mheap *mh) {
@@ -82,7 +82,6 @@ void mh_add_process(struct process *p, struct lock_heap *lh) {
 // caller must hold heap and group lock
 void mh_del_process(struct mheap *mh, struct process *p) {
 	heap_remove_at(p->lh->heap, &p->heap_elem);
-	p->lh = NULL;
 }
 
 // to sanity check; run with 1 core

@@ -72,7 +72,7 @@ int proc_cmp(void *e0, void *e1) {
 	return 0;
 }
 
-void proc_upd_vruntime(struct process *p, vt_t vt) {
+void proc_add_vruntime(struct process *p, vt_t vt) {
         atomic_fetch_add(&p->vruntime, vt);
 }
 
@@ -89,19 +89,6 @@ void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
 // caller must hold group lock
 void proc_lag_vruntime(struct process *p, vt_t min) {
         atomic_fetch_add(&p->vruntime, -min);
-}
-
-// adjust vruntime if group's process didn't run for a complete tick
-// caller must hold group lock
-bool proc_adjust_vruntime(struct process *p, t_t time_passed, t_t tick_length) {
-	if (time_passed < tick_length) {
-                int diff = (time_passed - tick_length);
-		if(debug) 
-			printf("%d(%d): adjust vt by %ld w %d p %ld t %ld\n", p->process_id, p->group->group_id, diff, p->weight, time_passed, tick_length);
-                proc_upd_vruntime(p, diff);
-		return 1;
-	}
-	return 0;
 }
 
 // add p to its group.

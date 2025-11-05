@@ -119,15 +119,16 @@ void heap_push(struct heap *h, struct heap_elem *e) {
 void heap_remove_at(struct heap *h, struct heap_elem *e) {
     assert(e->heap_index != -1);
     int last = h->heap_size - 1;
-    if (e->heap_index < 0 || e->heap_index >= h->heap_size) return;
-    if (e->heap_index != last) {
-        heap_swap(h, e->heap_index, last);
+    int i = e->heap_index;
+    if (i < 0 || i >= h->heap_size) return;
+    if (i != last) {
+        heap_swap(h, i, last);
     }
     struct heap_elem *removed = h->heap[last];
     h->heap_size--;
-    if (e->heap_index < h->heap_size) {
-        heap_sift_down(h, e->heap_index);
-        heap_sift_up(h, e->heap_index);
+    if (i < h->heap_size) {
+	    heap_sift_down(h, i);
+	    heap_sift_up(h, i);
     }
     removed->heap_index = -1;
 }

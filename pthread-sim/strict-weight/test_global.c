@@ -16,6 +16,7 @@
 #define GRP10 10
 #define PROC2 2
 #define PROC1 1
+#define PROC5 5
 
 int num_cores;
 extern bool debug;
@@ -40,7 +41,8 @@ static struct process *schedule_retry(int core, struct mheap *mh) {
 }
 
 static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
-	struct mheap *mh = mh_new(proc_cmp, nheap, 1, tl);
+	// struct mheap *mh = mh_new(proc_cmp, nheap, 1, tl);
+	struct mheap *mh = mh_new(proc_cmp, nheap, random(), tl);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
@@ -88,7 +90,7 @@ void test_grp_sleep_wakeup() {
 }
 
 void test_mheap(int nheap, int nproc) {
-	printf("== test_%d_mheap start\n", nheap);
+	printf("== test_%d_mheap start %d\n", nheap, nproc);
 
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
@@ -125,18 +127,21 @@ void test_mheap(int nheap, int nproc) {
 	printf("-- test_%d_mheap ok\n", nheap);
 }
 
-void test_mheap_many_grp(int nheap, bool rand) {
-	printf("== test_%d_mheap grp r %d n %d\n", nheap, rand, GRP10); 
+void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
+	printf("== test_%d_mheap_grp r %d ng %d %d np %d\n", nheap, rand, ngrp, nproc); 
 	int n = 100000;
 	int tl = 4000;
-	struct group *gs[GRP10];
-	long ticks[GRP10];
-	int ws[GRP10];
-	for (int i = 0; i < GRP10; i++) {
+	struct group **gs = malloc(sizeof(struct group *) * ngrp);
+	int *ws = malloc(sizeof(int) * ngrp); 
+	int *ticks = malloc(sizeof(int) * ngrp);
+	int tot_w = 0;
+	for (int i = 0; i < ngrp; i++) {
 		ws[i] = (i+1)*5;
+		tot_w += ws[i];
 		ticks[i] = 0;
 	}
-	struct mheap *mh = mk_mheap(nheap, GRP10, PROC2, tl, gs, ws);
+	struct mheap *mh = mk_mheap(nheap, ngrp, nproc, tl, gs, ws);
+	long tot = 0;
 	for (int i = 0; i < n; i++) {
 		struct process *p = schedule_retry(0, mh);
 		int tl = mh->tick_length;
@@ -145,17 +150,16 @@ void test_mheap_many_grp(int nheap, bool rand) {
 		}
 		yield(p, tl);
 		ticks[p->group->group_id] += tl;
+		tot += tl;
 	}	
-	for (int i = 1; i < GRP10; i++) {
-		float w = (1.0 * ticks[i])/ticks[0];
-		float m = 0.12;
-		float l = (i+1)-m;
-		float h = (i+1)+m; 
-		printf("ticks %0.2f l %0.2f h %0.2f\n", w, l, h);
-		assert(w >= l && w <= h);
+	for (int i = 0; i < ngrp; i++) {
+		float e = ((1.0*ws[i])/tot_w)*tot;
+		float g = e/ticks[i];
+		// printf("ticks %d %0.2f %0.2f\n", ticks[i], e, g);
+		assert(g >= 0.97 && g <= 1.03);
 	}
 	cleanup(mh);
-	printf("-- test_%d_mheap grp %d: OK\n", nheap, GRP10); 
+	printf("-- test_%d_mheap_grp %d: OK\n", nheap, ngrp); 
 }
 
 void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep[]) {
@@ -198,6 +202,8 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 	int *ws = malloc(sizeof(int) * ngrp); 
 	int tot_ws = 0;
 	for(int i = 0; i < ngrp; i++) {
+		ticks[i] = 0;
+		sleep[i] = 0;
 		ws[i] = 10*(i+1);
 		tot_ws += ws[i];
 	}
@@ -252,17 +258,18 @@ void test_worst(int nheap) {
 }
 
 void main(int argc, char *argv[]) {
+	srandom(getpid());
 	// debug = true;
 	// test_mheap_many_grp(20, 0);
 	test_grp_sleep_wakeup();
 	test_mheap(1, PROC1);
 	test_mheap(1, PROC2);
 	test_mheap(2, PROC2);
-	test_mheap_many_grp(1, 0);
-	test_mheap_many_grp(2, 0);
-	test_mheap_many_grp(5, 0);
-	test_mheap_many_grp(1, 1);
-	test_mheap_many_grp(5, 1);
+	test_mheap_many_grp(1, GRP10, PROC2, 0);
+	test_mheap_many_grp(2, GRP10, PROC2, 0);
+	test_mheap_many_grp(5, GRP10, PROC2, 0);
+	test_mheap_many_grp(1, GRP10, PROC2, 1);
+	test_mheap_many_grp(5, GRP10, PROC2, 1);
 	test_mheap_sleep(1, 0, GRP2);
 	test_mheap_sleep(1, 1, GRP2);
 	test_mheap_sleep(1, 2, 3);

@@ -14,7 +14,6 @@ struct heap *heap_new(int cmp(void *, void *)) {
 }
 
 void heap_free(struct heap *h) {
-	printf("heap_free c %d\n", h->heap_capacity);
 	free(h->heap);
 }
 

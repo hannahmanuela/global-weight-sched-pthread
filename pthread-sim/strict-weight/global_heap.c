@@ -87,7 +87,7 @@ void yield(struct process *p, t_t time_passed) {
 	mh_add_process(p, lh);
 
 	if(debug) {
-		printf("%d(%d): yield time_passed %d nt %d w %d\n", p->process_id, p->group->group_id, time_passed, p->group->nthread, p->weight);
+		printf("%d(%d): yield time_passed %d nt %d w %d vt %d\n", p->process_id, p->group->group_id, time_passed, p->group->nthread, p->weight, p->vruntime);
 		mh_print(p->group->mh);
 	}
 

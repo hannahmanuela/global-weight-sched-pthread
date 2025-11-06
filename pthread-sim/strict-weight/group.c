@@ -76,6 +76,11 @@ void proc_add_vruntime(struct process *p, vt_t vt) {
         atomic_fetch_add(&p->vruntime, vt);
 }
 
+void proc_insert_mh(struct process *p, struct lock_heap *lh) {
+	mh_add_process(p, lh);
+        atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
+}
+
 // set initial vruntime when group g becomes runnable
 // caller must hold group lock
 void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
@@ -90,6 +95,7 @@ void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
 void proc_lag_vruntime(struct process *p, vt_t min) {
         atomic_fetch_add(&p->vruntime, -min);
 }
+
 
 // add p to its groups for stats
 void grp_add_process(struct process *p) {

@@ -50,8 +50,7 @@ void enqueue(struct process *p) {
 	vt_t wvt = grp_slot(p, old_nthread+1);
 	proc_set_init_vruntime(p, mh_min(lh) + wvt);
 
-	mh_add_process(p, lh);
-        atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
+	proc_insert_mh(p, lh);
 
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p min %d\n", p->pid, p->group->gid, p->group->nthread, p->lh, mh_min(lh));
@@ -79,8 +78,8 @@ void yield(struct process *p, t_t time_passed) {
 	vt_t vt = calc_delta(time_passed, p->weight);
 	vt += grp_slot(p, nthread);
 	yieldL(p, time_passed, vt);
-	mh_add_process(p, lh);
-        atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
+
+	proc_insert_mh(p, lh);
 	
 	if(debug) {
 		printf("%d(%d): yield time_passed %d nt %d w %d vt %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->weight, p->vruntime);
@@ -97,7 +96,6 @@ void dequeue(struct process *p, t_t time_passed) {
 	struct lock_heap *lh = p->lh;
 	lh_lock_timed(lh);
 	pthread_rwlock_wrlock(&p->proc_lock);
-	
 
 	if(debug) {
 		printf("%d(%d): dequeue %d\n", p->pid, p->group->gid, time_passed);

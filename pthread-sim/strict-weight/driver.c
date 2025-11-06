@@ -229,11 +229,14 @@ void main(int argc, char *argv[]) {
 	    }
     }
 
+    // mh_print(gs->mh);
+
     pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
     for (int i = 0; i < num_cores; i ++) {
         pthread_create(&threads[i], NULL, run_core, (void*)i);
     }
 
+    printf("= num_cores %d num_groups %d nthreads %d nheap %d\n", num_cores, num_groups, num_groups * num_threads_p_group, gs->mh->nheap);
     printf("= cores: %d\n", num_cores);
     for (int i = 0; i < num_cores; i++) {
         pthread_join(threads[i], NULL);

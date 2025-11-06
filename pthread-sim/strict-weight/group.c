@@ -33,7 +33,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     g->weight = weight;
     g->nthread = 0;
     g->nqueued = 0;
-    g->nrunning = 0;
     g->runqueue_head = NULL;
     g->runtime = 0;
     g->sleepstart = new_ticks();
@@ -45,9 +44,8 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     return g;
 }
 
-// caller must hold group lock
-bool grp_is_sleep(struct group *g) {
-	return g->nrunning == 0 && g->nqueued == 0;
+vt_t grp_slot(struct process *p, int nthread) {
+	return calc_delta(p->mh->tick_length, p->weight) * (nthread-1);
 }
 
 bool proc_dummy(struct process *p) {

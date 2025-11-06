@@ -30,7 +30,6 @@ struct group {
 
 	int nthread; // number of threads in the group
 	int nqueued; // number of threads runnable
-	int nrunning; // number of threads running
 
 	t_t runtime;  // number of us the group ran
 	t_t *sleeptime; // number of us slots the group wasn't runnable
@@ -42,6 +41,7 @@ struct group {
 } __attribute__((aligned(64)));
 
 struct group *grp_new(struct mheap *mh, int id, int weight);
+vt_t grp_slot(struct process *p, int nthread);
 void proc_print(struct process *p);
 bool proc_dummy(struct process *p);
 struct process *grp_new_process(struct mheap *mh, int id, struct group *g);
@@ -54,7 +54,6 @@ bool proc_adjust_vruntime(struct process *p, t_t time_passed, t_t tick_length);
 
 void grp_add_process(struct process *p);
 void grp_enqueue(struct group *g);
-bool grp_is_sleep(struct group *g);
 void grp_stats(struct group *g, long tot);
 
 

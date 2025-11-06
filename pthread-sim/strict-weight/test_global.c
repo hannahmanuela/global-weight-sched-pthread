@@ -255,7 +255,7 @@ void test_worst(int nheap) {
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
-	// debug = true;
+	//debug = true;
 	// test_mheap_many_grp(20, 0);
 	test_grp_sleep_wakeup();
 	test_mheap(1, PROC1);

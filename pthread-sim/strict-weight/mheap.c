@@ -63,7 +63,7 @@ void mh_print(struct mheap *mh) {
 }
 
 void mh_lock_stats(struct mheap *mh) {
-	printf("= mh: lock stats: \n");
+	printf("= mh: lock stats: retry insert %d retry remove %d\n", mh->nretry_insert, mh->nretry_remove);
 	for (int i = 0; i < mh->nheap; i++) {
 		printf("== heap %d:\n", i);
 		lh_stats(mh->lh[i]);
@@ -79,8 +79,10 @@ struct lheap *mh_choose_heap(struct mheap *mh) {
 retry:
 	int i = random() % mh->nheap;
 	struct lheap *lh = mh_heap(mh, i);
-	if(lh_try_lock(lh) != 0)
+	if(lh_try_lock(lh) != 0) {
+		atomic_fetch_add(&mh->nretry_insert, 1);
 		goto retry;
+	}
 	return lh;
 }
 
@@ -135,10 +137,13 @@ retry:
 			}
 		}
 	}
-	if(lh_try_lock(lh_i) != 0)
+	if(lh_try_lock(lh_i) != 0) {
+		atomic_fetch_add(&mh->nretry_remove, 1);
 		goto retry;
+	}
 	if ((struct process *) heap_min(lh_i->heap) != p_i) {
 		lh_unlock(lh_i);
+		atomic_fetch_add(&mh->nretry_remove, 1);
 		goto retry;
 	}
 	pthread_rwlock_wrlock(&p_i->proc_lock);

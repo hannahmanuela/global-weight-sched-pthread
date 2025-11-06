@@ -40,8 +40,6 @@ void enqueue(struct process *p) {
 	pthread_rwlock_wrlock(&p->proc_lock);
 	assert(p->lh == NULL);
 
-	grp_add_process(p);
-
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p min %d\n", p->pid, p->group->gid, p->group->nthread, p->lh, mh_min(lh));
 		mh_print(p->group->mh);

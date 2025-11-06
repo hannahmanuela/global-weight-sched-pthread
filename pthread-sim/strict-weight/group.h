@@ -8,9 +8,9 @@
 
 struct process {
 	int pid;
+	int weight;
 
 	vt_t vruntime; 
-	int weight;
 
 	pthread_rwlock_t proc_lock;
 

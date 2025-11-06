@@ -90,7 +90,7 @@ void test_grp_sleep_wakeup() {
 }
 
 void test_mheap(int nheap, int nproc) {
-	printf("== test_%d_mheap start %d\n", nheap, nproc);
+	printf("== test_%d_mheap start np %d\n", nheap, nproc);
 
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
@@ -98,8 +98,6 @@ void test_mheap(int nheap, int nproc) {
 	struct mheap *mh = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
 	struct process *p;
 
-	mh_print(mh);
-	
 	// run the two groups to get off vt 0
 	for (int i = 0; i < GRP2; i++) {
 		p = schedule_retry(0, mh);
@@ -264,7 +262,7 @@ void main(int argc, char *argv[]) {
 	test_grp_sleep_wakeup();
 	test_mheap(1, PROC1);
 	test_mheap(1, PROC2);
-	test_mheap(2, PROC2);
+	test_mheap(2, PROC1);
 	test_mheap_many_grp(1, GRP10, PROC2, 0);
 	test_mheap_many_grp(2, GRP10, PROC2, 0);
 	test_mheap_many_grp(5, GRP10, PROC2, 0);

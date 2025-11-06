@@ -48,7 +48,7 @@ void enqueue(struct process *p) {
 	grp_add_process(p);
 
 	if(debug) {
-		printf("%d(%d): enqueue nthread %d lh%p\n", p->process_id, p->group->group_id, p->group->nthread, p->lh);
+		printf("%d(%d): enqueue nthread %d lh %p min %d\n", p->process_id, p->group->group_id, p->group->nthread, p->lh, mh_min(lh));
 		mh_print(p->group->mh);
 	}
 

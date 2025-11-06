@@ -22,6 +22,8 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     heap_elem_init(&p->heap_elem, p);
     p->mh = mh;
     p->lh = NULL;
+    if(p->group)
+	    grp_add_process(p);
     return p;
 }
 
@@ -92,8 +94,7 @@ void proc_lag_vruntime(struct process *p, vt_t min) {
         atomic_fetch_add(&p->vruntime, -min);
 }
 
-// add p to its group.
-// caller must hold group lock
+// add p to its groups for stats
 void grp_add_process(struct process *p) {
 	struct process *curr_head = p->group->runqueue_head;
 	if (!curr_head) {
@@ -103,15 +104,6 @@ void grp_add_process(struct process *p) {
 		p->next = curr_head;
 		p->group->runqueue_head = p;
 	}
-}
-
-// remove p from its group.
-// caller must hold group lock
-struct process *grp_deq_process(struct group *g) {
-	struct process *p = g->runqueue_head;
-	g->runqueue_head = p->next;
-	p->next = NULL;
-	return p;
 }
 
 void grp_stats(struct group *g, long sum) {

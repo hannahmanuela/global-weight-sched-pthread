@@ -52,8 +52,8 @@ void proc_add_vruntime(struct process *p, t_t tick_length);
 void proc_set_init_vruntime(struct process *p, vt_t min);
 void proc_lag_vruntime(struct process *p, vt_t min);
 bool proc_adjust_vruntime(struct process *p, t_t time_passed, t_t tick_length);
+
 void grp_add_process(struct process *p);
-struct process *grp_deq_process(struct group *g);
 void grp_enqueue(struct group *g);
 bool grp_is_sleep(struct group *g);
 void grp_stats(struct group *g, long tot);

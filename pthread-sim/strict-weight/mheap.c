@@ -23,6 +23,8 @@ struct mheap *mh_new(int proc_cmp(void *, void *), int n, int seed, int tick_len
 	}
 	mh->nheap = n;
 	mh->tick_length = tick_length;
+	mh->nretry_insert = 0;
+	mh->nretry_remove = 0;
 	return mh;
 }
 

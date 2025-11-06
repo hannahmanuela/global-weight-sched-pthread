@@ -13,6 +13,7 @@
 #include <stdint.h> 
 #include <sys/resource.h>
 #include <stdatomic.h>
+#include <strings.h>
 
 #include "vt.h"
 #include "ticks.h"
@@ -212,18 +213,7 @@ void main(int argc, char *argv[]) {
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
     for (int i = 0; i < num_cores; i++) {
-        gs->cores[i].core_id = i;
-        gs->cores[i].current_process = NULL;
-	gs->cores[i].pool = NULL;
-        gs->cores[i].sched_us = 0;
-        gs->cores[i].enq_us = 0;
-        gs->cores[i].yield_us = 0;
-        gs->cores[i].sched_cycles = 0;
-        gs->cores[i].enq_cycles = 0;
-        gs->cores[i].yield_cycles = 0;
-        gs->cores[i].nsched = 0;
-        gs->cores[i].nenq = 0;
-        gs->cores[i].nyield = 0;
+	    bzero(&(gs->cores[i]), sizeof(struct core_state));
     }
     int seed = 1;
     gs->mh = mh_new(proc_cmp, atoi(argv[4]), seed, tick_length);

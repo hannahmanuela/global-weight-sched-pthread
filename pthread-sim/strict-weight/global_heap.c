@@ -34,7 +34,7 @@ struct process *schedule(int core, struct mheap *mh) {
 
 // Add p to group and make p runnable
 void enqueue(struct process *p) {
-	struct lock_heap *lh = mh_choose_heap(p->mh);
+	struct lheap *lh = mh_choose_heap(p->mh);
 
 	pthread_rwlock_wrlock(&p->proc_lock);
 	assert(p->lh == NULL);
@@ -70,7 +70,7 @@ static void yieldL(struct process *p, vt_t time_passed, vt_t vt) {
 
 // Yield and enqueue
 void yield(struct process *p, t_t time_passed) {
-	struct lock_heap *lh = mh_choose_heap(p->mh);
+	struct lheap *lh = mh_choose_heap(p->mh);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	int nthread = atomic_load(&p->group->nthread);
@@ -93,7 +93,7 @@ void yield(struct process *p, t_t time_passed) {
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
 void dequeue(struct process *p, t_t time_passed) {
-	struct lock_heap *lh = p->lh;
+	struct lheap *lh = p->lh;
 	lh_lock_timed(lh);
 	pthread_rwlock_wrlock(&p->proc_lock);
 

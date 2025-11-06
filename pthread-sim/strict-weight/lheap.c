@@ -9,8 +9,8 @@
 #include "group.h"
 #include "lheap.h"
 
-struct lock_heap *lh_new(int grp_cmp(void *, void*)) {
-	struct lock_heap *lh = (struct lock_heap *) malloc(sizeof(struct lock_heap));
+struct lheap *lh_new(int grp_cmp(void *, void*)) {
+	struct lheap *lh = (struct lheap *) malloc(sizeof(struct lheap));
 	lh->heap = heap_new(grp_cmp);
 	lh->wait_for_wr_heap_lock_cycles = 0;
 	lh->num_times_wr_heap_locked = 0;
@@ -20,7 +20,7 @@ struct lock_heap *lh_new(int grp_cmp(void *, void*)) {
 	return lh;
 }
 
-void lh_stats(struct lock_heap *lh) {
+void lh_stats(struct lheap *lh) {
 	if (lh->num_times_wr_heap_locked > 0) {
 		printf("Heap write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
 		       lh->wait_for_wr_heap_lock_cycles / lh->num_times_wr_heap_locked,
@@ -33,26 +33,26 @@ void lh_stats(struct lock_heap *lh) {
 	}
 }
 
-void lh_unlock(struct lock_heap *lh) {
+void lh_unlock(struct lheap *lh) {
 	pthread_rwlock_unlock(&lh->heap_lock);
 }
 
-void lh_lock(struct lock_heap *lh) {
+void lh_lock(struct lheap *lh) {
 	pthread_rwlock_wrlock(&lh->heap_lock);
 }
 
 // if l = 0,  successful lock
-int lh_try_lock(struct lock_heap *lh) {
+int lh_try_lock(struct lheap *lh) {
 	int l = pthread_rwlock_trywrlock(&lh->heap_lock);
 	return l;
 }
 
-void lh_rdlock(struct lock_heap *lh) {
+void lh_rdlock(struct lheap *lh) {
 	pthread_rwlock_rdlock(&lh->heap_lock);
 }
 
 // Wrapper functions for pthread_rwlock operations with timing
-void lh_lock_timed(struct lock_heap *lh) {
+void lh_lock_timed(struct lheap *lh) {
 	int start_tsc = safe_read_tsc();
 	lh_lock(lh);
 	int end_tsc = safe_read_tsc();
@@ -60,7 +60,7 @@ void lh_lock_timed(struct lock_heap *lh) {
 	lh->num_times_wr_heap_locked++;
 }
 
-void lh_rdlock_timed(struct lock_heap *lh) {
+void lh_rdlock_timed(struct lheap *lh) {
 	int start_tsc = safe_read_tsc();
 	lh_rdlock(lh);
 	int end_tsc = safe_read_tsc();

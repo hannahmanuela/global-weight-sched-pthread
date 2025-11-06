@@ -13,7 +13,7 @@
 struct mheap *mh_new(int proc_cmp(void *, void *), int n, int seed, int tick_length) {
 	srandom(seed);
 	struct mheap *mh = malloc(sizeof(struct mheap));
-	mh->lh = (struct lock_heap **) malloc(sizeof(struct lock_heap) * n);
+	mh->lh = (struct lheap **) malloc(sizeof(struct lheap) * n);
 	for (int i=0; i < n; i++) {
 		mh->lh[i] = lh_new(proc_cmp);
 		// insert a dummy element so that the heap always has one elemement
@@ -37,7 +37,7 @@ void mh_free(struct mheap *mh) {
 	}
 }
 
-int mh_min(struct lock_heap *lh) {
+int mh_min(struct lheap *lh) {
 	struct process *min = (struct process *) heap_min(lh->heap);
 	long mvt = 0;
 	if (min && !proc_dummy(min)) {
@@ -71,21 +71,21 @@ void mh_lock_stats(struct mheap *mh) {
 	printf("=\n");
 }
 
-struct lock_heap *mh_heap(struct mheap *mh, int i) {
+struct lheap *mh_heap(struct mheap *mh, int i) {
 	return mh->lh[i];
 }
 
-struct lock_heap *mh_choose_heap(struct mheap *mh) {
+struct lheap *mh_choose_heap(struct mheap *mh) {
 retry:
 	int i = random() % mh->nheap;
-	struct lock_heap *lh = mh_heap(mh, i);
+	struct lheap *lh = mh_heap(mh, i);
 	if(lh_try_lock(lh) != 0)
 		goto retry;
 	return lh;
 }
 
 // caller must hold heap and proc lock
-void mh_add_process(struct process *p, struct lock_heap *lh) {
+void mh_add_process(struct process *p, struct lheap *lh) {
 	p->lh = lh;
 	heap_push(lh->heap, &p->heap_elem);
 }
@@ -96,7 +96,7 @@ void mh_del_process(struct mheap *mh, struct process *p) {
 }
 
 // caller must ensure there is a min element
-void *mh_min_atomic(struct lock_heap *lh)  {
+void *mh_min_atomic(struct lheap *lh)  {
         struct heap_elem *e = atomic_load(&(lh->heap->heap[0]));
         return e->elem;
 }
@@ -109,8 +109,8 @@ retry:
 	while (i == j) {
 		j = random() % mh->nheap;
 	}
-	struct lock_heap *lh_i = mh_heap(mh, i);
-	struct lock_heap *lh_j = mh_heap(mh, j);
+	struct lheap *lh_i = mh_heap(mh, i);
+	struct lheap *lh_j = mh_heap(mh, j);
 	struct process *p_i = (struct process *) mh_min_atomic(lh_i);
 	struct process *p_j = (struct process *) mh_min_atomic(lh_j);
 	if (proc_dummy(p_i) && proc_dummy(p_j)) {
@@ -151,7 +151,7 @@ retry:
 // returns with proc locked
 struct process *mh_min_proc(struct mheap *mh) {
 	if (mh->nheap == 1) {
-		struct lock_heap *lh = mh_heap(mh, 0);
+		struct lheap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
 		struct process *p = (struct process *) heap_min(lh->heap);
 		if(!p || proc_dummy(p)) {

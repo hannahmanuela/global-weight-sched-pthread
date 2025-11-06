@@ -104,15 +104,15 @@ void test_mheap(int nheap, int nproc) {
 	}
 
 	p = schedule_retry(0, mh);
-	assert(p->group->group_id == GRP2-1);
+	assert(p->group->gid == GRP2-1);
 	assert(p->vruntime == 50);
 	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
-	assert(p->group->group_id == GRP2-1);
+	assert(p->group->gid == GRP2-1);
 	assert(p->vruntime == 100);
 	yield(p, mh->tick_length);
 	p = schedule_retry(0, mh);
-	assert(p->group->group_id == 0);
+	assert(p->group->gid == 0);
 	assert(p->vruntime == 100);
 	yield(p, mh->tick_length);
 
@@ -145,7 +145,7 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 			tl = random() % mh->tick_length;
 		}
 		yield(p, tl);
-		ticks[p->group->group_id] += tl;
+		ticks[p->group->gid] += tl;
 		tot += tl;
 	}	
 	for (int i = 0; i < ngrp; i++) {
@@ -163,17 +163,17 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 	int sleeping = 0;
 	for (int i = 0; i < n; i++) {
 		if(sleeper != NULL) {
-			sleep[sleeper->group->group_id] += 1;
+			sleep[sleeper->group->gid] += 1;
 		}
 		struct process *p = schedule_retry(0, mh);
-		//printf("%d: p gid %d\n", i, p->group->group_id);
-		if(p->group->group_id != sleep_id) {
+		//printf("%d: p gid %d\n", i, p->group->gid);
+		if(p->group->gid != sleep_id) {
 			yield(p, mh->tick_length);
-			ticks[p->group->group_id] += 1;
+			ticks[p->group->gid] += 1;
 		} else if (sleeper == NULL) {
-			//printf("%d: deque: %d\n", i, sleep_id, ticks[p->group->group_id]);
+			//printf("%d: deque: %d\n", i, sleep_id, ticks[p->group->gid]);
 			dequeue(p, mh->tick_length);
-			ticks[p->group->group_id] += 1;
+			ticks[p->group->gid] += 1;
 			sleeping = i;
 			sleeper = p;
 		}

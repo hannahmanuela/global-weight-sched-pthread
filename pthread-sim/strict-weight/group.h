@@ -7,7 +7,7 @@
 #include "heap.h"
 
 struct process {
-	int process_id;
+	int pid;
 
 	vt_t vruntime; 
 	int weight;
@@ -23,7 +23,7 @@ struct process {
 } __attribute__((aligned(64)));
 
 struct group {
-	int group_id;
+	int gid;
 	int weight;
 
 	pthread_rwlock_t group_lock;

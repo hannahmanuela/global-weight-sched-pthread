@@ -17,22 +17,17 @@ struct process *schedule(int core, struct mheap *mh) {
 		return NULL;
 	}
 
-        // gl_min_group returns with heap and proc lock held
+        // mh_min_proc returns with proc lock held and proc
+	// removed from mheap.
     
 	if(debug) {
-		printf("%d: schedule %d(%d) vt %d\n", core, min_proc->process_id, min_proc->group->group_id, min_proc->vruntime);
+		printf("%d: schedule %d(%d) vt %d\n", core, min_proc->pid, min_proc->group->gid, min_proc->vruntime);
 		mh_print(min_proc->mh);
 	}
 
-	// select the next process
-	// struct process *next_p = grp_deq_process(min_group);
-	// assert(next_p != NULL);
 	min_proc->group->nqueued -= 1;
 	min_proc->group->nrunning += 1;
 	
-	// must be after grp_deq_process, since it may empty the proc queue
-	// heap_fix_index(min_proc->lh->heap, &min_group->heap_elem);
-
 	pthread_rwlock_unlock(&min_proc->proc_lock);
 
 	return min_proc;
@@ -48,7 +43,7 @@ void enqueue(struct process *p) {
 	grp_add_process(p);
 
 	if(debug) {
-		printf("%d(%d): enqueue nthread %d lh %p min %d\n", p->process_id, p->group->group_id, p->group->nthread, p->lh, mh_min(lh));
+		printf("%d(%d): enqueue nthread %d lh %p min %d\n", p->pid, p->group->gid, p->group->nthread, p->lh, mh_min(lh));
 		mh_print(p->group->mh);
 	}
 
@@ -87,7 +82,7 @@ void yield(struct process *p, t_t time_passed) {
 	mh_add_process(p, lh);
 
 	if(debug) {
-		printf("%d(%d): yield time_passed %d nt %d w %d vt %d\n", p->process_id, p->group->group_id, time_passed, p->group->nthread, p->weight, p->vruntime);
+		printf("%d(%d): yield time_passed %d nt %d w %d vt %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->weight, p->vruntime);
 		mh_print(p->group->mh);
 	}
 
@@ -104,7 +99,7 @@ void dequeue(struct process *p, t_t time_passed) {
 	
 
 	if(debug) {
-		printf("%d(%d): dequeue %d\n", p->process_id, p->group->group_id, time_passed);
+		printf("%d(%d): dequeue %d\n", p->pid, p->group->gid, time_passed);
 		mh_print(p->group->mh);
 	}
 

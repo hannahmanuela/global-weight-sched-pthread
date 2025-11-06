@@ -13,7 +13,7 @@ extern bool debug;
 
 struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     struct process *p = malloc(sizeof(struct process));
-    p->process_id = id;
+    p->pid = id;
     p->vruntime = 0;
     p->weight = (group != NULL) ? group->weight : 0;
     pthread_rwlock_init(&p->proc_lock, NULL);
@@ -27,7 +27,7 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
 
 struct group *grp_new(struct mheap *mh, int id, int weight) {
     struct group *g = malloc(sizeof(struct group));
-    g->group_id = id;
+    g->gid = id;
     g->weight = weight;
     g->nthread = 0;
     g->nqueued = 0;
@@ -50,11 +50,11 @@ bool grp_is_sleep(struct group *g) {
 }
 
 bool proc_dummy(struct process *p) {
-	return p->process_id == DUMMY;
+	return p->pid == DUMMY;
 }
 
 void proc_print(struct process *p) {
-	printf("(pid %d(%d) vt %d, w %d)", p->process_id, (p->group != NULL) ? p->group->group_id : DUMMY, p->vruntime, p->weight);
+	printf("(pid %d(%d) vt %d, w %d)", p->pid, (p->group != NULL) ? p->group->gid : DUMMY, p->vruntime, p->weight);
 }	
 
 // caller must hold group lock for both groups
@@ -67,9 +67,9 @@ int proc_cmp(void *e0, void *e1) {
 	// Prefer higher weight
 	if (a->weight > b->weight) return -1;
 	if (a->weight < b->weight) return 1;
-	// tie-breaker by group_id for determinism
-	if (a->process_id < b->process_id) return -1;
-	if (a->process_id > b->process_id) return 1;
+	// tie-breaker by gid for determinism
+	if (a->pid < b->pid) return -1;
+	if (a->pid > b->pid) return 1;
 	return 0;
 }
 
@@ -82,7 +82,7 @@ void proc_add_vruntime(struct process *p, vt_t vt) {
 void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
 	vt_t nvt = min_vt + p->vruntime;
 	if(debug)
-		printf("%d(%d): grp_set_init_vruntime: mvt %ld new vt %ld\n", p->process_id, p->group->group_id, min_vt, nvt);
+		printf("%d(%d): grp_set_init_vruntime: mvt %ld new vt %ld\n", p->pid, p->group->gid, min_vt, nvt);
         atomic_store(&p->vruntime, nvt);
 }
 
@@ -115,10 +115,10 @@ struct process *grp_deq_process(struct group *g) {
 }
 
 void grp_stats(struct group *g, long sum) {
-	if (g->group_id == DUMMY)
+	if (g->gid == DUMMY)
 		return;
 	t_t t = ticks_sum(g->sleeptime);
-	printf("%d: runtime %d us sleeptime %d us weight %d ticks %0.2f\n", g->group_id,
+	printf("%d: runtime %d us sleeptime %d us weight %d ticks %0.2f\n", g->gid,
 	       g->runtime, t,
 	       g->weight, 1.0*g->runtime/(sum-t));
 }

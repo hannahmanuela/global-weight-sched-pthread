@@ -57,6 +57,7 @@ struct core_state {
 
 struct global_state {
 	struct mheap *mh;
+	struct group **grps;
 	struct core_state *cores;
 };
 
@@ -227,9 +228,11 @@ void main(int argc, char *argv[]) {
     int seed = 1;
     gs->mh = mh_new(proc_cmp, atoi(argv[4]), seed, tick_length);
 
+    gs->grps = (struct group **) malloc(sizeof(struct group *)*num_groups);
     for (int i = 0; i < num_groups; i++) {
 	    struct group *g = grp_new(gs->mh, i, 10);
 	    // struct group *g = grp_new(gs->mh, i, 10*(i+1));
+	    gs->grps[i] = g;
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(gs->mh, i*num_threads_p_group+j, g);
 		    enqueue(p);
@@ -237,7 +240,6 @@ void main(int argc, char *argv[]) {
     }
 
     pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
-
     for (int i = 0; i < num_cores; i ++) {
         pthread_create(&threads[i], NULL, run_core, (void*)i);
     }
@@ -252,7 +254,7 @@ void main(int argc, char *argv[]) {
     printf("=\n");
 
     mh_lock_stats(gs->mh);
-    // stats(gs->grps);
+    stats(gs->grps, num_groups);
 }
 
 

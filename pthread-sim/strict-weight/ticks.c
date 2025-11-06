@@ -5,7 +5,10 @@
 extern int num_cores;
 
 t_t *new_ticks() {
-	return malloc(sizeof(t_t) * num_cores);
+	t_t *t = malloc(sizeof(t_t) * num_cores);
+	for(int i = 0; i < num_cores; i++)
+		t[i] = 0;
+	return t;
 }
 
 void ticks_free(t_t *ticks) {

@@ -34,7 +34,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     g->nthread = 0;
     g->nqueued = 0;
     g->nrunning = 0;
-    g->vruntime = 0;
     g->runqueue_head = NULL;
     g->runtime = 0;
     g->sleepstart = new_ticks();

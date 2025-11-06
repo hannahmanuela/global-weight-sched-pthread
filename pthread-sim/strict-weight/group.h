@@ -31,7 +31,6 @@ struct group {
 	int nthread; // number of threads in the group
 	int nqueued; // number of threads runnable
 	int nrunning; // number of threads running
-	vt_t vruntime; // updated when the group is scheduled, assuming full tick
 
 	t_t runtime;  // number of us the group ran
 	t_t *sleeptime; // number of us slots the group wasn't runnable

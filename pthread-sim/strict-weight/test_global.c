@@ -68,8 +68,6 @@ void test_grp_sleep_wakeup() {
 	struct process *p0;
 	struct process *p1;
 
-	printf("==="); mh_print(mh);
-	
 	p0 = schedule_retry(0, mh);
 	p1 = schedule_retry(1, mh);
 	dequeue(p1, tl);
@@ -118,7 +116,7 @@ void test_mheap(int nheap, int nproc) {
 	assert(p->vruntime == 100);
 	yield(p, mh->tick_length);
 
-	stats(gs, GRP2);
+	// stats(gs, GRP2);
 
 	cleanup(mh);
 

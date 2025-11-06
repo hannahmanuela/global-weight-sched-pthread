@@ -78,6 +78,11 @@ struct lheap *mh_heap(struct mheap *mh, int i) {
 }
 
 struct lheap *mh_choose_heap(struct mheap *mh) {
+	if(mh->nheap == 1) {
+		struct lheap *lh = mh_heap(mh, 0);
+		lh_lock_timed(lh);		
+		return lh;
+	}
 retry:
 	int i = random() % mh->nheap;
 	struct lheap *lh = mh_heap(mh, i);

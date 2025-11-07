@@ -11,15 +11,14 @@
 bool debug;
 
 // Select next process to run
-struct process *schedule(int core, struct mheap *mh) {
-	struct process *min_proc = mh_min_proc(mh);
+struct process *schedule(int core, struct mheap *mh, long *ts, long *retry) {
+	struct process *min_proc = mh_min_proc(mh, ts, retry);
 	if (min_proc == NULL) {
 		return NULL;
 	}
 
-        // mh_min_proc returns with proc lock held and proc
-	// removed from mheap.
-    
+	//pthread_rwlock_wrlock(&min_proc->proc_lock);
+
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %d\n", core, min_proc->pid, min_proc->group->gid, min_proc->vruntime);
 		mh_print(min_proc->mh);
@@ -27,14 +26,14 @@ struct process *schedule(int core, struct mheap *mh) {
 
         // atomic_fetch_add(&min_proc->group->nqueued, -1);  // for debugging 
 	
-	pthread_rwlock_unlock(&min_proc->proc_lock);
+	//pthread_rwlock_unlock(&min_proc->proc_lock);
 
 	return min_proc;
 }
 
 // Add p to group and make p runnable
-void enqueue(struct process *p) {
-	struct lheap *lh = mh_choose_heap(p->mh);
+void enqueue(struct process *p, long *retry) {
+	struct lheap *lh = mh_choose_heap(p->mh, retry);
 
 	pthread_rwlock_wrlock(&p->proc_lock);
 	assert(p->lh == NULL);
@@ -69,8 +68,8 @@ static void yieldL(struct process *p, vt_t time_passed, vt_t vt) {
 }
 
 // Yield and enqueue
-void yield(struct process *p, t_t time_passed) {
-	struct lheap *lh = mh_choose_heap(p->mh);
+void yield(struct process *p, t_t time_passed, long *retry) {
+	struct lheap *lh = mh_choose_heap(p->mh, retry);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	int nthread = atomic_load(&p->group->nthread);

@@ -26,6 +26,7 @@
 #define TRACE
 
 #define TIME_TO_RUN 20  // sec
+//#define TIME_TO_RUN 1  // sec
 
 int num_groups = 10;
 int num_cores = 8;
@@ -41,6 +42,7 @@ struct core_state {
 	struct process *current_process;
 	struct process *pool;
 	long sched_cycles;
+	long min_proc_cycles;
 	long enq_cycles;
 	long deq_cycles;
 	long yield_cycles;
@@ -48,6 +50,8 @@ struct core_state {
 	long nenq;
 	long ndeq;
 	long nyield;
+	long nretry_del;
+	long nretry_ins;
 } __attribute__((aligned(64)));
 
 struct global_state {
@@ -91,20 +95,22 @@ void doop(struct core_state *mycore, int op, long *cycles, long *n, struct proce
 	long ts = safe_read_tsc();
 	switch(op) {
 	case SCHEDULE:
-		mycore->current_process = schedule(mycore-gs->cores, gs->mh);
+		long ts;
+		mycore->current_process = schedule(mycore-gs->cores, gs->mh, &ts, &mycore->nretry_del);
+		mycore->min_proc_cycles += ts;
 		break;
 	case YIELD:
 		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
 		if(p) {
 			atomic_fetch_add(&(mycore->work.tick), gs->mh->tick_length);
-			yield(p, gs->mh->tick_length);
+			yield(p, gs->mh->tick_length, &mycore->nretry_ins);
 		} else {
 			atomic_fetch_add(&(mycore->idle.tick), gs->mh->tick_length);
 		}
 		mycore->current_process = NULL;
 		break;
 	case ENQ:
-	        enqueue(p);
+	        enqueue(p, &mycore->nretry_ins);
 		break;
 	case DEQ:
 		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
@@ -209,7 +215,7 @@ void main(int argc, char *argv[]) {
 	    gs->grps[i] = g;
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(gs->mh, i*num_threads_p_group+j, g);
-		    enqueue(p);
+		    enqueue(p, NULL);
 	    }
     }
 
@@ -224,21 +230,42 @@ void main(int argc, char *argv[]) {
     printf("= cores: %d\n", num_cores);
     float s_h = 0.0;
     float s_l = 100000.0;
+    float p_h = 0.0;
+    float p_l = 100000.0;
     float y_h = 0.0;
     float y_l = 100000.0;
+    float rins_h = 0.0;
+    float rins_l = 100000.0;
+    float rdel_h = 0.0;
+    float rdel_l = 100000.0;
+    long nretry_ins = 0;
+    long nretry_del = 0;
     long nop;
     for (struct core_state *c = &gs->cores[0]; c < &gs->cores[num_cores]; c = c + 1) {
-        pthread_join(threads[c - &gs->cores[0]], NULL);
-	float s = AVG(c->sched_cycles, c->nsched);
-	nop += (c->nsched + c->nyield); 
-	s_h = MAX(s_h, s);
-	s_l = MIN(s_l, s);
-	s = AVG(c->yield_cycles, c->nyield);
-	y_h = MAX(y_h, s);
-	y_l = MIN(y_l, s);
-	// print_core(c); printf("\n");
+	    pthread_join(threads[c - &gs->cores[0]], NULL);
+	    // print_core(c); printf("\n");
+	    float s = AVG(c->sched_cycles, c->nsched);
+	    nop += (c->nsched + c->nyield); 
+	    s_h = MAX(s_h, s);
+	    s_l = MIN(s_l, s);
+	    s = AVG(c->min_proc_cycles, c->nsched);
+	    p_h = MAX(p_h, s);
+	    p_l = MIN(p_l, s);
+	    s = AVG(c->yield_cycles, c->nyield);
+	    y_h = MAX(y_h, s);
+	    y_l = MIN(y_l, s);
+	    s = AVG(c->nretry_ins, (c->nenq + c->nyield));
+	    rins_h = MAX(rins_h, s);
+	    rins_l = MIN(rins_l, s);
+	    nretry_ins += c->nretry_ins;
+	    s = AVG(c->nretry_del, c->nsched);
+	    rdel_h = MAX(rdel_h, s);	
+	    rdel_l = MIN(rdel_l, s);
+	    nretry_del += c->nretry_del;
     }
-    printf("  nsched %ld sched %0.2f %0.2f yield %0.2f %0.2f\n", nop, s_l, s_h, y_l, y_h);
+    printf("  nsched %ld sched %0.2f %0.2f min_proc %0.2f %0.2f yield %0.2f %0.2f\n",
+	   nop, s_l, s_h, p_l, p_h, y_l, y_h);
+    printf("  retry ins %ld %0.2f %0.2f retry del %ld %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, rdel_l, rdel_h);
     printf("=\n");
 
     mh_lock_stats(gs->mh);

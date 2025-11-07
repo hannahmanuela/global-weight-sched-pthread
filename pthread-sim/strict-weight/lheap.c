@@ -18,8 +18,6 @@ struct lheap *lh_new(int grp_cmp(void *, void*)) {
 	lh->insert_cycles = 0;
 	lh->ninsert = 0;
 	lh->nremove = 0;
-	lh->nretry_insert = 0;
-	lh->nretry_remove = 0;
 	atomic_init(&lh->wait_for_rd_heap_lock_cycles, 0);
 	atomic_init(&lh->num_times_rd_heap_locked, 0);
 	pthread_rwlock_init(&lh->heap_lock, NULL);

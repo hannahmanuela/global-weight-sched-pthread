@@ -14,8 +14,6 @@ struct lheap {
 	long remove_cycles;
 	long ninsert;
 	long nremove;
-	long nretry_insert;
-	long nretry_remove;
 } __attribute__((aligned(64)));
 
 struct lheap *lh_new(int grp_cmp(void*,void*));

@@ -69,10 +69,6 @@ void mh_lock_stats(struct mheap *mh) {
 	float h_i = 0.0;
 	float l_r = 10000.0;
 	float h_r = 0.0;
-	float l_inr = 10000.0;
-	float h_inr = 0.0;
-	float l_delr = 10000.0;
-	float h_delr = 0.0;
 	float l_cycles = 10000.0;
 	float h_cycles = 0.0;
 	for (int i = 0; i < mh->nheap; i++) {
@@ -83,19 +79,12 @@ void mh_lock_stats(struct mheap *mh) {
 		h_i = MAX(h_i, in);
 		l_r = MIN(l_r, out);
 		h_r = MAX(h_r, out);
-		float inr = AVG(lh->nretry_insert, lh->ninsert);
-		float outr = AVG(lh->nretry_remove, lh->nremove);
-		l_inr = MIN(l_inr, inr);
-		h_inr = MAX(h_inr, inr);
-		l_delr = MIN(l_delr, outr);
-		h_delr = MAX(h_delr, outr);
 		float c = AVG(lh->wait_for_wr_heap_lock_cycles, lh->num_times_wr_heap_locked);
 		l_cycles = MIN(l_cycles, c);
 		h_cycles = MAX(h_cycles, c);
 		//lh_stats(lh);
 	}
 	printf("  cycles: insert %0.2f %0.2f remove %0.2f %0.2f\n", l_i, h_i, l_r, h_r); 
-	printf("  retry: insert %0.2f %0.2f remove %0.2f %0.2f\n", l_inr, h_inr, l_delr, h_delr); 
 	printf("  lock cycles %0.2f %0.2f\n", l_cycles, h_cycles);
 
 	printf("=\n");
@@ -105,7 +94,8 @@ struct lheap *mh_heap(struct mheap *mh, int i) {
 	return mh->lh[i];
 }
 
-struct lheap *mh_choose_heap(struct mheap *mh) {
+struct lheap *mh_choose_heap(struct mheap *mh, long *retry) {
+	long r = 0;
 	if(mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);		
@@ -115,8 +105,11 @@ retry:
 	int i = random() % mh->nheap;
 	struct lheap *lh = mh_heap(mh, i);
 	if(lh_try_lock_timed(lh) != 0) {
-		atomic_fetch_add(&lh->nretry_insert, 1);
+		r++;
 		goto retry;
+	}
+	if (retry != NULL) {
+		*retry += r;
 	}
 	return lh;
 }
@@ -147,7 +140,9 @@ void *mh_min_atomic(struct lheap *lh)  {
 }
 
 // https://dl.acm.org/doi/10.1145/2755573.2755616
-struct process *mh_sample_min_group(struct mheap *mh) {
+struct process *mh_sample_min_group(struct mheap *mh, long *ts, long *retry) {
+	long start = safe_read_tsc();
+	long r = 0;
 retry:
 	int i = random() % mh->nheap;
 	int j = random() % mh->nheap;
@@ -181,22 +176,26 @@ retry:
 		}
 	}
 	if(lh_try_lock_timed(lh_i) != 0) {
-		atomic_fetch_add(&lh_i->nretry_remove, 1);
+		r++;
 		goto retry;
 	}
 	if ((struct process *) heap_min(lh_i->heap) != p_i) {
 		lh_unlock(lh_i);
-		atomic_fetch_add(&lh_i->nretry_remove, 1);
+		r++;
 		goto retry;
 	}
 	assert(p_i->lh == lh_i);
 	mh_del_process(p_i->mh, p_i);
 	lh_unlock(lh_i);
+	if (ts != NULL)
+		*ts = safe_read_tsc() - start;
+	if (retry != NULL)
+		*retry += r;
 	return p_i;
 }
 
 // returns with proc locked
-struct process *mh_min_proc(struct mheap *mh) {
+struct process *mh_min_proc(struct mheap *mh, long *ts, long *retry) {
 	if (mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
@@ -211,5 +210,5 @@ struct process *mh_min_proc(struct mheap *mh) {
 		lh_unlock(lh);
 		return p;
 	}
-	return mh_sample_min_group(mh);
+	return mh_sample_min_group(mh, ts, retry);
 }

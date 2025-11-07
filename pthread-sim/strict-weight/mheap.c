@@ -189,7 +189,6 @@ retry:
 		atomic_fetch_add(&lh_i->nretry_remove, 1);
 		goto retry;
 	}
-	pthread_rwlock_wrlock(&p_i->proc_lock);
 	assert(p_i->lh == lh_i);
 	mh_del_process(p_i->mh, p_i);
 	lh_unlock(lh_i);

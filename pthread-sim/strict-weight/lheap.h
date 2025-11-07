@@ -22,6 +22,7 @@ struct lheap *lh_new(int grp_cmp(void*,void*));
 void lh_unlock(struct lheap *lh);
 void lh_lock(struct lheap *lh);
 void lh_lock_timed(struct lheap *lh);
+int lh_try_lock_timed(struct lheap *lh);
 void lh_rdlock_timed(struct lheap *lh);
 void lh_stats(struct lheap *lh);
 int lh_try_lock(struct lheap *lh);

@@ -49,7 +49,7 @@ void lh_lock(struct lheap *lh) {
 	pthread_rwlock_wrlock(&lh->heap_lock);
 }
 
-// if l = 0,  successful lock
+// if l = 0,  successful acquire
 int lh_try_lock(struct lheap *lh) {
 	int l = pthread_rwlock_trywrlock(&lh->heap_lock);
 	return l;
@@ -75,3 +75,13 @@ void lh_rdlock_timed(struct lheap *lh) {
 	atomic_fetch_add(&lh->wait_for_rd_heap_lock_cycles, (end_tsc - start_tsc));
 	atomic_fetch_add(&lh->num_times_rd_heap_locked, 1);
 }
+
+int lh_try_lock_timed(struct lheap *lh) {
+	int start_tsc = safe_read_tsc();
+	int l = lh_try_lock(lh);
+	int end_tsc = safe_read_tsc();
+	lh->wait_for_wr_heap_lock_cycles += (end_tsc - start_tsc);
+	lh->num_times_wr_heap_locked++;
+	return l;
+}
+

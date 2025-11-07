@@ -226,9 +226,11 @@ void main(int argc, char *argv[]) {
     float s_l = 100000.0;
     float y_h = 0.0;
     float y_l = 100000.0;
+    long nop;
     for (struct core_state *c = &gs->cores[0]; c < &gs->cores[num_cores]; c = c + 1) {
         pthread_join(threads[c - &gs->cores[0]], NULL);
 	float s = AVG(c->sched_cycles, c->nsched);
+	nop += (c->nsched + c->nyield); 
 	s_h = MAX(s_h, s);
 	s_l = MIN(s_l, s);
 	s = AVG(c->yield_cycles, c->nyield);
@@ -236,7 +238,7 @@ void main(int argc, char *argv[]) {
 	y_l = MIN(y_l, s);
 	// print_core(c); printf("\n");
     }
-    printf("  sched %0.2f %0.2f yield %0.2f %0.2f\n", s_l, s_h, y_l, y_h);
+    printf("  nsched %ld sched %0.2f %0.2f yield %0.2f %0.2f\n", nop, s_l, s_h, y_l, y_h);
     printf("=\n");
 
     mh_lock_stats(gs->mh);

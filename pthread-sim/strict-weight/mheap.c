@@ -107,7 +107,7 @@ struct lheap *mh_choose_heap(struct mheap *mh) {
 retry:
 	int i = random() % mh->nheap;
 	struct lheap *lh = mh_heap(mh, i);
-	if(lh_try_lock(lh) != 0) {
+	if(lh_try_lock_timed(lh) != 0) {
 		atomic_fetch_add(&lh->nretry_insert, 1);
 		goto retry;
 	}
@@ -173,7 +173,7 @@ retry:
 			}
 		}
 	}
-	if(lh_try_lock(lh_i) != 0) {
+	if(lh_try_lock_timed(lh_i) != 0) {
 		atomic_fetch_add(&lh_i->nretry_remove, 1);
 		goto retry;
 	}

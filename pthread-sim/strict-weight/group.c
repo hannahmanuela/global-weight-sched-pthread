@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <limits.h>
 
+#include "util.h"
 #include "vt.h"
 #include "driver.h"
 #include "lheap.h"
@@ -16,6 +17,7 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     p->pid = id;
     p->vruntime = 0;
     p->weight = (group != NULL) ? group->weight : 0;
+    p->runtime = 0;
     pthread_rwlock_init(&p->proc_lock, NULL);
     p->group = group;
     p->next = NULL;
@@ -33,8 +35,7 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     g->weight = weight;
     g->nthread = 0;
     g->nqueued = 0;
-    g->runqueue_head = NULL;
-    g->runtime = 0;
+    g->procs = NULL;
     g->sleepstart = new_ticks();
     ticks_gettime(g->sleepstart);
     g->sleeptime = new_ticks();
@@ -99,22 +100,31 @@ void proc_lag_vruntime(struct process *p, vt_t min) {
 
 // add p to its groups for stats
 void grp_add_process(struct process *p) {
-	struct process *curr_head = p->group->runqueue_head;
+	struct process *curr_head = p->group->procs;
 	if (!curr_head) {
-		p->group->runqueue_head = p;
+		p->group->procs = p;
 		p->next = NULL;
 	} else {
 		p->next = curr_head;
-		p->group->runqueue_head = p;
+		p->group->procs = p;
 	}
+}
+
+float grp_runtime(struct group *g) {
+	float run = 0.0;
+	for (struct process *p = g->procs; p != NULL; p = p->next) {
+		run += (float)(p->runtime);
+	}
+	return run;
 }
 
 void grp_stats(struct group *g, long sum) {
 	if (g->gid == DUMMY)
 		return;
 	t_t t = ticks_sum(g->sleeptime);
-	printf("%d: runtime %d us sleeptime %d us weight %d ticks %0.2f\n", g->gid,
-	       g->runtime, t,
-	       g->weight, 1.0*g->runtime/(sum-t));
+	float run = grp_runtime(g);
+	// printf("%d: runtime %0.2f us sleeptime %d us weight %d ticks %0.2f\n", g->gid,
+	// run, t, g->weight, AVG(run, (sum-t)));
+	printf("%d: ticks %0.2f, ", g->gid, AVG(run, (sum-t)));
 }
 

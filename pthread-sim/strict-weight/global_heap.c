@@ -64,7 +64,7 @@ void enqueue(struct process *p) {
 
 // Process p yields core
 static void yieldL(struct process *p, vt_t time_passed, vt_t vt) {
-	p->group->runtime += time_passed;
+	p->runtime += time_passed;
 	proc_add_vruntime(p, vt);
 }
 
@@ -129,5 +129,5 @@ void stats(struct group *grps[], int n) {
 	for(int i = 0; i < n; i++) {
 		grp_stats(grps[i], tot);
 	}
-	printf("=\n");
+	printf("\n=\n");
 }

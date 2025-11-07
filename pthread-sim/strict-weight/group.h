@@ -14,6 +14,8 @@ struct process {
 
 	pthread_rwlock_t proc_lock;
 
+	t_t runtime;  // number of us the process ran
+
 	struct group *group;
 	struct process *next;
 
@@ -31,12 +33,11 @@ struct group {
 	int nthread; // number of threads in the group
 	int nqueued; // number of threads runnable
 
-	t_t runtime;  // number of us the group ran
 	t_t *sleeptime; // number of us slots the group wasn't runnable
 	t_t *sleepstart; // tick slots sleep started
 	t_t *time;
 	
-	struct process *runqueue_head;
+	struct process *procs;
 	struct mheap *mh;
 } __attribute__((aligned(64)));
 
@@ -56,6 +57,7 @@ void proc_insert_mh(struct process *p, struct lheap *lh);
 void grp_add_process(struct process *p);
 void grp_enqueue(struct group *g);
 void grp_stats(struct group *g, long tot);
+float grp_runtime(struct group *g);
 
 
 

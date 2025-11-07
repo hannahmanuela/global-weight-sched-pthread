@@ -24,8 +24,6 @@ struct mheap *mh_new(int proc_cmp(void *, void *), int n, int seed, int tick_len
 	}
 	mh->nheap = n;
 	mh->tick_length = tick_length;
-	mh->nretry_insert = 0;
-	mh->nretry_remove = 0;
 	return mh;
 }
 
@@ -58,7 +56,7 @@ void mh_print(struct mheap *mh) {
 	printf("= mh tl %d\n", mh->tick_length);
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->lh[i]->heap;
-		printf("Heap %d size %d: \n", i, h->heap_size);
+		printf("  Heap %d size %d: \n", i, h->heap_size);
 		heap_iter(mh->lh[i]->heap, print_elem);
 		printf("\n");
 	}
@@ -67,21 +65,32 @@ void mh_print(struct mheap *mh) {
 
 void mh_lock_stats(struct mheap *mh) {
 	printf("= mh: lock stats:\n");
-	printf("  retry insert %d retry remove %d\n", mh->nretry_insert, mh->nretry_remove);
 	float l_i = 10000.0;
 	float h_i = 0.0;
 	float l_r = 10000.0;
-	float h_r = .0;
+	float h_r = 0.0;
+	float l_inr = 10000.0;
+	float h_inr = 0.0;
+	float l_delr = 10000.0;
+	float h_delr = 0.0;
 	for (int i = 0; i < mh->nheap; i++) {
-		float in, out;
-		lh_ops(mh->lh[i], &in, &out);
+		struct lheap *lh = mh->lh[i];
+		float in = AVG(lh->insert_cycles, lh->ninsert);
+		float out = AVG(lh->remove_cycles, lh->nremove);
 		l_i = MIN(l_i, in);
 		h_i = MAX(h_i, in);
 		l_r = MIN(l_r, out);
 		h_r = MAX(h_r, out);
-		lh_stats(mh->lh[i]);
+		float inr = AVG(lh->nretry_insert, lh->ninsert);
+		float outr = AVG(lh->nretry_remove, lh->nremove);
+		l_inr = MIN(l_inr, inr);
+		h_inr = MAX(h_inr, inr);
+		l_delr = MIN(l_delr, outr);
+		h_delr = MAX(h_delr, outr);
+		lh_stats(lh);
 	}
 	printf("  insert %0.2f %0.2f remove %0.2f %0.2f\n", l_i, h_i, l_r, h_r); 
+	printf("  insert %0.2f %0.2f remove %0.2f %0.2f\n", l_inr, h_inr, l_delr, h_delr); 
 	printf("=\n");
 }
 
@@ -99,7 +108,7 @@ retry:
 	int i = random() % mh->nheap;
 	struct lheap *lh = mh_heap(mh, i);
 	if(lh_try_lock(lh) != 0) {
-		atomic_fetch_add(&mh->nretry_insert, 1);
+		atomic_fetch_add(&lh->nretry_insert, 1);
 		goto retry;
 	}
 	return lh;
@@ -165,12 +174,12 @@ retry:
 		}
 	}
 	if(lh_try_lock(lh_i) != 0) {
-		atomic_fetch_add(&mh->nretry_remove, 1);
+		atomic_fetch_add(&lh_i->nretry_remove, 1);
 		goto retry;
 	}
 	if ((struct process *) heap_min(lh_i->heap) != p_i) {
 		lh_unlock(lh_i);
-		atomic_fetch_add(&mh->nretry_remove, 1);
+		atomic_fetch_add(&lh_i->nretry_remove, 1);
 		goto retry;
 	}
 	pthread_rwlock_wrlock(&p_i->proc_lock);

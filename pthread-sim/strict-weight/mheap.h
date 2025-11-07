@@ -7,8 +7,6 @@ struct mheap {
 	int tick_length;
 	struct lheap **lh;
 
-	long nretry_insert;
-	long nretry_remove;
 } __attribute__((aligned(64)));
 
 struct mheap *mh_new(int grpcmp(void *, void *), int n, int seed, int tick_length); 

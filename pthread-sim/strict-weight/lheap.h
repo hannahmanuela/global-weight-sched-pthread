@@ -14,6 +14,8 @@ struct lheap {
 	long remove_cycles;
 	long ninsert;
 	long nremove;
+	long nretry_insert;
+	long nretry_remove;
 } __attribute__((aligned(64)));
 
 struct lheap *lh_new(int grp_cmp(void*,void*));
@@ -25,4 +27,3 @@ void lh_stats(struct lheap *lh);
 int lh_try_lock(struct lheap *lh);
 void *lh_min_atomic(struct lheap *lh);
 int lh_avg_spec_virt_time_inc(struct lheap *lh);
-void lh_ops(struct lheap *lh, float *, float *);

@@ -42,12 +42,12 @@ static struct process *schedule_retry(int core, struct mheap *mh) {
 
 static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
 	// struct mheap *mh = mh_new(proc_cmp, nheap, 1, tl);
-	struct mheap *mh = mh_new(proc_cmp, nheap, random(), tl);
+	struct mheap *mh = mh_new(proc_cmp, nheap, tl);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
 			struct process *p = grp_new_process(mh, i * nproc + j, gs[i]);
-			enqueue(p, NULL);
+			enqueue(0, p, NULL);
 		}
 	}
 	return mh;
@@ -71,15 +71,15 @@ void test_grp_sleep_wakeup() {
 	p0 = schedule_retry(0, mh);
 	p1 = schedule_retry(1, mh);
 	dequeue(p1, tl);
-	yield(p0, tl, NULL);
+	yield(0, p0, tl, NULL);
 	p0 = schedule_retry(0, mh);
 	dequeue(p0, tl);
 	assert(schedule(0, mh, NULL, NULL) == NULL);
 	assert(mh->lh[0]->heap->heap_size == 1);
-	enqueue(p0, NULL);
+	enqueue(0, p0, NULL);
 	assert(mh->lh[0]->heap->heap_size == 2);
 	p0 = schedule_retry(0, mh);
-	enqueue(p1, NULL);
+	enqueue(0, p1, NULL);
 	p1 = schedule_retry(0, mh);
 
 	cleanup(mh);
@@ -100,21 +100,21 @@ void test_mheap(int nheap, int nproc) {
 	for (int i = 0; i < GRP2; i++) {
 		p = schedule_retry(0, mh);
 		assert(p->vruntime == 0);
-		yield(p, mh->tick_length, NULL);
+		yield(0, p, mh->tick_length, NULL);
 	}
 
 	p = schedule_retry(0, mh);
 	assert(p->group->gid == GRP2-1);
 	assert(p->vruntime == 50);
-	yield(p, mh->tick_length, NULL);
+	yield(0, p, mh->tick_length, NULL);
 	p = schedule_retry(0, mh);
 	assert(p->group->gid == GRP2-1);
 	assert(p->vruntime == 100);
-	yield(p, mh->tick_length, NULL);
+	yield(0, p, mh->tick_length, NULL);
 	p = schedule_retry(0, mh);
 	assert(p->group->gid == 0);
 	assert(p->vruntime == 100);
-	yield(p, mh->tick_length, NULL);
+	yield(0, p, mh->tick_length, NULL);
 
 	// stats(gs, GRP2);
 
@@ -144,7 +144,7 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 		if(rand) {
 			tl = random() % mh->tick_length;
 		}
-		yield(p, tl, NULL);
+		yield(0, p, tl, NULL);
 		ticks[p->group->gid] += tl;
 		tot += tl;
 	}	
@@ -168,7 +168,7 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 		struct process *p = schedule_retry(0, mh);
 		//printf("%d: p gid %d\n", i, p->group->gid);
 		if(p->group->gid != sleep_id) {
-			yield(p, mh->tick_length, NULL);
+			yield(0, p, mh->tick_length, NULL);
 			ticks[p->group->gid] += 1;
 		} else if (sleeper == NULL) {
 			//printf("%d: deque: %d\n", i, sleep_id, ticks[p->group->gid]);
@@ -179,7 +179,7 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 		}
 		if ((sleeper != NULL) && (i-sleeping > 4)) {
 			//printf("%d: enque: %d\n", i, sleep_id);
-			enqueue(sleeper, NULL);
+			enqueue(0, sleeper, NULL);
 			//mh_print(mh);
 			sleeping = 0;
 			sleeper = NULL;
@@ -230,15 +230,14 @@ void test_worst(int nheap) {
 	int n = 10000;
 	int tl = 1000;
 	int sum = 0;
-	int seed = getpid();
 	int worst;
 	for(int t = 0; t < n; t++) {
-		struct mheap *mh = mh_new(proc_cmp, nheap, seed+t, tl);
+		struct mheap *mh = mh_new(proc_cmp, nheap, tl);
 		struct group *g = grp_new(mh, 0, 10);
-		struct lheap *lh = mh_choose_heap(mh, NULL);
+		struct lheap *lh = mh_choose_heap(0, mh, NULL);
 
 		struct process *p = grp_new_process(mh, 1, g);
-		enqueue(p, NULL);
+		enqueue(0, p, NULL);
 
 		for (int i = 0; ; i++) {
 			if ((p = schedule(0, mh, NULL, NULL)) != NULL) {

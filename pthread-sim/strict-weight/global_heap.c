@@ -12,7 +12,7 @@ bool debug;
 
 // Select next process to run
 struct process *schedule(int core, struct mheap *mh, long *ts, long *retry) {
-	struct process *min_proc = mh_min_proc(mh, ts, retry);
+	struct process *min_proc = mh_min_proc(core, mh, ts, retry);
 	if (min_proc == NULL) {
 		return NULL;
 	}
@@ -32,8 +32,8 @@ struct process *schedule(int core, struct mheap *mh, long *ts, long *retry) {
 }
 
 // Add p to group and make p runnable
-void enqueue(struct process *p, long *retry) {
-	struct lheap *lh = mh_choose_heap(p->mh, retry);
+void enqueue(int core, struct process *p, long *retry) {
+	struct lheap *lh = mh_choose_heap(core, p->mh, retry);
 
 	pthread_rwlock_wrlock(&p->proc_lock);
 	assert(p->lh == NULL);
@@ -68,8 +68,8 @@ static void yieldL(struct process *p, vt_t time_passed, vt_t vt) {
 }
 
 // Yield and enqueue
-void yield(struct process *p, t_t time_passed, long *retry) {
-	struct lheap *lh = mh_choose_heap(p->mh, retry);
+void yield(int core, struct process *p, t_t time_passed, long *retry) {
+	struct lheap *lh = mh_choose_heap(core, p->mh, retry);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	int nthread = atomic_load(&p->group->nthread);

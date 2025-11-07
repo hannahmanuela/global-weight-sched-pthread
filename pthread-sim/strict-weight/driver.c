@@ -13,6 +13,7 @@
 #include <sys/resource.h>
 #include <stdatomic.h>
 #include <strings.h>
+#include <float.h>
 
 #include "vt.h"
 #include "ticks.h"
@@ -93,24 +94,25 @@ void print_core(struct core_state *c) {
 
 void doop(struct core_state *mycore, int op, long *cycles, long *n, struct process *p) {
 	long ts = safe_read_tsc();
+	int c = mycore-gs->cores;
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		mycore->current_process = schedule(mycore-gs->cores, gs->mh, &ts, &mycore->nretry_del);
+		mycore->current_process = schedule(c, gs->mh, &ts, &mycore->nretry_del);
 		mycore->min_proc_cycles += ts;
 		break;
 	case YIELD:
 		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
 		if(p) {
 			atomic_fetch_add(&(mycore->work.tick), gs->mh->tick_length);
-			yield(p, gs->mh->tick_length, &mycore->nretry_ins);
+			yield(c, p, gs->mh->tick_length, &mycore->nretry_ins);
 		} else {
 			atomic_fetch_add(&(mycore->idle.tick), gs->mh->tick_length);
 		}
 		mycore->current_process = NULL;
 		break;
 	case ENQ:
-	        enqueue(p, &mycore->nretry_ins);
+	        enqueue(c, p, &mycore->nretry_ins);
 		break;
 	case DEQ:
 		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
@@ -205,8 +207,7 @@ void main(int argc, char *argv[]) {
     for (int i = 0; i < num_cores; i++) {
 	    bzero(&(gs->cores[i]), sizeof(struct core_state));
     }
-    int seed = 1;
-    gs->mh = mh_new(proc_cmp, nheap, seed, tick_length);
+    gs->mh = mh_new(proc_cmp, nheap, tick_length);
 
     gs->grps = (struct group **) malloc(sizeof(struct group *)*num_groups);
     for (int i = 0; i < num_groups; i++) {
@@ -215,7 +216,7 @@ void main(int argc, char *argv[]) {
 	    gs->grps[i] = g;
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(gs->mh, i*num_threads_p_group+j, g);
-		    enqueue(p, NULL);
+		    enqueue(0, p, NULL);
 	    }
     }
 
@@ -229,15 +230,15 @@ void main(int argc, char *argv[]) {
     printf("= num_cores %d num_groups %d nthreads %d nheap %d\n", num_cores, num_groups, num_threads, gs->mh->nheap);
     printf("= cores: %d\n", num_cores);
     float s_h = 0.0;
-    float s_l = 100000.0;
+    float s_l = FLT_MAX;
     float p_h = 0.0;
-    float p_l = 100000.0;
+    float p_l = FLT_MAX;
     float y_h = 0.0;
-    float y_l = 100000.0;
+    float y_l = FLT_MAX;
     float rins_h = 0.0;
-    float rins_l = 100000.0;
+    float rins_l = FLT_MAX;
     float rdel_h = 0.0;
-    float rdel_l = 100000.0;
+    float rdel_l = FLT_MAX;
     long nretry_ins = 0;
     long nretry_del = 0;
     long nop;

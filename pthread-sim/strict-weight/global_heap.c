@@ -97,7 +97,8 @@ void dequeue(struct process *p, t_t time_passed) {
 	lh_lock_timed(lh);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
-	if(debug) {
+	// if(debug) {
+	if(1) {
 		printf("%d(%d): dequeue %d\n", p->pid, p->group->gid, time_passed);
 		mh_print(p->group->mh);
 	}

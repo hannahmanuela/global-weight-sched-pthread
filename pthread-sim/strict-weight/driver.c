@@ -185,12 +185,14 @@ void main(int argc, char *argv[]) {
     // sched_setscheduler(0, SCHED_FIFO, &sched_param);
 
     if (argc != 5) {
-	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_groups> <num_heaps>\n");
+	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_threads> <num_heaps>\n");
 	    exit(1);
     }
     num_cores = atoi(argv[1]);
     int tick_length = atoi(argv[2]);
-    num_groups = atoi(argv[3]);
+    int num_threads = atoi(argv[3]);
+    int nheap = atoi(argv[4]);
+    num_threads_p_group = num_threads/num_groups;
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
@@ -198,7 +200,7 @@ void main(int argc, char *argv[]) {
 	    bzero(&(gs->cores[i]), sizeof(struct core_state));
     }
     int seed = 1;
-    gs->mh = mh_new(proc_cmp, atoi(argv[4]), seed, tick_length);
+    gs->mh = mh_new(proc_cmp, nheap, seed, tick_length);
 
     gs->grps = (struct group **) malloc(sizeof(struct group *)*num_groups);
     for (int i = 0; i < num_groups; i++) {
@@ -218,7 +220,7 @@ void main(int argc, char *argv[]) {
         pthread_create(&threads[i], NULL, run_core, (void*)i);
     }
 
-    printf("= num_cores %d num_groups %d nthreads %d nheap %d\n", num_cores, num_groups, num_groups * num_threads_p_group, gs->mh->nheap);
+    printf("= num_cores %d num_groups %d nthreads %d nheap %d\n", num_cores, num_groups, num_threads, gs->mh->nheap);
     printf("= cores: %d\n", num_cores);
     float s_h = 0.0;
     float s_l = 100000.0;

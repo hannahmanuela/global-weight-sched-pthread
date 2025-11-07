@@ -5,4 +5,5 @@
 
 long safe_read_tsc();
 void error(char *);
+double now();
 

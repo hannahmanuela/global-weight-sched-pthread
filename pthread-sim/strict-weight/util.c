@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/time.h>
 #include <immintrin.h>
 
 long safe_read_tsc() {
@@ -13,3 +14,10 @@ void error(char *s) {
 	exit(1);
 }
 
+double
+now()
+{
+ struct timeval tv;
+ gettimeofday(&tv, 0);
+ return tv.tv_sec + tv.tv_usec / 1000000.0;
+}

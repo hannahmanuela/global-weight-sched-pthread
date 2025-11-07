@@ -4,7 +4,6 @@
 #include <math.h>
 #include <pthread.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <unistd.h>
 #include <sched.h>
 #include <assert.h>
@@ -26,8 +25,7 @@
 
 #define TRACE
 
-//#define TIME_TO_RUN 10000000LL
-#define TIME_TO_RUN 1000000LL
+#define TIME_TO_RUN 20  // sec
 
 int num_groups = 10;
 int num_cores = 8;
@@ -42,13 +40,9 @@ struct core_state {
 	struct tick total;
 	struct process *current_process;
 	struct process *pool;
-	long sched_us;
 	long sched_cycles;
-	long enq_us;
 	long enq_cycles;
-	long deq_us;
 	long deq_cycles;
-	long yield_us;
 	long yield_cycles;
 	long nsched;
 	long nenq;
@@ -80,19 +74,12 @@ void ticks_getwork(t_t *ticks) {
 }
 
 void print_core(struct core_state *c) {
-	printf("%d: us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) deq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)",
+	printf("%d: us(cycles): sched %ld %0.2f enq %ld %0.2f deq %ld %0.2f yield %ld %0.2f",
 	       c - gs->cores,
-	       c->nsched, AVG(c->sched_us,c->nsched), 1.0*c->sched_cycles/c->nsched,
-	       c->nenq, 1.0*c->enq_us/c->nenq, 1.0*c->enq_cycles/c->nenq,
-	       c->ndeq, 1.0*c->deq_us/c->ndeq, 1.0*c->deq_cycles/c->ndeq,
-	       c->nyield, 1.0*c->yield_us/c->nyield, 1.0*c->yield_cycles/c->nyield);
-}
-
-long us_since(struct timeval *start) {
-	struct timeval end;
-	gettimeofday(&end, NULL);
-	long us = (end.tv_sec * 1000000 + end.tv_usec) - (start->tv_sec * 1000000 + start->tv_usec);
-	return us;
+	       c->nsched, AVG(c->sched_cycles, c->nsched),
+	       c->nenq, AVG(c->enq_cycles, c->nenq),
+	       c->ndeq, AVG(c->deq_cycles, c->ndeq),
+	       c->nyield, AVG(c->yield_cycles, c->nyield));
 }
 
 #define SCHEDULE 0
@@ -100,9 +87,7 @@ long us_since(struct timeval *start) {
 #define ENQ 2
 #define DEQ 3
 
-void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, struct process *p) {
-	struct timeval start;
-	gettimeofday(&start, NULL);
+void doop(struct core_state *mycore, int op, long *cycles, long *n, struct process *p) {
 	long ts = safe_read_tsc();
 	switch(op) {
 	case SCHEDULE:
@@ -129,9 +114,7 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 		break;
 	}
 	long op_cycles = safe_read_tsc() - ts;
-	long op_us = us_since(&start);
 	*cycles += op_cycles;
-	*us += op_us;
 	*n += 1;
 }
 
@@ -143,7 +126,7 @@ void doop(struct core_state *mycore, int op, long *cycles, long *us, long *n, st
 void action(struct core_state *mycore, int choice) {
 	switch(choice) {
 	case RUN: // Run for full tick
-		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->yield_us, &mycore->nyield, mycore->current_process); 
+		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->nyield, mycore->current_process); 
 		break;
 	case WAKEUP: // Make a process runnable
 		// pick an existing process from the pool?
@@ -153,14 +136,14 @@ void action(struct core_state *mycore, int choice) {
 		}
 		mycore->pool = p->next;
 		p->next = NULL;
-		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->enq_us, &mycore->nenq, p);
+		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->nenq, p);
 		break;
 	case SLEEP: // Make current process not runnable (e.g., go to sleep)
 		p = mycore->current_process;
 		if (!p) {
 			return;
 		}
-		doop(mycore, DEQ, &mycore->deq_cycles, &mycore->deq_us, &mycore->ndeq, p);
+		doop(mycore, DEQ, &mycore->deq_cycles, &mycore->ndeq, p);
 		p->next = mycore->pool;
 		mycore->pool = p;
 		break;
@@ -184,12 +167,10 @@ void *run_core(void* core_num_ptr) {
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) < 0)
 		error("couldn't set affininity\n");
 
-	struct timeval start_exp;
-	gettimeofday(&start_exp, NULL);
-
 	int cont = 1;
-	for (int i = 0; us_since(&start_exp) < TIME_TO_RUN; i++) {
-		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->sched_us, &mycore->nsched, NULL); 
+	double start = now();
+	for (int i = 0; now() - start < TIME_TO_RUN; i++) {
+		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 		action(mycore, RUN);
 		// sleepwakeup(mycore);
 		// action(mycore, rand() % 3);

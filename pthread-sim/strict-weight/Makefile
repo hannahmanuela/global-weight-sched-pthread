@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I. -O2 -g -pg
+CFLAGS=-I. -O2 -g # -pg
 DEPS = global_heap.h group.h heap.h lheap.h mheap.h util.h  ticks.h
 OBJ = global_heap.o group.o mheap.o lheap.o heap.o util.c ticks.o
 
@@ -9,7 +9,7 @@ OBJ = global_heap.o group.o mheap.o lheap.o heap.o util.c ticks.o
 all: global-heap test-heap test-global
 
 global-heap: driver.o $(OBJ) $(DEPS)
-	$(CC) -pg -o $@ $^
+	$(CC) -o $@ $^
 
 test-heap: test_heap.o heap.o
 	$(CC) -o $@ $^

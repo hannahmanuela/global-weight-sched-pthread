@@ -25,7 +25,7 @@ struct process *schedule(int core, struct mheap *mh) {
 		mh_print(min_proc->mh);
 	}
 
-        atomic_fetch_add(&min_proc->group->nqueued, -1);  // for debugging 
+        // atomic_fetch_add(&min_proc->group->nqueued, -1);  // for debugging 
 	
 	pthread_rwlock_unlock(&min_proc->proc_lock);
 

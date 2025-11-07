@@ -26,7 +26,7 @@
 
 #define TRACE
 
-// #define TIME_TO_RUN 10000000LL
+//#define TIME_TO_RUN 10000000LL
 #define TIME_TO_RUN 1000000LL
 
 int num_groups = 10;
@@ -80,7 +80,7 @@ void ticks_getwork(t_t *ticks) {
 }
 
 void print_core(struct core_state *c) {
-	printf("%ld us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) deq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)",
+	printf("%d: us(cycles): sched %ld %0.2f(%0.2f) enq %ld %0.2f(%0.2f) deq %ld %0.2f(%0.2f) yield %ld %0.2f(%0.2f)",
 	       c - gs->cores,
 	       c->nsched, 1.0*c->sched_us/c->nsched, 1.0*c->sched_cycles/c->nsched,
 	       c->nenq, 1.0*c->enq_us/c->nenq, 1.0*c->enq_cycles/c->nenq,
@@ -181,7 +181,8 @@ void *run_core(void* core_num_ptr) {
 	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);
 	CPU_SET(core_id, &cpuset);
-	pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) < 0)
+		error("couldn't set affininity\n");
 
 	struct timeval start_exp;
 	gettimeofday(&start_exp, NULL);
@@ -240,7 +241,6 @@ void main(int argc, char *argv[]) {
     printf("= cores: %d\n", num_cores);
     for (int i = 0; i < num_cores; i++) {
         pthread_join(threads[i], NULL);
-	printf("%d: ", i);
 	print_core(&gs->cores[i]);
 	printf("\n");
     }

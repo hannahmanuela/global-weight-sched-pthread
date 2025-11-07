@@ -78,7 +78,7 @@ void proc_add_vruntime(struct process *p, vt_t vt) {
 
 void proc_insert_mh(struct process *p, struct lheap *lh) {
 	mh_add_process(p, lh);
-        atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
+        // atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
 }
 
 // set initial vruntime when group g becomes runnable

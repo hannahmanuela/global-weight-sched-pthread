@@ -9,6 +9,7 @@
 #include "group.h"
 #include "lheap.h"
 #include "mheap.h"
+#include "util.h"
 
 struct mheap *mh_new(int proc_cmp(void *, void *), int n, int seed, int tick_length) {
 	srandom(seed);
@@ -65,11 +66,22 @@ void mh_print(struct mheap *mh) {
 }
 
 void mh_lock_stats(struct mheap *mh) {
-	printf("= mh: lock stats: retry insert %d retry remove %d\n", mh->nretry_insert, mh->nretry_remove);
+	printf("= mh: lock stats:\n");
+	printf("  retry insert %d retry remove %d\n", mh->nretry_insert, mh->nretry_remove);
+	float l_i = 10000.0;
+	float h_i = 0.0;
+	float l_r = 10000.0;
+	float h_r = .0;
 	for (int i = 0; i < mh->nheap; i++) {
-		printf("== heap %d:\n", i);
+		float in, out;
+		lh_ops(mh->lh[i], &in, &out);
+		l_i = MIN(l_i, in);
+		h_i = MAX(h_i, in);
+		l_r = MIN(l_r, out);
+		h_r = MAX(h_r, out);
 		lh_stats(mh->lh[i]);
 	}
+	printf("  insert %0.2f %0.2f remove %0.2f %0.2f\n", l_i, h_i, l_r, h_r); 
 	printf("=\n");
 }
 
@@ -95,13 +107,21 @@ retry:
 
 // caller must hold heap and proc lock
 void mh_add_process(struct process *p, struct lheap *lh) {
+	int start_tsc = safe_read_tsc();
 	p->lh = lh;
 	heap_push(lh->heap, &p->heap_elem);
+	int end_tsc = safe_read_tsc();
+	lh->insert_cycles += end_tsc - start_tsc;
+	p->lh->ninsert += 1;
 }
 
 // caller must hold heap and group lock
 void mh_del_process(struct mheap *mh, struct process *p) {
+	int start_tsc = safe_read_tsc();
 	heap_remove_at(p->lh->heap, &p->heap_elem);
+	int end_tsc = safe_read_tsc();
+	p->lh->remove_cycles += end_tsc - start_tsc;
+	p->lh->nremove += 1;
 }
 
 // caller must ensure there is a min element

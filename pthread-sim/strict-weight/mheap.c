@@ -177,11 +177,13 @@ retry:
 		}
 	}
 	if(lh_try_lock_timed(lh_i) != 0) {
+		// printf("%d: retry %d another lock acquired heap\n", c->cid, i);
 		r++;
 		goto retry;
 	}
 	if ((struct process *) heap_min(lh_i->heap) != p_i) {
 		lh_unlock(lh_i);
+		// printf("%d: retry %d not min anymore\n", c->cid, i);
 		r++;
 		goto retry;
 	}

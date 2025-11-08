@@ -27,12 +27,11 @@
 
 #define TRACE
 
-#define TIME_TO_RUN 20  // sec
-//#define TIME_TO_RUN 2  // sec
+// #define TIME_TO_RUN 20  // sec
+#define TIME_TO_RUN 2  // sec
 
 int num_groups = 10;
-//int num_groups = 2;
-int num_cores = 8;
+int num_cores;
 
 extern bool debug;
 
@@ -137,7 +136,6 @@ void sleepwakeup(struct core *mycore) {
 void *run_core(void* core) {
 	struct core *mycore = (struct core *) core;
 
-	printf("core %d\n", mycore->cid);
 	// pin to an actual core
 	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);

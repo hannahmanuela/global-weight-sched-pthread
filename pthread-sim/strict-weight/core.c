@@ -15,11 +15,13 @@ void c_print(struct core *c) {
 }
 
 int c_rand(struct core *c, int n) {
-	double rand;
+	// double rand;
 	int r;
 
-	drand48_r(c->buf, &rand);
-	r = (int) (rand * n);
+	// drand48_r(c->buf, &rand);
+
+	r = rand_r(&c->seed) % n;
+	// r = (int) (rand * n);
 	return r;
 }
 
@@ -27,6 +29,9 @@ struct core *c_new(int i) {
 	struct core *c = (struct core *) malloc(sizeof(struct core));
 	bzero(c, sizeof(struct core));
 	c->cid = i;
+	c->seed = i;
+	srandom(i);
+
 	c->buf = malloc(sizeof(struct drand48_data));
 	srand48_r(i, c->buf);
 

@@ -4,12 +4,15 @@
 
 #include "heap.h"
 
+#define MIN_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
+
 struct heap *heap_new(int cmp(void *, void *)) {
 	struct heap *h = malloc(sizeof(struct heap));
 	h->cmp_elem = cmp;
 	h->heap_size = 0;
 	h->heap_capacity = 0;
 	h->heap = NULL;
+	heap_ensure_capacity(h);
 	return h;
 }
 
@@ -98,7 +101,7 @@ static void heap_sift_down(struct heap *h, int idx) {
 
 void heap_ensure_capacity(struct heap *h) {
 	if (h->heap_size < h->heap_capacity) return;
-	int new_capacity = h->heap_capacity == 0 ? 16 : h->heap_capacity * 2;
+	int new_capacity = h->heap_capacity == 0 ? MIN_CAPACITY : h->heap_capacity * 2;
 	h->heap = realloc(h->heap, sizeof(struct heap_elem*) * new_capacity);
 	h->heap_capacity = new_capacity;
 }

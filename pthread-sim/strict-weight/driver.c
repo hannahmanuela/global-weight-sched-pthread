@@ -17,6 +17,7 @@
 
 #include "vt.h"
 #include "ticks.h"
+#include "core.h"
 #include "group.h"
 #include "heap.h"
 #include "lheap.h"
@@ -27,64 +28,35 @@
 #define TRACE
 
 #define TIME_TO_RUN 20  // sec
-//#define TIME_TO_RUN 1  // sec
+//#define TIME_TO_RUN 2  // sec
 
 int num_groups = 10;
+//int num_groups = 2;
 int num_cores = 8;
-int num_threads_p_group = 10;
 
 extern bool debug;
-
-struct core_state {
-	int core_id;
-	struct tick work;
-	struct tick idle;
-	struct tick total;
-	struct process *current_process;
-	struct process *pool;
-	long sched_cycles;
-	long min_proc_cycles;
-	long enq_cycles;
-	long deq_cycles;
-	long yield_cycles;
-	long nsched;
-	long nenq;
-	long ndeq;
-	long nyield;
-	long nretry_del;
-	long nretry_ins;
-} __attribute__((aligned(64)));
 
 struct global_state {
 	struct mheap *mh;
 	struct group **grps;
-	struct core_state *cores;
+	struct core **cores;
 };
 
 struct global_state* gs;
 
 void ticks_gettime(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i].total.tick));
+		ticks[i] = atomic_load(&(gs->cores[i]->total.tick));
 }
 
 void ticks_getidle(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i].idle.tick));
+		ticks[i] = atomic_load(&(gs->cores[i]->idle.tick));
 }
 
 void ticks_getwork(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i].work.tick));
-}
-
-void print_core(struct core_state *c) {
-	printf("%d: us(cycles): sched %ld %0.2f enq %ld %0.2f deq %ld %0.2f yield %ld %0.2f",
-	       c - gs->cores,
-	       c->nsched, AVG(c->sched_cycles, c->nsched),
-	       c->nenq, AVG(c->enq_cycles, c->nenq),
-	       c->ndeq, AVG(c->deq_cycles, c->ndeq),
-	       c->nyield, AVG(c->yield_cycles, c->nyield));
+		ticks[i] = atomic_load(&(gs->cores[i]->work.tick));
 }
 
 #define SCHEDULE 0
@@ -92,27 +64,26 @@ void print_core(struct core_state *c) {
 #define ENQ 2
 #define DEQ 3
 
-void doop(struct core_state *mycore, int op, long *cycles, long *n, struct process *p) {
+void doop(struct core *mycore, int op, long *cycles, long *n, struct process *p) {
 	long ts = safe_read_tsc();
-	int c = mycore-gs->cores;
+	int c = mycore->cid;
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		mycore->current_process = schedule(c, gs->mh, &ts, &mycore->nretry_del);
-		mycore->min_proc_cycles += ts;
+		mycore->current_process = schedule(mycore, gs->mh);
 		break;
 	case YIELD:
 		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
 		if(p) {
 			atomic_fetch_add(&(mycore->work.tick), gs->mh->tick_length);
-			yield(c, p, gs->mh->tick_length, &mycore->nretry_ins);
+			yield(mycore, p, gs->mh->tick_length);
 		} else {
 			atomic_fetch_add(&(mycore->idle.tick), gs->mh->tick_length);
 		}
 		mycore->current_process = NULL;
 		break;
 	case ENQ:
-	        enqueue(c, p, &mycore->nretry_ins);
+	        enqueue(mycore, p);
 		break;
 	case DEQ:
 		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
@@ -131,7 +102,7 @@ void doop(struct core_state *mycore, int op, long *cycles, long *n, struct proce
 #define SLEEP 2
 
 // simulator actions
-void action(struct core_state *mycore, int choice) {
+void action(struct core *mycore, int choice) {
 	switch(choice) {
 	case RUN: // Run for full tick
 		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->nyield, mycore->current_process); 
@@ -158,20 +129,19 @@ void action(struct core_state *mycore, int choice) {
 	}
 }
 
-void sleepwakeup(struct core_state *mycore) {
+void sleepwakeup(struct core *mycore) {
 	action(mycore, SLEEP);
 	action(mycore, WAKEUP);
 }
 
-void *run_core(void* core_num_ptr) {
-	int core_id = (int)core_num_ptr;
-	struct core_state *mycore = &(gs->cores[core_id]);
+void *run_core(void* core) {
+	struct core *mycore = (struct core *) core;
 
-
+	printf("core %d\n", mycore->cid);
 	// pin to an actual core
 	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);
-	CPU_SET(core_id, &cpuset);
+	CPU_SET(mycore->cid, &cpuset);
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) < 0)
 		error("couldn't set affininity\n");
 
@@ -200,12 +170,14 @@ void main(int argc, char *argv[]) {
     int tick_length = atoi(argv[2]);
     int num_threads = atoi(argv[3]);
     int nheap = atoi(argv[4]);
-    num_threads_p_group = num_threads/num_groups;
+    int num_threads_p_group = num_threads/num_groups;
+
+    //debug = true;
 
     gs = malloc(sizeof(struct global_state));
-    gs->cores = (struct core_state *) malloc(sizeof(struct core_state)*num_cores);
+    gs->cores = (struct core **) malloc(sizeof(struct core *)*num_cores);
     for (int i = 0; i < num_cores; i++) {
-	    bzero(&(gs->cores[i]), sizeof(struct core_state));
+	    gs->cores[i] = c_new(i);
     }
     gs->mh = mh_new(proc_cmp, nheap, tick_length);
 
@@ -216,15 +188,15 @@ void main(int argc, char *argv[]) {
 	    gs->grps[i] = g;
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(gs->mh, i*num_threads_p_group+j, g);
-		    enqueue(0, p, NULL);
+		    enqueue(gs->cores[0], p);
 	    }
     }
 
-    // mh_print(gs->mh);
+    // printf("==="); mh_print(gs->mh);
 
     pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
     for (int i = 0; i < num_cores; i ++) {
-        pthread_create(&threads[i], NULL, run_core, (void*)i);
+	    pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
     }
 
     printf("= num_cores %d num_groups %d nthreads %d nheap %d\n", num_cores, num_groups, num_threads, gs->mh->nheap);
@@ -245,9 +217,10 @@ void main(int argc, char *argv[]) {
     long s_c = 0;
     long nsched = 0;
     long nyield = 0;
-    for (struct core_state *c = &gs->cores[0]; c < &gs->cores[num_cores]; c = c + 1) {
-	    pthread_join(threads[c - &gs->cores[0]], NULL);
-	    // print_core(c); printf("\n");
+    for (int i = 0; i < num_cores; i++) {
+	    struct core *c = gs->cores[i];
+	    pthread_join(threads[c->cid], NULL);
+	    // c_print(); printf("\n");
 	    float s = AVG(c->sched_cycles, c->nsched);
 	    nsched += c->nsched;
 	    nyield += c->nyield;

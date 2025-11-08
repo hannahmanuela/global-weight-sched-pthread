@@ -1,3 +1,7 @@
+#ifndef _GRP_H_
+
+#define _GRP_H_
+
 #include <pthread.h>
 #include <stdint.h> 
 
@@ -58,6 +62,8 @@ void grp_add_process(struct process *p);
 void grp_enqueue(struct group *g);
 void grp_stats(struct group *g, long tot);
 float grp_runtime(struct group *g);
+
+#endif
 
 
 

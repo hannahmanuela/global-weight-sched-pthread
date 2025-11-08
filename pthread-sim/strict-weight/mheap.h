@@ -1,3 +1,8 @@
+#ifndef _MHEAP_H_
+
+#define _MHEAP_H_
+
+#include "core.h"
 #include "group.h"
 #include "heap.h"
 #include "lheap.h"
@@ -17,8 +22,9 @@ int mh_min(struct lheap *lh);
 void mh_lock_stats(struct mheap *mh);
 void mh_runtime_stats(struct mheap *mh);
 struct lheap *mh_heap(struct mheap *, int i);
-struct process *mh_min_proc(int c, struct mheap *mh, long *ts, long *retry);
-struct lheap *mh_choose_heap(int c, struct mheap *mh, long *retry);
+struct process *mh_min_proc(struct core *c, struct mheap *mh);
+struct lheap *mh_choose_heap(struct core *c, struct mheap *mh);
 void mh_add_process(struct process *p, struct lheap *lh);
 void mh_del_process(struct mheap *mh, struct process *p);
 
+#endif

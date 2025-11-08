@@ -1,3 +1,6 @@
+#ifndef _LHEAP_H_
+#define _LHEAP_H_
+
 #include <pthread.h>
 #include <stdatomic.h>
 
@@ -26,3 +29,5 @@ void lh_stats(struct lheap *lh);
 int lh_try_lock(struct lheap *lh);
 void *lh_min_atomic(struct lheap *lh);
 int lh_avg_spec_virt_time_inc(struct lheap *lh);
+
+#endif

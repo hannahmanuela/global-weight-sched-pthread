@@ -4,6 +4,8 @@
 #include <unistd.h>
 
 #include "vt.h"
+#include "ticks.h"
+#include "core.h"
 #include "group.h"
 #include "heap.h"
 #include "lheap.h"
@@ -30,24 +32,24 @@ void ticks_getidle(t_t *ticks) {
 void ticks_getwork(t_t *ticks) {
 }
 
-static struct process *schedule_retry(int core, struct mheap *mh) {
+static struct process *schedule_retry(struct core *c, struct mheap *mh) {
 	struct process *p;
 	for (int i = 0; i < 10; i++) {
-		p = schedule(0, mh, NULL, NULL);
+		p = schedule(c, mh);
 		if(p != NULL)
 			return p;
 	}
 	assert(0);
 }
 
-static struct mheap *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
+static struct mheap *mk_mheap(struct core *c, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
 	// struct mheap *mh = mh_new(proc_cmp, nheap, 1, tl);
 	struct mheap *mh = mh_new(proc_cmp, nheap, tl);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
 			struct process *p = grp_new_process(mh, i * nproc + j, gs[i]);
-			enqueue(0, p, NULL);
+			enqueue(c, p);
 		}
 	}
 	return mh;
@@ -64,23 +66,24 @@ void test_grp_sleep_wakeup() {
 	struct group *gs[GRP1];
 	int ws[GRP1] = {1};
 
-	struct mheap *mh = mk_mheap(1, GRP1, PROC2, tl, gs, ws);
+	struct core *c = c_new(0);
+	struct mheap *mh = mk_mheap(c, 1, GRP1, PROC2, tl, gs, ws);
 	struct process *p0;
 	struct process *p1;
 
-	p0 = schedule_retry(0, mh);
-	p1 = schedule_retry(1, mh);
+	p0 = schedule_retry(c, mh);
+	p1 = schedule_retry(c, mh);
 	dequeue(p1, tl);
-	yield(0, p0, tl, NULL);
-	p0 = schedule_retry(0, mh);
+	yield(c, p0, tl);
+	p0 = schedule_retry(c, mh);
 	dequeue(p0, tl);
-	assert(schedule(0, mh, NULL, NULL) == NULL);
+	assert(schedule(c, mh) == NULL);
 	assert(mh->lh[0]->heap->heap_size == 1);
-	enqueue(0, p0, NULL);
+	enqueue(c, p0);
 	assert(mh->lh[0]->heap->heap_size == 2);
-	p0 = schedule_retry(0, mh);
-	enqueue(0, p1, NULL);
-	p1 = schedule_retry(0, mh);
+	p0 = schedule_retry(c, mh);
+	enqueue(0, p1);
+	p1 = schedule_retry(c, mh);
 
 	cleanup(mh);
 
@@ -93,28 +96,29 @@ void test_mheap(int nheap, int nproc) {
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
 	int tl = 1000;
-	struct mheap *mh = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
+	struct core *c = c_new(0);
+	struct mheap *mh = mk_mheap(c, nheap, GRP2, nproc, tl, gs, ws);
 	struct process *p;
 
 	// run the two groups to get off vt 0
 	for (int i = 0; i < GRP2; i++) {
-		p = schedule_retry(0, mh);
+		p = schedule_retry(c, mh);
 		assert(p->vruntime == 0);
-		yield(0, p, mh->tick_length, NULL);
+		yield(c, p, mh->tick_length);
 	}
 
-	p = schedule_retry(0, mh);
+	p = schedule_retry(c, mh);
 	assert(p->group->gid == GRP2-1);
 	assert(p->vruntime == 50);
-	yield(0, p, mh->tick_length, NULL);
-	p = schedule_retry(0, mh);
+	yield(c, p, mh->tick_length);
+	p = schedule_retry(c, mh);
 	assert(p->group->gid == GRP2-1);
 	assert(p->vruntime == 100);
-	yield(0, p, mh->tick_length, NULL);
-	p = schedule_retry(0, mh);
+	yield(c, p, mh->tick_length);
+	p = schedule_retry(c, mh);
 	assert(p->group->gid == 0);
 	assert(p->vruntime == 100);
-	yield(0, p, mh->tick_length, NULL);
+	yield(c, p, mh->tick_length);
 
 	// stats(gs, GRP2);
 
@@ -136,15 +140,16 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 		tot_w += ws[i];
 		ticks[i] = 0;
 	}
-	struct mheap *mh = mk_mheap(nheap, ngrp, nproc, tl, gs, ws);
+	struct core *c = c_new(0);
+	struct mheap *mh = mk_mheap(c, nheap, ngrp, nproc, tl, gs, ws);
 	long tot = 0;
 	for (int i = 0; i < n; i++) {
-		struct process *p = schedule_retry(0, mh);
+		struct process *p = schedule_retry(c, mh);
 		int tl = mh->tick_length;
 		if(rand) {
 			tl = random() % mh->tick_length;
 		}
-		yield(0, p, tl, NULL);
+		yield(c, p, tl);
 		ticks[p->group->gid] += tl;
 		tot += tl;
 	}	
@@ -158,7 +163,7 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 	printf("-- test_%d_mheap_grp %d: OK\n", nheap, ngrp); 
 }
 
-void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep[]) {
+void mheap_sleeper(struct core *c, struct mheap *mh, int n, int sleep_id, int ticks[], int sleep[]) {
 	struct process *sleeper = NULL;
 	int sleeping = 0;
 	for (int i = 0; i < n; i++) {
@@ -168,7 +173,7 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 		struct process *p = schedule_retry(0, mh);
 		//printf("%d: p gid %d\n", i, p->group->gid);
 		if(p->group->gid != sleep_id) {
-			yield(0, p, mh->tick_length, NULL);
+			yield(c, p, mh->tick_length);
 			ticks[p->group->gid] += 1;
 		} else if (sleeper == NULL) {
 			//printf("%d: deque: %d\n", i, sleep_id, ticks[p->group->gid]);
@@ -179,7 +184,7 @@ void mheap_sleeper(struct mheap *mh, int n, int sleep_id, int ticks[], int sleep
 		}
 		if ((sleeper != NULL) && (i-sleeping > 4)) {
 			//printf("%d: enque: %d\n", i, sleep_id);
-			enqueue(0, sleeper, NULL);
+			enqueue(c, sleeper);
 			//mh_print(mh);
 			sleeping = 0;
 			sleeper = NULL;
@@ -203,10 +208,9 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 		ws[i] = 10*(i+1);
 		tot_ws += ws[i];
 	}
-		
-	struct mheap *mh = mk_mheap(nheap, ngrp, PROC1, tl, gs, ws);
-	mheap_sleeper(mh, n, sleep_id, ticks, sleep);
-
+	struct core *c = c_new(0);
+	struct mheap *mh = mk_mheap(c, nheap, ngrp, PROC1, tl, gs, ws);
+	mheap_sleeper(c, mh, n, sleep_id, ticks, sleep);
 	for (int i = 0; i < ngrp; i++) {
 		if (i == sleep_id) {
 			float f = 1.0*ticks[sleep_id]/(n-sleep[sleep_id]);
@@ -232,15 +236,16 @@ void test_worst(int nheap) {
 	int sum = 0;
 	int worst;
 	for(int t = 0; t < n; t++) {
+		struct core *c = c_new(0);
 		struct mheap *mh = mh_new(proc_cmp, nheap, tl);
 		struct group *g = grp_new(mh, 0, 10);
-		struct lheap *lh = mh_choose_heap(0, mh, NULL);
+		struct lheap *lh = mh_choose_heap(c, mh);
 
 		struct process *p = grp_new_process(mh, 1, g);
-		enqueue(0, p, NULL);
+		enqueue(c, p);
 
 		for (int i = 0; ; i++) {
-			if ((p = schedule(0, mh, NULL, NULL)) != NULL) {
+			if ((p = schedule(c, mh)) != NULL) {
 				sum += i;
 				if(i > worst)
 					worst = i;
@@ -253,7 +258,6 @@ void test_worst(int nheap) {
 }
 
 void main(int argc, char *argv[]) {
-	srandom(getpid());
 	//debug = true;
 	// test_mheap_many_grp(20, 0);
 	test_grp_sleep_wakeup();

@@ -6,7 +6,9 @@
 #include <float.h>
 
 #include "vt.h"
+#include "ticks.h"
 #include "driver.h"
+#include "core.h"
 #include "group.h"
 #include "lheap.h"
 #include "mheap.h"
@@ -94,7 +96,8 @@ struct lheap *mh_heap(struct mheap *mh, int i) {
 	return mh->lh[i];
 }
 
-struct lheap *mh_choose_heap(int core, struct mheap *mh, long *retry) {
+struct lheap *mh_choose_heap(struct core *c, struct mheap *mh) {
+	double rand;
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
@@ -102,15 +105,13 @@ struct lheap *mh_choose_heap(int core, struct mheap *mh, long *retry) {
 		return lh;
 	}
 retry:
-	int i = rand_r(&core) % mh->nheap;
+	int i = c_rand(c, mh->nheap);
 	struct lheap *lh = mh_heap(mh, i);
 	if(lh_try_lock_timed(lh) != 0) {
 		r++;
 		goto retry;
 	}
-	if (retry != NULL) {
-		*retry += r;
-	}
+	c->nretry_ins += r;
 	return lh;
 }
 
@@ -140,14 +141,14 @@ void *mh_min_atomic(struct lheap *lh)  {
 }
 
 // https://dl.acm.org/doi/10.1145/2755573.2755616
-struct process *mh_sample_min_group(int core, struct mheap *mh, long *ts, long *retry) {
+struct process *mh_sample_min_group(struct core *c, struct mheap *mh) {
 	long start = safe_read_tsc();
 	long r = 0;
 retry:
-	int i = rand_r(&core) % mh->nheap;
-	int j = rand_r(&core) % mh->nheap;
+	int i = c_rand(c, mh->nheap);
+	int j = c_rand(c, mh->nheap);
 	while (i == j) {
-		j = rand_r(&core) % mh->nheap;
+		j = c_rand(c, mh->nheap);
 	}
 	struct lheap *lh_i = mh_heap(mh, i);
 	struct lheap *lh_j = mh_heap(mh, j);
@@ -187,15 +188,13 @@ retry:
 	assert(p_i->lh == lh_i);
 	mh_del_process(p_i->mh, p_i);
 	lh_unlock(lh_i);
-	if (ts != NULL)
-		*ts = safe_read_tsc() - start;
-	if (retry != NULL)
-		*retry += r;
+	c->min_proc_cycles += (safe_read_tsc() - start);
+	c->nretry_del += r;
 	return p_i;
 }
 
 // returns with proc locked
-struct process *mh_min_proc(int core, struct mheap *mh, long *ts, long *retry) {
+struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
@@ -210,5 +209,5 @@ struct process *mh_min_proc(int core, struct mheap *mh, long *ts, long *retry) {
 		lh_unlock(lh);
 		return p;
 	}
-	return mh_sample_min_group(core, mh, ts, retry);
+	return mh_sample_min_group(c, mh);
 }

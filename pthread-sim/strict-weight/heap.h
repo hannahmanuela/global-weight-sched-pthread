@@ -1,3 +1,7 @@
+#ifndef _HEAP_H_
+
+#define _HEAP_H_
+
 // Min-heap of groups keyed by val
 
 struct heap_elem {
@@ -26,4 +30,6 @@ void heap_fix_index(struct heap *h, struct heap_elem *e);
 void heap_iter(struct heap *h, void iter(struct heap_elem *));
 struct heap_elem* heap_first(struct heap *);
 struct heap_elem* heap_next(struct heap *h, struct heap_elem *e);
+
+#endif
 	

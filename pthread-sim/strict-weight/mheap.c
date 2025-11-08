@@ -128,7 +128,7 @@ void mh_add_process(struct process *p, struct lheap *lh) {
 // caller must hold heap and group lock
 void mh_del_process(struct mheap *mh, struct process *p) {
 	int start_tsc = safe_read_tsc();
-	heap_remove_at(p->lh->heap, &p->heap_elem);
+	heap_remove_min(p->lh->heap, &p->heap_elem);
 	int end_tsc = safe_read_tsc();
 	p->lh->remove_cycles += end_tsc - start_tsc;
 	p->lh->nremove += 1;

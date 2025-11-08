@@ -26,6 +26,7 @@ void *heap_lookup(struct heap *heap, int idx);
 void heap_ensure_capacity(struct heap *h);
 void heap_push(struct heap *h, struct heap_elem *e);
 void heap_remove_at(struct heap *h, struct heap_elem *e);
+void heap_remove_min(struct heap *h, struct heap_elem *e);
 void heap_fix_index(struct heap *h, struct heap_elem *e);
 void heap_iter(struct heap *h, void iter(struct heap_elem *));
 struct heap_elem* heap_first(struct heap *);

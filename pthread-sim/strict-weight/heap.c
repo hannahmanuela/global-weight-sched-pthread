@@ -140,3 +140,13 @@ void heap_remove_at(struct heap *h, struct heap_elem *e) {
     }
     removed->heap_index = -1;
 }
+
+void heap_remove_min(struct heap *h, struct heap_elem *e) {
+    int last = h->heap_size - 1;
+    assert(last != 0);
+    assert(e->heap_index == 0);
+    h->heap_size--;
+    heap_swap(h, 0, last);
+    heap_sift_down(h, 0);
+    e->heap_index = -1;
+}

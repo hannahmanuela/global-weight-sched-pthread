@@ -28,7 +28,7 @@
 #define TRACE
 
 // #define TIME_TO_RUN 20  // sec
-#define TIME_TO_RUN 2  // sec
+#define TIME_TO_RUN 10  // sec
 
 int num_groups = 10;
 int num_cores;

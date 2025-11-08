@@ -241,19 +241,25 @@ void main(int argc, char *argv[]) {
     float rdel_l = FLT_MAX;
     long nretry_ins = 0;
     long nretry_del = 0;
-    long nop;
+    long y_c = 0;
+    long s_c = 0;
+    long nsched = 0;
+    long nyield = 0;
     for (struct core_state *c = &gs->cores[0]; c < &gs->cores[num_cores]; c = c + 1) {
 	    pthread_join(threads[c - &gs->cores[0]], NULL);
 	    // print_core(c); printf("\n");
 	    float s = AVG(c->sched_cycles, c->nsched);
-	    nop += (c->nsched + c->nyield); 
+	    nsched += c->nsched;
+	    nyield += c->nyield;
 	    s_h = MAX(s_h, s);
 	    s_l = MIN(s_l, s);
+	    s_c += c->sched_cycles;
 	    s = AVG(c->min_proc_cycles, c->nsched);
 	    p_h = MAX(p_h, s);
 	    p_l = MIN(p_l, s);
 	    s = AVG(c->yield_cycles, c->nyield);
 	    y_h = MAX(y_h, s);
+	    y_c += c->yield_cycles;
 	    y_l = MIN(y_l, s);
 	    s = AVG(c->nretry_ins, (c->nenq + c->nyield));
 	    rins_h = MAX(rins_h, s);
@@ -264,8 +270,8 @@ void main(int argc, char *argv[]) {
 	    rdel_l = MIN(rdel_l, s);
 	    nretry_del += c->nretry_del;
     }
-    printf("  nsched %ld sched %0.2f %0.2f min_proc %0.2f %0.2f yield %0.2f %0.2f\n",
-	   nop, s_l, s_h, p_l, p_h, y_l, y_h);
+    printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
+	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld %0.2f %0.2f retry del %ld %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, rdel_l, rdel_h);
     printf("=\n");
 

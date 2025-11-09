@@ -147,6 +147,8 @@ void heap_remove_min(struct heap *h, struct heap_elem *e) {
     assert(e->heap_index == 0);
     h->heap_size--;
     heap_swap(h, 0, last);
+    //h->heap[0] = h->heap[last];
+    //h->heap[0]->heap_index = 0;
     heap_sift_down(h, 0);
     e->heap_index = -1;
 }

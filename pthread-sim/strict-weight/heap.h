@@ -20,17 +20,16 @@ struct heap {
 struct heap *heap_new(int cmp_elem(void *, void *));
 void heap_free(struct heap *h);
 void heap_elem_init(struct heap_elem *h, void *e);
-int heap_elem_idx(struct heap_elem *h);
 void *heap_min(struct heap *h);
 void *heap_lookup(struct heap *heap, int idx);
 void heap_ensure_capacity(struct heap *h);
 void heap_push(struct heap *h, struct heap_elem *e);
-void heap_remove_at(struct heap *h, struct heap_elem *e);
+void heap_remove_at(struct heap *h, struct heap_elem *e);    // only for heap testing
 void heap_remove_min(struct heap *h, struct heap_elem *e);
-void heap_fix_index(struct heap *h, struct heap_elem *e);
+void heap_fix_index(struct heap *h, struct heap_elem *e);     // only for heap testing
 void heap_iter(struct heap *h, void iter(struct heap_elem *));
-struct heap_elem* heap_first(struct heap *);
-struct heap_elem* heap_next(struct heap *h, struct heap_elem *e);
+//struct heap_elem* heap_first(struct heap *);
+//struct heap_elem* heap_next(struct heap *h, struct heap_elem *e);
 
 #endif
 	

@@ -32,6 +32,7 @@
 
 int num_groups = 4;
 int num_cores;
+int time_work; // in usec
 
 extern bool debug;
 
@@ -147,6 +148,7 @@ void *run_core(void* core) {
 	double start = now();
 	for (int i = 0; now() - start < TIME_TO_RUN; i++) {
 		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+	        usleep(time_work);
 		action(mycore, RUN);
 		// sleepwakeup(mycore);
 		// action(mycore, rand() % 3);
@@ -155,20 +157,16 @@ void *run_core(void* core) {
 
 
 void main(int argc, char *argv[]) {
-
-    // struct sched_param sched_param;
-    // sched_param.sched_priority = 99;
-    // sched_setscheduler(0, SCHED_FIFO, &sched_param);
-
     if (argc != 5) {
-	    fprintf(stderr, "usage: <num_cores> <tick_length(us)> <num_threads> <num_heaps>\n");
+	    fprintf(stderr, "usage: <num_cores> <num_threads> <num_heaps> <time_work (us)>\n");
 	    exit(1);
     }
     num_cores = atoi(argv[1]);
-    int tick_length = atoi(argv[2]);
-    int num_threads = atoi(argv[3]);
-    int nheap = atoi(argv[4]);
+    int tick_length = 1000;
+    int num_threads = atoi(argv[2]);
+    int nheap = atoi(argv[3]);
     int num_threads_p_group = num_threads/num_groups;
+    time_work = atoi(argv[4]);
 
     //debug = true;
 

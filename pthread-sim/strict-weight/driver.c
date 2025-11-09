@@ -195,7 +195,7 @@ void main(int argc, char *argv[]) {
 	    pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
     }
 
-    printf("= num_cores %d num_groups %d nthreads %d nheap %d\n", num_cores, num_groups, num_threads, gs->mh->nheap);
+    printf("= num_cores %d num_groups %d nthreads %d nheap %d work %d\n", num_cores, num_groups, num_threads, gs->mh->nheap, time_work);
     printf("= cores: %d\n", num_cores);
     float s_h = 0.0;
     float s_l = FLT_MAX;
@@ -244,7 +244,7 @@ void main(int argc, char *argv[]) {
     printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
 	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld %0.2f %0.2f retry del %ld %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, rdel_l, rdel_h);
-    printf("hit %d\n");
+    printf("  hit %d\n");
     printf("=\n");
 
     mh_lock_stats(gs->mh);

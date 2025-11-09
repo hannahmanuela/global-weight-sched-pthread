@@ -126,12 +126,13 @@ void mh_add_process(struct process *p, struct lheap *lh) {
 }
 
 // caller must hold heap and group lock
-void mh_del_process(struct mheap *mh, struct process *p) {
+struct process *mh_del_min_process(struct lheap *lh) {
 	int start_tsc = safe_read_tsc();
-	heap_remove_min(p->lh->heap, &p->heap_elem);
+	struct process *p = (struct process *) heap_remove_min(lh->heap);
 	int end_tsc = safe_read_tsc();
-	p->lh->remove_cycles += end_tsc - start_tsc;
-	p->lh->nremove += 1;
+	lh->remove_cycles += end_tsc - start_tsc;
+	lh->nremove += 1;
+	return p;
 }
 
 // caller must ensure there is a min element
@@ -194,7 +195,8 @@ retry:
 		goto retry;
 	}
 	assert(p_i->lh == lh_i);
-	mh_del_process(p_i->mh, p_i);
+	struct process *p = mh_del_min_process(lh_i);
+	assert(p == p_i);
 	lh_unlock(lh_i);
 	c->min_proc_cycles += (safe_read_tsc() - start);
 	c->nretry_del += r;
@@ -213,7 +215,8 @@ struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 		}	
 		pthread_rwlock_wrlock(&p->proc_lock);
 		assert(p->lh == lh);
-		mh_del_process(p->mh, p);
+		struct process *p0 = mh_del_min_process(lh);
+		assert(p0 == p);
 		lh_unlock(lh);
 		return p;
 	}

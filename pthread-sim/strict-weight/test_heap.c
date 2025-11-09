@@ -17,7 +17,7 @@ struct elem {
 	
 void heap_elem_print(struct heap_elem *he) {
 	struct elem *e = (struct elem *) he->elem;
-	printf("%d id %d svt %d w %d q %d\n", he->heap_index, e->id, e->vt);
+	printf("id %d svt %d w %d q %d\n", e->id, e->vt);
 }
 
 void heap_print(struct heap *heap) {

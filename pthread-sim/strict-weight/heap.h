@@ -3,7 +3,6 @@
 #define _HEAP_H_
 
 struct heap_elem {
-	int heap_index;
 	void *elem;
 };
 
@@ -22,8 +21,6 @@ void *heap_min(struct heap *h);
 void heap_push(struct heap *h, struct heap_elem *e);
 void *heap_remove_min(struct heap *h);
 void heap_iter(struct heap *h, void iter(struct heap_elem *));
-//struct heap_elem* heap_first(struct heap *);
-//struct heap_elem* heap_next(struct heap *h, struct heap_elem *e);
 
 #endif
 	

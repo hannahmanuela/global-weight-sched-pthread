@@ -28,7 +28,6 @@ void heap_free(struct heap *h) {
 }
 
 void heap_elem_init(struct heap_elem *h, void *e) {
-	h->heap_index = -1;
 	h->elem = e;
 }
 
@@ -44,25 +43,10 @@ void heap_iter(struct heap *heap, void (*iter)(struct heap_elem *)) {
 	}
 }
 
-struct heap_elem* heap_first(struct heap *h) {
-	if(h->heap_size <= 0)
-		return NULL;
-	return h->heap[0];
-}
-
-struct heap_elem* heap_next(struct heap *h, struct heap_elem *e) {
-	int i = e->heap_index + 1;
-	if(i >= h->heap_size)
-		return NULL;
-	return h->heap[i];
-}
-
 static inline void heap_swap(struct heap *h, int i, int j) {
 	void *tmp = h->heap[i];
 	h->heap[i] = h->heap[j];
 	h->heap[j] = tmp;
-	h->heap[i]->heap_index = i;
-	h->heap[j]->heap_index = j;
 }
 
 static void heap_sift_up(struct heap *h, int idx) {
@@ -100,11 +84,10 @@ static void heap_sift_down(struct heap *h, int idx) {
 
 
 void heap_push(struct heap *h, struct heap_elem *e) {
-	assert(e->heap_index == -1);
 	heap_ensure_capacity(h);
-	e->heap_index = h->heap_size;
+	int i = h->heap_size;
 	h->heap[h->heap_size++] = e;
-	heap_sift_up(h, e->heap_index);
+	heap_sift_up(h, i);
 }
 
 void *heap_remove_min(struct heap *h) {
@@ -112,14 +95,11 @@ void *heap_remove_min(struct heap *h) {
 		return NULL;
 	int last = h->heap_size - 1;
 	struct heap_elem *he = h->heap[0];
-	assert(he->heap_index == 0);
-	he->heap_index = -1;
 	h->heap_size--;
 	if(last == 0) {
 		return he->elem;
 	}
 	h->heap[0] = h->heap[last];
-	h->heap[0]->heap_index = 0;
 	heap_sift_down(h, 0);
 	return he->elem;
 }

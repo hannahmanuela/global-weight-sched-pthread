@@ -51,7 +51,7 @@ int mh_min(struct lheap *lh) {
 
 static void print_elem(struct heap_elem *e) {
 	struct process *p = (struct process *) e->elem;
-	printf("[%d: ", e->heap_index); proc_print(p); printf("]");
+	printf("["); proc_print(p); printf("]");
 }
 
 void mh_print(struct mheap *mh) {

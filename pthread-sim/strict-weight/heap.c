@@ -5,6 +5,7 @@
 #include "heap.h"
 
 #define MIN_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
+#define D_ARY 2
 
 static void heap_ensure_capacity(struct heap *h) {
 	if (h->heap_size < h->heap_capacity) return;
@@ -51,7 +52,7 @@ static inline void heap_swap(struct heap *h, int i, int j) {
 
 static void heap_sift_up(struct heap *h, int idx) {
 	while (idx > 0) {
-		int parent = (idx - 1) / 2;
+		int parent = (idx - 1) / D_ARY;
 		if (h->cmp_elem(h->heap[idx]->elem, h->heap[parent]->elem) < 0) {
 			heap_swap(h, idx, parent);
 			idx = parent;
@@ -64,14 +65,13 @@ static void heap_sift_up(struct heap *h, int idx) {
 static void heap_sift_down(struct heap *h, int idx) {
 	int n = h->heap_size;
 	while (1) {
-		int left = idx * 2 + 1;
-		int right = idx * 2 + 2;
+		int left = idx * D_ARY + 1;
 		int smallest = idx;
-		if ((left < n) && h->cmp_elem(h->heap[left]->elem, h->heap[smallest]->elem) < 0) {
-			smallest = left;
-		}
-		if ((right < n) && h->cmp_elem(h->heap[right]->elem, h->heap[smallest]->elem) < 0) {
-			smallest = right;
+		for (int i = 0; i < D_ARY; i++) {
+			int c = left + i;
+			if ((c < n) && h->cmp_elem(h->heap[c]->elem, h->heap[smallest]->elem) < 0) {
+				smallest = c;
+			}
 		}
 		if (smallest != idx) {
 			heap_swap(h, idx, smallest);

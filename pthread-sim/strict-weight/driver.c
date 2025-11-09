@@ -244,7 +244,7 @@ void main(int argc, char *argv[]) {
     printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
 	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld %0.2f %0.2f retry del %ld %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, rdel_l, rdel_h);
-    printf("  hit %d\n");
+    printf("  hit %d\n", hit);
     printf("=\n");
 
     mh_lock_stats(gs->mh);

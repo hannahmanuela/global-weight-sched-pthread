@@ -34,10 +34,6 @@ void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e) {
 	he->elem = e;
 }
 
-void heap_elem_set_vt(struct heap_elem *he, vt_t vt) {
-	he->vruntime = vt;
-}
-
 bool heap_elem_is_dummy(struct heap_elem *he) {
 	return he->weight == DUMMY;
 }

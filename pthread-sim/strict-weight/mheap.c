@@ -42,6 +42,7 @@ void mh_free(struct mheap *mh) {
 
 static struct heap_elem *mh_min(struct lheap *lh) {
 	struct heap_elem *he = heap_min(lh->heap);
+	assert(he != NULL);
 	if (heap_elem_is_dummy(he))
 		return NULL;
 	return he;

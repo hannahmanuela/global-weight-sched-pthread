@@ -71,8 +71,6 @@ void test_grp_sleep_wakeup() {
 	struct process *p0;
 	struct process *p1;
 		
-	mh_print(mh);
-
 	p0 = schedule_retry(c, mh);
 	p1 = schedule_retry(c, mh);
 	dequeue(p1, tl);

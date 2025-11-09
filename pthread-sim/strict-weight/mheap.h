@@ -2,6 +2,7 @@
 
 #define _MHEAP_H_
 
+#include "heap_elem.h"
 #include "core.h"
 #include "group.h"
 #include "heap.h"
@@ -14,11 +15,11 @@ struct mheap {
 
 } __attribute__((aligned(64)));
 
-struct mheap *mh_new(int grpcmp(void *, void *), int n, int tick_length); 
+struct mheap *mh_new(int grpcmp(struct heap_elem *, struct heap_elem *), int n, int tick_length); 
 void mh_free(struct mheap *mh);
 int mh_empty(struct group *g);
 void mh_print(struct mheap *mh);
-int mh_min(struct lheap *lh);
+vt_t mh_min_vt(struct lheap *lh);
 void mh_lock_stats(struct mheap *mh);
 void mh_runtime_stats(struct mheap *mh);
 struct lheap *mh_heap(struct mheap *, int i);
@@ -26,6 +27,5 @@ struct process *mh_min_proc(struct core *c, struct mheap *mh);
 struct lheap *mh_choose_heap(struct core *c, struct mheap *mh);
 void mh_add_process(struct process *p, struct lheap *lh);
 void mh_del_process(struct mheap *mh, struct process *p);
-bool mh_is_min(struct process *p);
 
 #endif

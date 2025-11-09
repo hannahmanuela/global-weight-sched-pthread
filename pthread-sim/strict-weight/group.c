@@ -15,13 +15,11 @@ extern bool debug;
 struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     struct process *p = malloc(sizeof(struct process));
     p->pid = id;
-    p->vruntime = 0;
-    p->weight = (group != NULL) ? group->weight : 0;
     p->runtime = 0;
     pthread_rwlock_init(&p->proc_lock, NULL);
     p->group = group;
     p->next = NULL;
-    heap_elem_init(&p->heap_elem, p);
+    heap_elem_init(&p->he, 0, group->weight, p);
     p->mh = mh;
     p->lh = NULL;
     if(p->group)
@@ -46,21 +44,15 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 }
 
 vt_t grp_slot(struct process *p, int nthread) {
-	return calc_delta(p->mh->tick_length, p->weight) * (nthread-1);
-}
-
-bool proc_dummy(struct process *p) {
-	return p->pid == DUMMY;
+	return calc_delta(p->mh->tick_length, p->he.weight) * (nthread-1);
 }
 
 void proc_print(struct process *p) {
-	printf("(pid %d(%d) vt %d, w %d)", p->pid, (p->group != NULL) ? p->group->gid : DUMMY, p->vruntime, p->weight);
+	printf("(pid %d(%d) vt %d, w %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
 }	
 
 // caller must hold group lock for both groups
-int proc_cmp(void *e0, void *e1) {
-	struct process *a = (struct process *) e0;
-	struct process *b = (struct process *) e1;
+int proc_cmp(struct heap_elem *a, struct heap_elem *b) {
 	// Compare by vruntime; lower is higher priority
 	if (a->vruntime < b->vruntime) return -1;
 	if (a->vruntime > b->vruntime) return 1;
@@ -68,13 +60,13 @@ int proc_cmp(void *e0, void *e1) {
 	if (a->weight > b->weight) return -1;
 	if (a->weight < b->weight) return 1;
 	// tie-breaker by gid for determinism
-	if (a->pid < b->pid) return -1;
-	if (a->pid > b->pid) return 1;
+	//if (a->pid < b->pid) return -1;
+	//if (a->pid > b->pid) return 1;
 	return 0;
 }
 
 void proc_add_vruntime(struct process *p, vt_t vt) {
-        atomic_fetch_add(&p->vruntime, vt);
+        atomic_fetch_add(&p->he.vruntime, vt);
 }
 
 void proc_insert_mh(struct process *p, struct lheap *lh) {
@@ -85,16 +77,16 @@ void proc_insert_mh(struct process *p, struct lheap *lh) {
 // set initial vruntime when group g becomes runnable
 // caller must hold group lock
 void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
-	vt_t nvt = min_vt + p->vruntime;
+	vt_t nvt = min_vt + p->he.vruntime;
 	if(debug)
 		printf("%d(%d): grp_set_init_vruntime: mvt %ld new vt %ld\n", p->pid, p->group->gid, min_vt, nvt);
-        atomic_store(&p->vruntime, nvt);
+        atomic_store(&p->he.vruntime, nvt);
 }
 
 // remember vruntime for when group becomes runnable again
 // caller must hold group lock
 void proc_lag_vruntime(struct process *p, vt_t min) {
-        atomic_fetch_add(&p->vruntime, -min);
+        atomic_fetch_add(&p->he.vruntime, -min);
 }
 
 
@@ -119,8 +111,6 @@ float grp_runtime(struct group *g) {
 }
 
 void grp_stats(struct group *g, long sum) {
-	if (g->gid == DUMMY)
-		return;
 	t_t t = ticks_sum(g->sleeptime);
 	float run = grp_runtime(g);
 	// printf("%d: runtime %0.2f us sleeptime %d us weight %d ticks %0.2f\n", g->gid,

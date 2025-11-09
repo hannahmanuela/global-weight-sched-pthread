@@ -70,6 +70,8 @@ void test_grp_sleep_wakeup() {
 	struct mheap *mh = mk_mheap(c, 1, GRP1, PROC2, tl, gs, ws);
 	struct process *p0;
 	struct process *p1;
+		
+	mh_print(mh);
 
 	p0 = schedule_retry(c, mh);
 	p1 = schedule_retry(c, mh);
@@ -103,21 +105,21 @@ void test_mheap(int nheap, int nproc) {
 	// run the two groups to get off vt 0
 	for (int i = 0; i < GRP2; i++) {
 		p = schedule_retry(c, mh);
-		assert(p->vruntime == 0);
+		assert(p->he.vruntime == 0);
 		yield(c, p, mh->tick_length);
 	}
 
 	p = schedule_retry(c, mh);
 	assert(p->group->gid == GRP2-1);
-	assert(p->vruntime == 50);
+	assert(p->he.vruntime == 50);
 	yield(c, p, mh->tick_length);
 	p = schedule_retry(c, mh);
 	assert(p->group->gid == GRP2-1);
-	assert(p->vruntime == 100);
+	assert(p->he.vruntime == 100);
 	yield(c, p, mh->tick_length);
 	p = schedule_retry(c, mh);
 	assert(p->group->gid == 0);
-	assert(p->vruntime == 100);
+	assert(p->he.vruntime == 100);
 	yield(c, p, mh->tick_length);
 
 	// stats(gs, GRP2);
@@ -259,7 +261,7 @@ void test_worst(int nheap) {
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
-	//debug = true;
+	// debug = true;
 	// test_mheap_many_grp(20, 0);
 	test_grp_sleep_wakeup();
 	test_mheap(1, PROC1);

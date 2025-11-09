@@ -19,7 +19,7 @@ struct lheap {
 	long nremove;
 } __attribute__((aligned(64)));
 
-struct lheap *lh_new(int grp_cmp(void*,void*));
+struct lheap *lh_new(int grp_cmp(struct heap_elem*,struct heap_elem*));
 void lh_unlock(struct lheap *lh);
 void lh_lock(struct lheap *lh);
 void lh_lock_timed(struct lheap *lh);
@@ -27,7 +27,6 @@ int lh_try_lock_timed(struct lheap *lh);
 void lh_rdlock_timed(struct lheap *lh);
 void lh_stats(struct lheap *lh);
 int lh_try_lock(struct lheap *lh);
-void *lh_min_atomic(struct lheap *lh);
 int lh_avg_spec_virt_time_inc(struct lheap *lh);
 
 #endif

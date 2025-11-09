@@ -1,6 +1,6 @@
 CC=gcc
-# CFLAGS=-I. -g
-CFLAGS=-I. -O2
+CFLAGS=-I. -g
+# CFLAGS=-I. -O2
 # CFLAGS=-I. -O2 -g -pg
 DEPS = global_heap.h group.h heap.h lheap.h mheap.h util.h  ticks.h core.h
 OBJ = global_heap.o group.o mheap.o lheap.o heap.o util.c ticks.o core.o

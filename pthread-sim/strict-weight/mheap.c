@@ -14,15 +14,15 @@
 #include "mheap.h"
 #include "util.h"
 
-struct mheap *mh_new(int proc_cmp(void *, void *), int n, int tick_length) {
+struct mheap *mh_new(int proc_cmp(struct heap_elem *, struct heap_elem *), int n, int tick_length) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->lh = (struct lheap **) malloc(sizeof(struct lheap) * n);
 	for (int i=0; i < n; i++) {
 		mh->lh[i] = lh_new(proc_cmp);
 		// insert a dummy element so that the heap always has one elemement
-		struct process* dummy = grp_new_process(mh, DUMMY, NULL);
-		dummy->vruntime = INT_MAX;
-		heap_push(mh->lh[i]->heap, &dummy->heap_elem);
+		struct heap_elem* he = malloc(sizeof(struct heap_elem));
+		heap_elem_init(he, INT_MAX, DUMMY, NULL);
+		heap_push(mh->lh[i]->heap, he);
 	}
 	mh->nheap = n;
 	mh->tick_length = tick_length;
@@ -40,16 +40,26 @@ void mh_free(struct mheap *mh) {
 	}
 }
 
-int mh_min(struct lheap *lh) {
-	struct process *min = (struct process *) heap_min(lh->heap);
-	long mvt = 0;
-	if (min && !proc_dummy(min)) {
-		mvt = min->vruntime;
+static struct heap_elem *mh_min(struct lheap *lh) {
+	struct heap_elem *he = heap_min(lh->heap);
+	if (heap_elem_is_dummy(he))
+		return NULL;
+	return he;
+}
+
+vt_t mh_min_vt(struct lheap *lh) {
+	struct heap_elem *min = mh_min(lh);
+	if(min == NULL) {
+		return 0;
 	}	
-	return mvt;
+	return min->vruntime;
 }
 
 static void print_elem(struct heap_elem *e) {
+	if(heap_elem_is_dummy(e)) {
+		printf("[dummy vt %d w %d]", e->vruntime, e->weight);
+		return;
+	}
 	struct process *p = (struct process *) e->elem;
 	printf("["); proc_print(p); printf("]");
 }
@@ -119,7 +129,7 @@ retry:
 void mh_add_process(struct process *p, struct lheap *lh) {
 	int start_tsc = safe_read_tsc();
 	p->lh = lh;
-	heap_push(lh->heap, &p->heap_elem);
+	heap_push(lh->heap, &p->he);
 	int end_tsc = safe_read_tsc();
 	lh->insert_cycles += end_tsc - start_tsc;
 	p->lh->ninsert += 1;
@@ -128,24 +138,13 @@ void mh_add_process(struct process *p, struct lheap *lh) {
 // caller must hold heap and group lock
 struct process *mh_del_min_process(struct lheap *lh) {
 	int start_tsc = safe_read_tsc();
-	struct process *p = (struct process *) heap_remove_min(lh->heap);
+	struct heap_elem *he = heap_remove_min(lh->heap);
 	int end_tsc = safe_read_tsc();
 	lh->remove_cycles += end_tsc - start_tsc;
 	lh->nremove += 1;
-	return p;
+	return (struct process *) he->elem;
 }
 
-// caller must ensure there is a min element
-void *mh_min_atomic(struct lheap *lh)  {
-        struct heap_elem *e = atomic_load(&(lh->heap->heap[0]));
-        return e->elem;
-}
-
-bool mh_is_min(struct process *p) {
-	struct lheap *lh = p->lh;
-        struct process *p1 = (struct process *) mh_min_atomic(lh);
-	return p == p1;
-}
 
 // https://dl.acm.org/doi/10.1145/2755573.2755616
 struct process *mh_sample_min_group(struct core *c, struct mheap *mh) {
@@ -159,26 +158,26 @@ retry:
 	}
 	struct lheap *lh_i = mh_heap(mh, i);
 	struct lheap *lh_j = mh_heap(mh, j);
-	struct process *p_i = (struct process *) mh_min_atomic(lh_i);
-	struct process *p_j = (struct process *) mh_min_atomic(lh_j);
-	if (proc_dummy(p_i) && proc_dummy(p_j)) {
+	struct heap_elem *he_i = mh_min(lh_i);
+	struct heap_elem *he_j = mh_min(lh_j);
+	if ((he_i == NULL) && (he_j == NULL)) {
 		return NULL;
 	}
-	if (proc_dummy(p_i)) {
-		p_i = p_j;
+	if (he_i == NULL) {
+		he_i = he_j;
 		lh_i = lh_j;
-	} else if (p_j) {
-		int vt_i = atomic_load(&p_i->vruntime);
-		int vt_j = atomic_load(&p_j->vruntime);
+	} else if (he_j) {
+		int vt_i = atomic_load(&he_i->vruntime);
+		int vt_j = atomic_load(&he_j->vruntime);
 		if (vt_i > vt_j) {
-			p_i = p_j;
+			he_i = he_j;
 			lh_i = lh_j;
 		}
 		if (vt_i == vt_j) {
-			int w_i = atomic_load(&p_i->weight);
-			int w_j = atomic_load(&p_j->weight);
+			int w_i = atomic_load(&he_i->weight);
+			int w_j = atomic_load(&he_j->weight);
 			if (w_j > w_i) {	
-				p_i = p_j;
+				he_i = he_j;
 				lh_i = lh_j;
 			}
 		}
@@ -188,19 +187,17 @@ retry:
 		r++;
 		goto retry;
 	}
-	if ((struct process *) heap_min(lh_i->heap) != p_i) {
-		lh_unlock(lh_i);
+	//if (heap_min(lh_i->heap)->elem != he_i->elem) {
+		//lh_unlock(lh_i);
 		// printf("%d: retry %d not min anymore\n", c->cid, i);
-		r++;
-		goto retry;
-	}
-	assert(p_i->lh == lh_i);
+		//r++;
+		//goto retry;
+	//}
 	struct process *p = mh_del_min_process(lh_i);
-	assert(p == p_i);
 	lh_unlock(lh_i);
 	c->min_proc_cycles += (safe_read_tsc() - start);
 	c->nretry_del += r;
-	return p_i;
+	return p;
 }
 
 // returns with proc locked
@@ -208,15 +205,14 @@ struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
 		lh_lock_timed(lh);
-		struct process *p = (struct process *) heap_min(lh->heap);
-		if(!p || proc_dummy(p)) {
+		struct heap_elem *he = mh_min(lh);
+		if(he == NULL) {
 			lh_unlock(lh);
 			return NULL;
 		}	
+		struct process *p = mh_del_min_process(lh);
 		pthread_rwlock_wrlock(&p->proc_lock);
 		assert(p->lh == lh);
-		struct process *p0 = mh_del_min_process(lh);
-		assert(p0 == p);
 		lh_unlock(lh);
 		return p;
 	}

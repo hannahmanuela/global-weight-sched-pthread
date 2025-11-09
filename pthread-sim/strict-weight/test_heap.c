@@ -10,14 +10,13 @@
 #define N 10
 
 struct elem {
-	int vt;
 	int id;
-	struct heap_elem elem;
+	struct heap_elem he;
 };
 	
 void heap_elem_print(struct heap_elem *he) {
 	struct elem *e = (struct elem *) he->elem;
-	printf("id %d svt %d w %d q %d\n", e->id, e->vt);
+	printf("id %d vt %d\n", e->id, he->vruntime);
 }
 
 void heap_print(struct heap *heap) {
@@ -28,20 +27,13 @@ void heap_print(struct heap *heap) {
 static struct elem* make_elem(int id, int svt) {
 	struct elem *e = malloc(sizeof(struct elem));
 	e->id = id;
-	e->vt = svt;
-	heap_elem_init(&e->elem, e);
+	heap_elem_init(&e->he, svt, 0, e);
 	return e;
 }
 
-int cmp_elem(void *e0, void *e1) {
-        struct elem *a = (struct elem *) e0;
-        struct elem *b = (struct elem *) e1;
-        // Compare by vt; lower is higher priority
-        if (a->vt < b->vt) return -1;
-        if (a->vt > b->vt) return 1;
-        // tie-breaker by group_id for determinism
-        if (a->id < b->id) return -1;
-        if (a->id > b->id) return 1;
+int cmp_elem(struct heap_elem *a, struct heap_elem *b) {
+        if (a->vruntime < b->vruntime) return -1;
+        if (a->vruntime > b->vruntime) return 1;
 	return 0;
 }
 
@@ -53,32 +45,39 @@ int main() {
 
     for (i = 0; i < N; i++) {
 	 elems[i] = make_elem(i, i*10);
-	 heap_push(heap, &(elems[i]->elem));
+	 heap_push(heap, &(elems[i]->he));
     }
     
     assert(heap->heap_size == N);
 
-    // heap_print(heap);
+    heap_print(heap);
     
     // peek min
-    struct elem *e;
-    e = (struct elem *) heap_min(heap);
-    assert(e == elems[0]);
+    struct heap_elem *he = heap_min(heap);
+    assert(he->elem == elems[0]);
     
     for (i = 0; i < N; i ++) {
-	    struct elem *e = (struct elem *) heap_remove_min(heap);
-	    assert(e->vt == i * 10);
-	    e->vt += N*10;
+	    he = heap_remove_min(heap);
+	    assert(he->vruntime == i * 10);
+	    struct elem *e = (struct elem *) he->elem;
+	    assert(he->vruntime == e->he.vruntime);
+	    e->he.vruntime += N*10;
     }
+
+    heap_print(heap);
 
     for (i = N-1; i >= 0; i--) {
-	 heap_push(heap, &(elems[i]->elem));
+	 heap_push(heap, &(elems[i]->he));
     }
 
+    heap_print(heap);
+
     for (i = 0; i < N; i ++) {
-	    struct elem *e = (struct elem *) heap_remove_min(heap);
-	    assert(e->vt == (i * 10) + N*10);
-	    e->vt += N*10;
+	    he = heap_remove_min(heap);
+	    assert(he->vruntime == (i * 10) + N*10);
+	    struct elem *e = (struct elem *) he->elem;
+	    assert(he->vruntime == e->he.vruntime);
+	    e->he.vruntime += N*10;
     }
 
     printf("heap tests passed\n");

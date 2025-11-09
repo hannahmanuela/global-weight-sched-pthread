@@ -9,7 +9,7 @@
 #include "group.h"
 #include "lheap.h"
 
-struct lheap *lh_new(int grp_cmp(void *, void*)) {
+struct lheap *lh_new(int grp_cmp(struct heap_elem *, struct heap_elem*)) {
 	struct lheap *lh = (struct lheap *) malloc(sizeof(struct lheap));
 	lh->heap = heap_new(grp_cmp);
 	lh->wait_for_wr_heap_lock_cycles = 0;

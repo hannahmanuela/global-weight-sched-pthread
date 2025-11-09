@@ -10,11 +10,11 @@
 static void heap_ensure_capacity(struct heap *h) {
 	if (h->heap_size < h->heap_capacity) return;
 	int new_capacity = h->heap_capacity == 0 ? MIN_CAPACITY : h->heap_capacity * 2;
-	h->heap = realloc(h->heap, sizeof(struct heap_elem*) * new_capacity);
+	h->heap = realloc(h->heap, sizeof(struct heap_elem) * new_capacity);
 	h->heap_capacity = new_capacity;
 }
 
-struct heap *heap_new(int cmp(void *, void *)) {
+struct heap *heap_new(cmp_elem_t cmp) {
 	struct heap *h = malloc(sizeof(struct heap));
 	h->cmp_elem = cmp;
 	h->heap_size = 0;
@@ -28,24 +28,34 @@ void heap_free(struct heap *h) {
 	free(h->heap);
 }
 
-void heap_elem_init(struct heap_elem *h, void *e) {
-	h->elem = e;
+void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e) {
+	he->vruntime = vt;
+	he->weight = w;
+	he->elem = e;
 }
 
-void *heap_min(struct heap *h) {
+void heap_elem_set_vt(struct heap_elem *he, vt_t vt) {
+	he->vruntime = vt;
+}
+
+bool heap_elem_is_dummy(struct heap_elem *he) {
+	return he->weight == DUMMY;
+}
+
+struct heap_elem *heap_min(struct heap *h) {
 	if (h->heap_size == 0)
 		return NULL;
-	return h->heap[0]->elem;
+	return &h->heap[0];
 } 
 
-void heap_iter(struct heap *heap, void (*iter)(struct heap_elem *)) {
+void heap_iter(struct heap *heap, heap_iter_t iter) {
 	for (int i = 0; i < heap->heap_size; i++) {
-		iter(heap->heap[i]);
+		iter(&heap->heap[i]);
 	}
 }
 
 static inline void heap_swap(struct heap *h, int i, int j) {
-	void *tmp = h->heap[i];
+	struct heap_elem tmp = h->heap[i];
 	h->heap[i] = h->heap[j];
 	h->heap[j] = tmp;
 }
@@ -53,7 +63,7 @@ static inline void heap_swap(struct heap *h, int i, int j) {
 static void heap_sift_up(struct heap *h, int idx) {
 	while (idx > 0) {
 		int parent = (idx - 1) / D_ARY;
-		if (h->cmp_elem(h->heap[idx]->elem, h->heap[parent]->elem) < 0) {
+		if (h->cmp_elem(&(h->heap[idx]), &(h->heap[parent])) < 0) {
 			heap_swap(h, idx, parent);
 			idx = parent;
 		} else {
@@ -69,7 +79,7 @@ static void heap_sift_down(struct heap *h, int idx) {
 		int smallest = idx;
 		for (int i = 0; i < D_ARY; i++) {
 			int c = left + i;
-			if ((c < n) && h->cmp_elem(h->heap[c]->elem, h->heap[smallest]->elem) < 0) {
+			if ((c < n) && h->cmp_elem(&(h->heap[c]), &(h->heap[smallest])) < 0) {
 				smallest = c;
 			}
 		}
@@ -86,20 +96,18 @@ static void heap_sift_down(struct heap *h, int idx) {
 void heap_push(struct heap *h, struct heap_elem *e) {
 	heap_ensure_capacity(h);
 	int i = h->heap_size;
-	h->heap[h->heap_size++] = e;
+	h->heap[h->heap_size++] = *e;
 	heap_sift_up(h, i);
 }
 
-void *heap_remove_min(struct heap *h) {
+struct heap_elem *heap_remove_min(struct heap *h) {
 	if(h->heap_size == 0)
 		return NULL;
 	int last = h->heap_size - 1;
-	struct heap_elem *he = h->heap[0];
 	h->heap_size--;
-	if(last == 0) {
-		return he->elem;
+	if(last != 0) {
+		heap_swap(h, 0, last);
+		heap_sift_down(h, 0);
 	}
-	h->heap[0] = h->heap[last];
-	heap_sift_down(h, 0);
-	return he->elem;
+	return &(h->heap[last]);
 }

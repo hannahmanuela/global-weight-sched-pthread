@@ -2,25 +2,25 @@
 
 #define _HEAP_H_
 
-struct heap_elem {
-	void *elem;
-};
+#include "heap_elem.h"
 
 struct heap {
-	int (*cmp_elem)(void *, void *);
+	cmp_elem_t cmp_elem;
 	int heap_size;
 	int heap_capacity;
-	struct heap_elem **heap;
+	struct heap_elem *heap;
 }  __attribute__((aligned(64)));
 
+typedef void (*heap_iter_t)(struct heap_elem *);
 
-struct heap *heap_new(int cmp_elem(void *, void *));
+struct heap *heap_new(cmp_elem_t f);
 void heap_free(struct heap *h);
-void heap_elem_init(struct heap_elem *h, void *e);
-void *heap_min(struct heap *h);
+struct heap_elem *heap_min(struct heap *h);
 void heap_push(struct heap *h, struct heap_elem *e);
-void *heap_remove_min(struct heap *h);
-void heap_iter(struct heap *h, void iter(struct heap_elem *));
+struct heap_elem *heap_remove_min(struct heap *h);
+void heap_iter(struct heap *h, heap_iter_t);
 
+void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e);
+void heap_elem_set_vt(struct heap_elem *he, vt_t vt);
 #endif
 	

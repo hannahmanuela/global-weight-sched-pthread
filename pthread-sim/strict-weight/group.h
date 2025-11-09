@@ -5,16 +5,13 @@
 #include <pthread.h>
 #include <stdint.h> 
 
-#define DUMMY  -1
-
 #include "vt.h"
+#include "heap_elem.h"
 #include "heap.h"
 
 struct process {
+	struct heap_elem he;
 	int pid;
-	int weight;
-
-	vt_t vruntime; 
 
 	pthread_rwlock_t proc_lock;
 
@@ -23,7 +20,6 @@ struct process {
 	struct group *group;
 	struct process *next;
 
-	struct heap_elem heap_elem;
 	struct mheap *mh;
 	struct lheap *lh;
 } __attribute__((aligned(64)));
@@ -48,9 +44,8 @@ struct group {
 struct group *grp_new(struct mheap *mh, int id, int weight);
 vt_t grp_slot(struct process *p, int nthread);
 void proc_print(struct process *p);
-bool proc_dummy(struct process *p);
 struct process *grp_new_process(struct mheap *mh, int id, struct group *g);
-int proc_cmp(void *e0, void *e1);
+int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
 vt_t proc_get_vruntime(struct process *p);
 void proc_add_vruntime(struct process *p, t_t tick_length);
 void proc_set_init_vruntime(struct process *p, vt_t min);

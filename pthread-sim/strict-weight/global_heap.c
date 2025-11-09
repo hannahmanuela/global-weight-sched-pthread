@@ -14,6 +14,8 @@ bool debug;
 
 // Select next process to run
 struct process *schedule(struct core *c, struct mheap *mh) {
+	if (c->current_process && mh_is_min(c->current_process))
+		c->hit++;
 	struct process *min_proc = mh_min_proc(c, mh);
 	if (min_proc == NULL) {
 		return NULL;

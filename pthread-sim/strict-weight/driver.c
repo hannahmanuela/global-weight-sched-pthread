@@ -80,7 +80,7 @@ void doop(struct core *mycore, int op, long *cycles, long *n, struct process *p)
 		} else {
 			atomic_fetch_add(&(mycore->idle.tick), gs->mh->tick_length);
 		}
-		mycore->current_process = NULL;
+		// mycore->current_process = NULL;
 		break;
 	case ENQ:
 	        enqueue(mycore, p);
@@ -213,6 +213,7 @@ void main(int argc, char *argv[]) {
     long s_c = 0;
     long nsched = 0;
     long nyield = 0;
+    long hit = 0;
     for (int i = 0; i < num_cores; i++) {
 	    struct core *c = gs->cores[i];
 	    pthread_join(threads[c->cid], NULL);
@@ -238,10 +239,12 @@ void main(int argc, char *argv[]) {
 	    rdel_h = MAX(rdel_h, s);	
 	    rdel_l = MIN(rdel_l, s);
 	    nretry_del += c->nretry_del;
+	    hit += c->hit;
     }
     printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
 	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld %0.2f %0.2f retry del %ld %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, rdel_l, rdel_h);
+    printf("hit %d\n");
     printf("=\n");
 
     mh_lock_stats(gs->mh);

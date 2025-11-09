@@ -26,5 +26,6 @@ struct process *mh_min_proc(struct core *c, struct mheap *mh);
 struct lheap *mh_choose_heap(struct core *c, struct mheap *mh);
 void mh_add_process(struct process *p, struct lheap *lh);
 void mh_del_process(struct mheap *mh, struct process *p);
+bool mh_is_min(struct process *p);
 
 #endif

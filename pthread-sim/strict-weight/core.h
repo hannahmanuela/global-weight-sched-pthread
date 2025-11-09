@@ -24,6 +24,7 @@ struct core {
 	long nyield;
 	long nretry_del;
 	long nretry_ins;
+	long hit;
 } __attribute__((aligned(64)));
 
 void c_print(struct core *c);

@@ -140,6 +140,12 @@ void *mh_min_atomic(struct lheap *lh)  {
         return e->elem;
 }
 
+bool mh_is_min(struct process *p) {
+	struct lheap *lh = p->lh;
+        struct process *p1 = (struct process *) mh_min_atomic(lh);
+	return p == p1;
+}
+
 // https://dl.acm.org/doi/10.1145/2755573.2755616
 struct process *mh_sample_min_group(struct core *c, struct mheap *mh) {
 	long start = safe_read_tsc();

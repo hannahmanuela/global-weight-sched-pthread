@@ -12,17 +12,17 @@ DEPS = $(wildcard *.d)
 
 all: global-heap test-heap test-global
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
-
 global-heap: driver.o $(OBJ)
+	$(CC) -o $@ $^
+
+test-global: test_global.o $(OBJ)
 	$(CC) -o $@ $^
 
 test-heap: test_heap.o heap.o
 	$(CC) -o $@ $^
 
-test-global: test_global.o $(OBJ)
-	$(CC) -o $@ $^
+%.o: %.c $(DEPS)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean
 

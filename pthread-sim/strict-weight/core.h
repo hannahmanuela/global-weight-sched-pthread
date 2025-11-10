@@ -23,6 +23,7 @@ struct core {
 	long ndeq;
 	long nyield;
 	long nretry_del;
+	long nretry_del_lock;
 	long nretry_ins;
 	long hit;
 } __attribute__((aligned(64)));

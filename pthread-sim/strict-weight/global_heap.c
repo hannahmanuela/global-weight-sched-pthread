@@ -21,7 +21,7 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 		return NULL;
 	}
 
-	//pthread_rwlock_wrlock(&min_proc->proc_lock);
+	pthread_rwlock_wrlock(&min_proc->proc_lock);
 
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
@@ -30,7 +30,7 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 
         // atomic_fetch_add(&min_proc->group->nqueued, -1);  // for debugging 
 	
-	//pthread_rwlock_unlock(&min_proc->proc_lock);
+	pthread_rwlock_unlock(&min_proc->proc_lock);
 
 	return min_proc;
 }

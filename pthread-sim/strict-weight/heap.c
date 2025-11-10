@@ -4,14 +4,16 @@
 
 #include "heap.h"
 
-#define MIN_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
+#define HEAP_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
 #define D_ARY 2
+#define CACHE_LINE_SZ 64
 
-static void heap_ensure_capacity(struct heap *h) {
-	if (h->heap_size < h->heap_capacity) return;
-	int new_capacity = h->heap_capacity == 0 ? MIN_CAPACITY : h->heap_capacity * 2;
-	h->heap = realloc(h->heap, sizeof(struct heap_elem) * new_capacity);
-	h->heap_capacity = new_capacity;
+static void heap_alloc(struct heap *h) {
+	h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
+	long a = (long) &(h->heap[0]);
+	assert(a % CACHE_LINE_SZ == 0);
+	// printf("a %p sz %d\n", a, sizeof(struct heap_elem));
+	h->heap_capacity = HEAP_CAPACITY;
 }
 
 struct heap *heap_new(cmp_elem_t cmp) {
@@ -19,8 +21,7 @@ struct heap *heap_new(cmp_elem_t cmp) {
 	h->cmp_elem = cmp;
 	h->heap_size = 0;
 	h->heap_capacity = 0;
-	h->heap = NULL;
-	heap_ensure_capacity(h);
+	heap_alloc(h);
 	return h;
 }
 
@@ -34,14 +35,12 @@ void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e) {
 	he->elem = e;
 }
 
-bool heap_elem_is_dummy(struct heap_elem *he) {
-	return he->weight == DUMMY;
-}
-
 struct heap_elem *heap_min(struct heap *h) {
 	if (h->heap_size == 0)
 		return NULL;
-	return &h->heap[0];
+	struct heap_elem *he = &(h->heap[0]);
+	assert( ((long) he) % CACHE_LINE_SZ == 0);
+	return he;
 } 
 
 void heap_iter(struct heap *heap, heap_iter_t iter) {
@@ -90,7 +89,7 @@ static void heap_sift_down(struct heap *h, int idx) {
 
 
 void heap_push(struct heap *h, struct heap_elem *e) {
-	heap_ensure_capacity(h);
+	assert(h->heap_size+1 < h->heap_capacity);
 	int i = h->heap_size;
 	h->heap[h->heap_size++] = *e;
 	heap_sift_up(h, i);
@@ -101,6 +100,7 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 		return NULL;
 	int last = h->heap_size - 1;
 	h->heap_size--;
+	assert(h->heap_size > 0);
 	if(last != 0) {
 		heap_swap(h, 0, last);
 		heap_sift_down(h, 0);

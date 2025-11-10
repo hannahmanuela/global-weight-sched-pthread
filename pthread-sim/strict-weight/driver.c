@@ -197,6 +197,7 @@ void main(int argc, char *argv[]) {
 
     printf("= num_cores %d num_groups %d nthreads %d nheap %d work %d\n", num_cores, num_groups, num_threads, gs->mh->nheap, time_work);
     printf("= cores: %d\n", num_cores);
+
     float s_h = 0.0;
     float s_l = FLT_MAX;
     float p_h = 0.0;
@@ -209,6 +210,7 @@ void main(int argc, char *argv[]) {
     float rdel_l = FLT_MAX;
     long nretry_ins = 0;
     long nretry_del = 0;
+    long nretry_del_lock = 0;
     long y_c = 0;
     long s_c = 0;
     long nsched = 0;
@@ -238,12 +240,13 @@ void main(int argc, char *argv[]) {
 	    s = AVG(c->nretry_del, c->nsched);
 	    rdel_h = MAX(rdel_h, s);	
 	    rdel_l = MIN(rdel_l, s);
-	    nretry_del += c->nretry_del;
+	    nretry_del += c->nretry_del + c->nretry_del_lock;
+	    nretry_del_lock += c->nretry_del_lock;
 	    hit += c->hit;
     }
     printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
 	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
-    printf("  retry ins %ld %0.2f %0.2f retry del %ld %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, rdel_l, rdel_h);
+    printf("  retry ins %ld %0.2f %0.2f retry del %ld (%ld) %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, nretry_del_lock, rdel_l, rdel_h);
     printf("  hit %d\n", hit);
     printf("=\n");
 

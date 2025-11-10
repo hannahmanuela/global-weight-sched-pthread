@@ -37,7 +37,6 @@ int cmp_elem(struct heap_elem *a, struct heap_elem *b) {
 	return 0;
 }
 
-
 int main() {
     struct heap *heap = heap_new(cmp_elem);
     struct elem *elems[N];

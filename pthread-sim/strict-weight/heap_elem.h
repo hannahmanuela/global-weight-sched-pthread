@@ -2,9 +2,10 @@
 
 #define _HEAP_ELEM_H_
 
+#include <limits.h>
 #include "vt.h"
 
-#define DUMMY (-1)   // if weight is DUMMY, then dummy heap_elem
+#define DUMMY (INT_MAX)   // if weight is DUMMY, then dummy heap_elem
 
 struct heap_elem {
 	vt_t vruntime;

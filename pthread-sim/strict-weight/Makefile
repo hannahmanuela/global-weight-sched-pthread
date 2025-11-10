@@ -10,10 +10,10 @@ CFLAGS += -O2
 DEPS = $(wildcard *.d)
 -include $(DEPS)
 
+all: global-heap test-heap test-global
+
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
-
-all: global-heap test-heap test-global
 
 global-heap: driver.o $(OBJ)
 	$(CC) -o $@ $^

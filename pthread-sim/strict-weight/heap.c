@@ -6,7 +6,6 @@
 
 #define HEAP_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
 #define D_ARY 2
-#define CACHE_LINE_SZ 64
 
 static void heap_alloc(struct heap *h) {
 	h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);

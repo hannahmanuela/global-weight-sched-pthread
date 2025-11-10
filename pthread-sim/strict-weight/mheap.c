@@ -85,6 +85,8 @@ void mh_lock_stats(struct mheap *mh) {
 	float h_r = 0.0;
 	float l_cycles = FLT_MAX;
 	float h_cycles = 0.0;
+	long a_cycles = 0;
+	long a_n = 0;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct lheap *lh = mh->lh[i];
 		float in = AVG(lh->insert_cycles, lh->ninsert);
@@ -96,10 +98,12 @@ void mh_lock_stats(struct mheap *mh) {
 		float c = AVG(lh->wait_for_wr_heap_lock_cycles, lh->num_times_wr_heap_locked);
 		l_cycles = MIN(l_cycles, c);
 		h_cycles = MAX(h_cycles, c);
+		a_cycles += lh->wait_for_wr_heap_lock_cycles;
+		a_n += lh->num_times_wr_heap_locked;
 		//lh_stats(lh);
 	}
-	printf("  cycles: insert %0.2f %0.2f remove %0.2f %0.2f\n", l_i, h_i, l_r, h_r); 
-	printf("  lock cycles %0.2f %0.2f\n", l_cycles, h_cycles);
+	printf("  cycles: insert l %0.2f h %0.2f remove l %0.2f h %0.2f\n", l_i, h_i, l_r, h_r); 
+	printf("  lock cycles l %0.2f a %0.2f h %0.2f\n", l_cycles, AVG(a_cycles,a_n), h_cycles);
 
 	printf("=\n");
 }

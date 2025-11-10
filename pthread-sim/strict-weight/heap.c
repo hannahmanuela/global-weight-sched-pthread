@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "util.h"
 #include "heap.h"
 
 #define HEAP_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic

@@ -27,5 +27,5 @@ test-global: test_global.o $(OBJ)
 .PHONY: clean
 
 clean:
-	rm -rf *.o
+	rm -rf *.o *.d
 	rm -rf global-heap test-heap test-global

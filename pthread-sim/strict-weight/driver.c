@@ -172,13 +172,13 @@ void main(int argc, char *argv[]) {
     //debug = true;
 
     gs = malloc(sizeof(struct global_state));
-    gs->cores = (struct core **) malloc(sizeof(struct core *)*num_cores);
+    gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
     for (int i = 0; i < num_cores; i++) {
 	    gs->cores[i] = c_new(i);
     }
     gs->mh = mh_new(proc_cmp, nheap, tick_length);
 
-    gs->grps = (struct group **) malloc(sizeof(struct group *)*num_groups);
+    gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
     for (int i = 0; i < num_groups; i++) {
 	    struct group *g = grp_new(gs->mh, i, 10);
 	    // struct group *g = grp_new(gs->mh, i, 10*(i+1));

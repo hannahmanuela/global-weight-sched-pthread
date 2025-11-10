@@ -11,27 +11,25 @@
 
 struct process {
 	struct heap_elem he;
-	int pid;
-
+	struct lheap *lh;
+	t_t runtime;  // number of us the process ran
 	pthread_rwlock_t proc_lock;
 
-	t_t runtime;  // number of us the process ran
-
-	struct group *group;
-	struct process *next;
-
 	struct mheap *mh;
-	struct lheap *lh;
+	struct group *group;
+
+	int pid;
+	struct process *next;
 } __attribute__((aligned(64)));
 
 struct group {
+	int nthread; // number of threads in the group
+	int nqueued; // number of threads runnable
+
 	int gid;
 	int weight;
 
 	pthread_rwlock_t group_lock;
-
-	int nthread; // number of threads in the group
-	int nqueued; // number of threads runnable
 
 	t_t *sleeptime; // number of us slots the group wasn't runnable
 	t_t *sleepstart; // tick slots sleep started

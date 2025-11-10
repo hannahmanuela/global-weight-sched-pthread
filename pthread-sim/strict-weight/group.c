@@ -66,6 +66,8 @@ int proc_cmp(struct heap_elem *a, struct heap_elem *b) {
 }
 
 void proc_add_vruntime(struct process *p, vt_t vt) {
+	// XXX handle wrap around
+	assert(p->he.vruntime + vt >= p->he.vruntime);
         atomic_fetch_add(&p->he.vruntime, vt);
 }
 

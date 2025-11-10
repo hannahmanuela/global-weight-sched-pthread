@@ -12,7 +12,7 @@ static void heap_alloc(struct heap *h) {
 	h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
 	long a = (long) &(h->heap[0]);
 	assert(a % CACHE_LINE_SZ == 0);
-	// printf("a %p sz %d\n", a, sizeof(struct heap_elem));
+	printf("a %p sz %d\n", a, sizeof(struct heap_elem));
 	h->heap_capacity = HEAP_CAPACITY;
 }
 

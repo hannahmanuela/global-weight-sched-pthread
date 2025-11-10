@@ -47,7 +47,7 @@ void proc_print(struct process *p);
 struct process *grp_new_process(struct mheap *mh, int id, struct group *g);
 int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
 vt_t proc_get_vruntime(struct process *p);
-void proc_add_vruntime(struct process *p, t_t tick_length);
+void proc_add_vruntime(struct process *p, vt_t tick_length);
 void proc_set_init_vruntime(struct process *p, vt_t min);
 void proc_lag_vruntime(struct process *p, vt_t min);
 bool proc_adjust_vruntime(struct process *p, t_t time_passed, t_t tick_length);

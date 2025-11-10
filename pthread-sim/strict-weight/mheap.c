@@ -21,7 +21,7 @@ struct mheap *mh_new(int proc_cmp(struct heap_elem *, struct heap_elem *), int n
 		mh->lh[i] = lh_new(proc_cmp);
 		// insert a dummy element so that the heap always has one elemement
 		struct heap_elem* he = malloc(sizeof(struct heap_elem));
-		heap_elem_init(he, DUMMY, DUMMY, NULL);
+		heap_elem_init(he, DUMMY, 0, NULL);
 		heap_push(mh->lh[i]->heap, he);
 	}
 	mh->nheap = n;
@@ -59,7 +59,7 @@ vt_t mh_min_vt(struct lheap *lh) {
 
 static void print_elem(struct heap_elem *e) {
 	if(e->vruntime == DUMMY) {
-		printf("[dummy vt %d w %d]", e->vruntime, e->weight);
+		printf("[dummy vt %u w %d]", e->vruntime, e->weight);
 		return;
 	}
 	struct process *p = (struct process *) e->elem;
@@ -163,8 +163,8 @@ retry:
 	struct lheap *lh_j = mh_heap(mh, j);
 	struct heap_elem *he_i = mh_min(lh_i);
 	struct heap_elem *he_j = mh_min(lh_j);
-	int vt_i = atomic_load(&he_i->vruntime);
-	int vt_j = atomic_load(&he_j->vruntime);
+	vt_t vt_i = atomic_load(&he_i->vruntime);
+	vt_t vt_j = atomic_load(&he_j->vruntime);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY))
 		return NULL;
 	if (vt_i == DUMMY) {

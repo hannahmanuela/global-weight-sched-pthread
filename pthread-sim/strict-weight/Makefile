@@ -1,22 +1,27 @@
-CC=gcc
-# CFLAGS=-I. -g
-CFLAGS=-I. -O2
-# CFLAGS=-I. -O2 -g -pg
-DEPS = global_heap.h group.h heap.h heap_elem.h lheap.h mheap.h util.h  ticks.h core.h vt.h
 OBJ = global_heap.o group.o mheap.o lheap.o heap.o util.c ticks.o core.o
 
-%.o: %.c $(DEPS)
-	$(CC) -c -o $@ $(CFLAGS) $<
+CC=gcc
+
+CFLAGS += -I. -MMD -MP
+#CFLAGS += -g
+CFLAGS += -O2
+# CFLAGS += -O2 -g -pg
+
+DEPS = $(wildcard *.d)
+-include $(DEPS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 all: global-heap test-heap test-global
 
-global-heap: driver.o $(OBJ) $(DEPS)
+global-heap: driver.o $(OBJ)
 	$(CC) -o $@ $^
 
 test-heap: test_heap.o heap.o
 	$(CC) -o $@ $^
 
-test-global: test_global.o $(OBJ) $(DEPS)
+test-global: test_global.o $(OBJ)
 	$(CC) -o $@ $^
 
 .PHONY: clean

@@ -57,29 +57,3 @@ void lh_rdlock(struct lheap *lh) {
 	pthread_rwlock_rdlock(&lh->heap_lock);
 }
 
-// Wrapper functions for pthread_rwlock operations with timing
-void lh_lock_timed(struct lheap *lh) {
-	int start_tsc = safe_read_tsc();
-	lh_lock(lh);
-	int end_tsc = safe_read_tsc();
-	lh->wait_for_wr_heap_lock_cycles += (end_tsc - start_tsc);
-	lh->num_times_wr_heap_locked++;
-}
-
-void lh_rdlock_timed(struct lheap *lh) {
-	int start_tsc = safe_read_tsc();
-	lh_rdlock(lh);
-	int end_tsc = safe_read_tsc();
-	atomic_fetch_add(&lh->wait_for_rd_heap_lock_cycles, (end_tsc - start_tsc));
-	atomic_fetch_add(&lh->num_times_rd_heap_locked, 1);
-}
-
-int lh_try_lock_timed(struct lheap *lh) {
-	int start_tsc = safe_read_tsc();
-	int l = lh_try_lock(lh);
-	int end_tsc = safe_read_tsc();
-	lh->wait_for_wr_heap_lock_cycles += (end_tsc - start_tsc);
-	lh->num_times_wr_heap_locked++;
-	return l;
-}
-

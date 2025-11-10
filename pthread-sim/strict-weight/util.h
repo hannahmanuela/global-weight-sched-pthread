@@ -1,3 +1,7 @@
+#ifndef _UTIL_H_
+
+#define _UTIL_H_
+
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) >= (b)) ? (a) : (b))
 
@@ -16,3 +20,5 @@ inline long safe_read_tsc() {
 	_mm_lfence();
 	return ret_val;
 }
+
+#endif

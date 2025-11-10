@@ -148,7 +148,8 @@ void *run_core(void* core) {
 	double start = now();
 	for (int i = 0; now() - start < TIME_TO_RUN; i++) {
 		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-	        usleep(time_work);
+		if(time_work > 0) 
+			usleep(time_work);
 		action(mycore, RUN);
 		// sleepwakeup(mycore);
 		// action(mycore, rand() % 3);

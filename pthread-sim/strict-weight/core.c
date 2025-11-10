@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <strings.h>
+#include <unistd.h>
 
 #include "core.h"
 #include "util.h"
@@ -29,6 +30,7 @@ struct core *c_new(int i) {
 	struct core *c = (struct core *) malloc(sizeof(struct core));
 	bzero(c, sizeof(struct core));
 	c->cid = i;
+	// c->seed = getpid() + i;
 	c->seed = i;
 
 	c->buf = malloc(sizeof(struct drand48_data));

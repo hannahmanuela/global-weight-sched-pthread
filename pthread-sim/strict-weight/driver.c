@@ -146,7 +146,7 @@ void *run_core(void* core) {
 
 	int cont = 1;
 	double start = now();
-	int fd = perf_config(mycore->cid);
+	//int fd = perf_config(mycore->cid);
 	for (int i = 0; now() - start < TIME_TO_RUN; i++) {
 		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 		if(time_work > 0) 
@@ -155,7 +155,7 @@ void *run_core(void* core) {
 		// sleepwakeup(mycore);
 		// action(mycore, rand() % 3);
 	}
-	printf("perf %ld\n", perf_read_l2(fd));
+	//printf("perf %ld\n", perf_read_l2(fd));
 }
 
 

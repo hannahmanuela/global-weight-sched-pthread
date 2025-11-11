@@ -114,6 +114,7 @@ void mh_add_process(struct core *c, struct process *p, struct lheap *lh) {
 struct process *mh_del_min_process(struct core *c, struct lheap *lh) {
 	int start_tsc = safe_read_tsc();
 	struct heap_elem *he = heap_remove_min(lh->heap);
+	assert(lh->heap->heap_size > 0);  // dummy should stay on heap
 	int end_tsc = safe_read_tsc();
 	c->remove_cycles += (end_tsc - start_tsc);
 	c->nremove += 1;

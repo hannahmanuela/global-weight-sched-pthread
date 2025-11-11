@@ -7,7 +7,7 @@
 
 #include "heap.h"
 
-#define N 10
+#define N 4
 
 struct elem {
 	int id;
@@ -43,24 +43,22 @@ int main() {
     int i;
 
     for (i = 0; i < N; i++) {
-	 elems[i] = make_elem(i, i*10);
+	 elems[i] = make_elem(i, i*N);
 	 heap_push(heap, &(elems[i]->he));
     }
     
     assert(heap->heap_size == N);
 
-    heap_print(heap);
-    
     // peek min
     struct heap_elem *he = heap_min(heap);
     assert(he->elem == elems[0]);
     
     for (i = 0; i < N; i ++) {
 	    he = heap_remove_min(heap);
-	    assert(he->vruntime == i * 10);
+	    assert(he->vruntime == i * N);
 	    struct elem *e = (struct elem *) he->elem;
 	    assert(he->vruntime == e->he.vruntime);
-	    e->he.vruntime += N*10;
+	    e->he.vruntime += N*N;
     }
 
     heap_print(heap);
@@ -73,10 +71,10 @@ int main() {
 
     for (i = 0; i < N; i ++) {
 	    he = heap_remove_min(heap);
-	    assert(he->vruntime == (i * 10) + N*10);
+	    assert(he->vruntime == (i * N) + N*N);
 	    struct elem *e = (struct elem *) he->elem;
 	    assert(he->vruntime == e->he.vruntime);
-	    e->he.vruntime += N*10;
+	    e->he.vruntime += N*N;
     }
 
     printf("heap tests passed\n");

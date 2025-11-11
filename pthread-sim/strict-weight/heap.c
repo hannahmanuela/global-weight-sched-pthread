@@ -100,7 +100,6 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 		return NULL;
 	int last = h->heap_size - 1;
 	h->heap_size--;
-	assert(h->heap_size > 0);
 	if(last != 0) {
 		heap_swap(h, 0, last);
 		heap_sift_down(h, 0);

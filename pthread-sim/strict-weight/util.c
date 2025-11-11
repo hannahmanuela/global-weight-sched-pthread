@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,15 +21,14 @@ long safe_read_tsc() {
 
 void error(char *s) {
 	fprintf(stderr, "error: %s\n", s);
-	exit(1);
+	assert(0);
 }
 
-double
-now()
+double now()
 {
- struct timeval tv;
- gettimeofday(&tv, 0);
- return tv.tv_sec + tv.tv_usec / 1000000.0;
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	return tv.tv_sec + tv.tv_usec / 1000000.0;
 }
 
 static long

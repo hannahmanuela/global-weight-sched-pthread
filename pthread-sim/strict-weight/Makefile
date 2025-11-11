@@ -5,7 +5,7 @@ CC=gcc
 CFLAGS += -I. -MMD -MP
 #CFLAGS += -g
 #CFLAGS += -O2
-CFLAGS += -O2 -fno-omit-frame-pointer
+CFLAGS += -O2 -g -fno-omit-frame-pointer
 DEPS = $(wildcard *.d)
 -include $(DEPS)
 

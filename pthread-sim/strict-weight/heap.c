@@ -38,9 +38,8 @@ void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e) {
 struct heap_elem *heap_min(struct heap *h) {
 	if (h->heap_size == 0)
 		return NULL;
-	struct heap_elem *he = &(h->heap[0]);
-	assert( ((long) he) % CACHE_LINE_SZ == 0);
-	return he;
+	assert( ((long) h->heap) % CACHE_LINE_SZ == 0);
+	return h->heap;
 } 
 
 void heap_iter(struct heap *heap, heap_iter_t iter) {

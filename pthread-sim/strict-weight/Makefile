@@ -5,7 +5,7 @@ CC=gcc
 CFLAGS += -I. -MMD -MP
 #CFLAGS += -g
 CFLAGS += -O2
-# CFLAGS += -O2 -g -pg
+#CFLAGS += -O2 -g -pg
 
 DEPS = $(wildcard *.d)
 -include $(DEPS)
@@ -13,7 +13,7 @@ DEPS = $(wildcard *.d)
 all: global-heap test-heap test-global
 
 global-heap: driver.o $(OBJ)
-	$(CC) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 test-global: test_global.o $(OBJ)
 	$(CC) -o $@ $^

@@ -19,6 +19,7 @@ struct core {
 	long deq_cycles;
 	long yield_cycles;
 	long nsched;
+	long nsched_null;
 	long nenq;
 	long ndeq;
 	long nyield;

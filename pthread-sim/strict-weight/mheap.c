@@ -169,8 +169,10 @@ retry:
 	struct heap_elem *he_j = mh_min(lh_j);
 	vt_t vt_i = atomic_load(&he_i->vruntime);
 	vt_t vt_j = atomic_load(&he_j->vruntime);
-	if ((vt_i == DUMMY) && (vt_j == DUMMY))
+	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
+		c->nsched_null += 1;
 		return NULL;
+	}
 	if (vt_i == DUMMY) {
 		vt_i = vt_j;
 		he_i = he_j;

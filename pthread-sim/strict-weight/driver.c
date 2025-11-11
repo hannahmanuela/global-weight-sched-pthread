@@ -217,6 +217,7 @@ void main(int argc, char *argv[]) {
     long nsched = 0;
     long nyield = 0;
     long hit = 0;
+    long nsched_null = 0;
     for (int i = 0; i < num_cores; i++) {
 	    struct core *c = gs->cores[i];
 	    pthread_join(threads[c->cid], NULL);
@@ -244,11 +245,12 @@ void main(int argc, char *argv[]) {
 	    nretry_del += c->nretry_del + c->nretry_del_lock;
 	    nretry_del_lock += c->nretry_del_lock;
 	    hit += c->hit;
+	    nsched_null += c->nsched_null;
     }
     printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
 	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld %0.2f %0.2f retry del %ld (%ld) %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, nretry_del_lock, rdel_l, rdel_h);
-    printf("  hit %d\n", hit);
+    printf("  nsched_null %d (%0.2f) hit %d\n", nsched_null, AVG(nsched_null, nsched), hit);
     printf("=\n");
 
     mh_lock_stats(gs->mh);

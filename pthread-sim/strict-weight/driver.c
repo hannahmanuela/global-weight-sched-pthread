@@ -183,8 +183,8 @@ void main(int argc, char *argv[]) {
 
     gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
     for (int i = 0; i < num_groups; i++) {
-	    struct group *g = grp_new(gs->mh, i, 10);
-	    // struct group *g = grp_new(gs->mh, i, 10*(i+1));
+	    // struct group *g = grp_new(gs->mh, i, 10);
+	    struct group *g = grp_new(gs->mh, i, 10*(i+1));
 	    gs->grps[i] = g;
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(gs->mh, i*num_threads_p_group+j, g);

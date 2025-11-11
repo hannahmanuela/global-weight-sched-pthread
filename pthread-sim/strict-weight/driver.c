@@ -274,7 +274,7 @@ void main(int argc, char *argv[]) {
     printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
 	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld %0.2f %0.2f retry del %ld (%ld) %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, nretry_del_lock, rdel_l, rdel_h);
-    printf("  nsched_null %d (%0.2f) hit %d\n", nsched_null, AVG(nsched_null, nsched), hit);
+    printf("  nsched_null %ld (%0.2f) hit %ld\n", nsched_null, AVG(nsched_null, nsched), hit);
 
     printf("  cycles: insert l %0.2f h %0.2f remove l %0.2f h %0.2f\n", l_i, h_i, l_r, h_r); 
     printf("  lock cycles l %0.2f a %0.2f h %0.2f\n", l_cycles, AVG(a_cycles, a_n), h_cycles);

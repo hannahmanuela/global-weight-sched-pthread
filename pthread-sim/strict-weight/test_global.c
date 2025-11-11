@@ -130,7 +130,7 @@ void test_mheap(int nheap, int nproc) {
 }
 
 void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
-	printf("== test_%d_mheap_grp r %d ng %d %d np %d\n", nheap, rand, ngrp, nproc); 
+	printf("== test_%d_mheap_grp r %d ng %d np %d\n", nheap, rand, ngrp, nproc); 
 	int n = 100000;
 	int tl = 4000;
 	struct group **gs = malloc(sizeof(struct group *) * ngrp);
@@ -259,22 +259,88 @@ void test_worst(int nheap) {
 	printf("== test_worst: avg %d worst %d\n", sum/n, worst);
 }
 
+
+void test_incorrect_min_vtime_jump() {
+
+	int ngrp = 3;
+	struct group *gs[3];
+	int ws[3] = {10, 10, 1};
+	int tl = 1000;
+
+	int nheap = 1;
+	struct core *c = c_new(0);
+
+	struct mheap *mh = mh_new(proc_cmp, nheap, tl);
+	for (int i = 0; i < ngrp; i++) {
+		gs[i] = grp_new(mh, i, ws[i]);
+	}
+
+	struct process *p1 = grp_new_process(mh, 0, gs[0]);
+	struct process *p2 = grp_new_process(mh, 1, gs[1]);
+	struct process *p3 = grp_new_process(mh, 2, gs[2]);
+	enqueue(c, p1);
+	enqueue(c, p3);
+
+	struct process *run;
+	
+	run = schedule(c, mh);
+	assert(run == p1);
+	yield(c, run, tl);
+
+	printf("==== after sched 1 + yield =====\n");
+	printf("p1 vt: %u\n", p1->he.vruntime);
+	printf("p2 vt: %u\n", p2->he.vruntime);
+	printf("p3 vt: %u\n", p3->he.vruntime);
+
+	run = schedule(c, mh);
+	assert(run == p3);
+	yield(c, run, tl);
+
+	printf("==== after sched 2 + yield =====\n");
+	printf("p1 vt: %u\n", p1->he.vruntime);
+	printf("p2 vt: %u\n", p2->he.vruntime);
+	printf("p3 vt: %u\n", p3->he.vruntime);
+
+	run = schedule(c, mh);
+	assert(run == p1);
+	enqueue(c, p2);
+
+	printf("====\n");
+	printf("==== PROBLEM =====\n");
+	printf("====\n");
+
+	printf("==== after enq =====\n");
+	printf("p1 vt: %u\n", p1->he.vruntime);
+	printf("p2 vt: %u\n", p2->he.vruntime);
+	printf("p3 vt: %u\n", p3->he.vruntime);
+
+	yield(c, run, tl);
+
+	printf("==== after yield =====\n");
+	printf("p1 vt: %u\n", p1->he.vruntime);
+	printf("p2 vt: %u\n", p2->he.vruntime);
+	printf("p3 vt: %u\n", p3->he.vruntime);
+}
+
+
 void main(int argc, char *argv[]) {
-	srandom(getpid());
+	// srandom(getpid());
 	//debug = true;
 	// test_mheap_many_grp(20, 0);
-	test_grp_sleep_wakeup();
-	test_mheap(1, PROC1);
-	test_mheap(1, PROC2);
-	test_mheap(2, PROC1);
-	test_mheap_many_grp(1, GRP10, PROC2, 0);
-	test_mheap_many_grp(2, GRP10, PROC2, 0);
-	test_mheap_many_grp(5, GRP10, PROC2, 0);
-	test_mheap_many_grp(1, GRP10, PROC2, 1);
-	test_mheap_many_grp(5, GRP10, PROC2, 1);
-	test_mheap_sleep(1, 0, GRP2);
-	test_mheap_sleep(1, 1, GRP2);
-	test_mheap_sleep(1, 2, 3);
-	test_worst(112);
+	// test_grp_sleep_wakeup();
+	// test_mheap(1, PROC1);
+	// test_mheap(1, PROC2);
+	// test_mheap(2, PROC1);
+	// test_mheap_many_grp(1, GRP10, PROC2, 0);
+	// test_mheap_many_grp(2, GRP10, PROC2, 0);
+	// test_mheap_many_grp(5, GRP10, PROC2, 0);
+	// test_mheap_many_grp(1, GRP10, PROC2, 1);
+	// test_mheap_many_grp(5, GRP10, PROC2, 1);
+	// test_mheap_sleep(1, 0, GRP2);
+	// test_mheap_sleep(1, 1, GRP2);
+	// test_mheap_sleep(1, 2, 3);
+	// test_worst(112);
+
+	test_incorrect_min_vtime_jump();
 }
 

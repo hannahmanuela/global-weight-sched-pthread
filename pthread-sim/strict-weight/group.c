@@ -58,7 +58,7 @@ vt_t grp_slot(struct process *p, int nthread) {
 }
 
 void proc_print(struct process *p) {
-	printf("(pid %d(%d) vt %d, w %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
+	printf("(pid %d(%d) vt %u, w %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
 }	
 
 // caller must hold group lock for both groups
@@ -86,7 +86,7 @@ void proc_add_vruntime(struct process *p, vt_t vt) {
 void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
 	vt_t nvt = min_vt + p->he.vruntime;
 	if(debug)
-		printf("%d(%d): grp_set_init_vruntime: mvt %ld new vt %ld\n", p->pid, p->group->gid, min_vt, nvt);
+		printf("%d(%d): grp_set_init_vruntime: mvt %u new vt %u\n", p->pid, p->group->gid, min_vt, nvt);
         atomic_store(&p->he.vruntime, nvt);
 }
 

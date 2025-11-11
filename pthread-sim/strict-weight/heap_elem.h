@@ -3,6 +3,7 @@
 #define _HEAP_ELEM_H_
 
 #include <limits.h>
+#include <stdbool.h>
 #include "vt.h"
 
 struct heap_elem {

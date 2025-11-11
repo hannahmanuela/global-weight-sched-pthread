@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "vt.h"
 #include "util.h"
@@ -25,7 +26,7 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 	pthread_rwlock_wrlock(&min_proc->proc_lock);
 
 	if(debug) {
-		printf("%d: schedule %d(%d) vt %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
+		printf("%d: schedule %d(%d) vt %u\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 		mh_print(min_proc->mh);
 	}
 
@@ -58,7 +59,7 @@ void enqueue(struct core *c, struct process *p) {
 	// atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
 
 	if(debug) {
-		printf("%d(%d): enqueue nthread %d lh %p vt %d\n", p->pid, p->group->gid, p->group->nthread, p->lh, p->he.vruntime);
+		printf("%d(%d): enqueue nthread %d lh %p vt %u\n", p->pid, p->group->gid, p->group->nthread, p->lh, p->he.vruntime);
 		mh_print(p->group->mh);
 	}
 
@@ -88,7 +89,7 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 	// atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
 
 	if(debug) {
-		printf("%d(%d): yield time_passed %d nt %d w %d vt %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime);
+		printf("%d(%d): yield time_passed %ld nt %d w %d vt %u\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime);
 		mh_print(p->group->mh);
 	}
 
@@ -104,7 +105,7 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	if(debug) {
-		printf("%d(%d): dequeue %d\n", p->pid, p->group->gid, time_passed);
+		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
 		mh_print(p->group->mh);
 	}
 

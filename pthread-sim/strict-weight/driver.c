@@ -235,6 +235,7 @@ void main(int argc, char *argv[]) {
 	    struct core *c = gs->cores[i];
 	    pthread_join(threads[c->cid], NULL);
 	    // c_print(); printf("\n");
+	    printf("max retry %d %d\n", c->max_retry_del, c->max_retry_del_lock);
 	    float s = AVG(c->sched_cycles, c->nsched);
 	    nsched += c->nsched;
 	    nyield += c->nyield;
@@ -252,10 +253,10 @@ void main(int argc, char *argv[]) {
 	    rins_h = MAX(rins_h, s);
 	    rins_l = MIN(rins_l, s);
 	    nretry_ins += c->nretry_ins;
-	    s = AVG(c->nretry_del, c->nsched);
+	    s = AVG((c->nretry_del+c->nretry_del_lock), c->nsched);
 	    rdel_h = MAX(rdel_h, s);	
 	    rdel_l = MIN(rdel_l, s);
-	    nretry_del += c->nretry_del + c->nretry_del_lock;
+	    nretry_del += (c->nretry_del + c->nretry_del_lock);
 	    nretry_del_lock += c->nretry_del_lock;
 	    hit += c->hit;
 	    nsched_null += c->nsched_null;

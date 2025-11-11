@@ -144,10 +144,10 @@ retry:
 	while (i == j) {
 		j = c_rand(c, mh->nheap);
 	}
-	struct lheap *lh_i = mh_heap(mh, i);
-	struct lheap *lh_j = mh_heap(mh, j);
-	struct heap_elem *he_i = mh_min(lh_i);
-	struct heap_elem *he_j = mh_min(lh_j);
+	struct lheap *lh_i = mh->lh[i];
+	struct lheap *lh_j = mh->lh[j];
+	struct heap_elem *he_i = lh_i->heap->heap;
+	struct heap_elem *he_j = lh_j->heap->heap;
 	vt_t vt_i = atomic_load(&he_i->vruntime);
 	vt_t vt_j = atomic_load(&he_j->vruntime);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
@@ -156,20 +156,16 @@ retry:
 	}
 	if (vt_i == DUMMY) {
 		vt_i = vt_j;
-		he_i = he_j;
 		lh_i = lh_j;
 	} else {
 		if (vt_i > vt_j) {
 			vt_i = vt_j;
-			he_i = he_j;
 			lh_i = lh_j;
-		}
-		if (vt_i == vt_j) {
+		} else if (vt_i == vt_j) {
 			int w_i = atomic_load(&he_i->weight);
 			int w_j = atomic_load(&he_j->weight);
 			if (w_j > w_i) {	
 				vt_i = vt_j;
-				he_i = he_j;
 				lh_i = lh_j;
 			}
 		}
@@ -192,6 +188,10 @@ retry:
 	c->min_proc_cycles += (safe_read_tsc() - start);
 	c->nretry_del += (r + r_lock);
 	c->nretry_del_lock += r_lock;
+	if(r > c->max_retry_del)
+		c->max_retry_del = r;
+	if(r_lock > c->max_retry_del_lock)
+		c->max_retry_del_lock = r_lock;
 	return p;
 }
 

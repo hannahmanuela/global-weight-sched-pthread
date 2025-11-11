@@ -35,6 +35,8 @@ struct core {
 	long nretry_del;
 	long nretry_del_lock;
 	long nretry_ins;
+	long max_retry_del;
+	long max_retry_del_lock;
 
 	long hit;
 
@@ -42,6 +44,7 @@ struct core {
 	long num_times_wr_heap_locked;
 	atomic_long wait_for_rd_heap_lock_cycles;
 	atomic_long num_times_rd_heap_locked;
+
 	long insert_cycles;
 	long remove_cycles;
 	long ninsert;

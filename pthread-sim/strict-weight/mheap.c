@@ -14,6 +14,8 @@
 #include "mheap.h"
 #include "util.h"
 
+extern bool with_tsc;
+
 struct mheap *mh_new(int proc_cmp(struct heap_elem *, struct heap_elem *), int n, int tick_length) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->lh = (struct lheap **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct lheap) * n);
@@ -102,22 +104,31 @@ retry:
 
 // caller must hold heap and proc lock
 void mh_add_process(struct core *c, struct process *p, struct lheap *lh) {
-	int start_tsc = safe_read_tsc();
 	p->lh = lh;
-	heap_push(lh->heap, &p->he);
-	int end_tsc = safe_read_tsc();
-	c->insert_cycles += (end_tsc - start_tsc);
-	c->ninsert += 1;
+	if(with_tsc) {
+		int start_tsc = safe_read_tsc();
+		heap_push(lh->heap, &p->he);
+		int end_tsc = safe_read_tsc();
+		c->insert_cycles += (end_tsc - start_tsc);
+		c->ninsert += 1;
+	} else {
+		heap_push(lh->heap, &p->he);
+	}
 }
 
 // caller must hold heap lock
 struct process *mh_del_min_process(struct core *c, struct lheap *lh) {
-	int start_tsc = safe_read_tsc();
-	struct heap_elem *he = heap_remove_min(lh->heap);
-	assert(lh->heap->heap_size > 0);  // dummy should stay on heap
-	int end_tsc = safe_read_tsc();
-	c->remove_cycles += (end_tsc - start_tsc);
-	c->nremove += 1;
+	struct heap_elem *he;
+	if(with_tsc) {
+		int start_tsc = safe_read_tsc();
+		he = heap_remove_min(lh->heap);
+		assert(lh->heap->heap_size > 0);  // dummy should stay on heap
+		int end_tsc = safe_read_tsc();
+		c->remove_cycles += (end_tsc - start_tsc);
+		c->nremove += 1;
+	} else {
+		he = heap_remove_min(lh->heap);
+	}
 	return (struct process *) he->elem;
 }
 

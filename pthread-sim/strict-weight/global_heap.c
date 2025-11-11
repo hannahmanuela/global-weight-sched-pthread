@@ -13,6 +13,7 @@
 #include "mheap.h"
 
 bool debug;
+bool with_tsc;
 
 // Select next process to run
 struct process *schedule(struct core *c, struct mheap *mh) {

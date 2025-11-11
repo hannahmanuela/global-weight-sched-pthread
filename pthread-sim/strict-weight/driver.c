@@ -35,6 +35,7 @@ int num_cores;
 int time_work; // in usec
 
 extern bool debug;
+extern bool with_tsc;
 
 struct global_state {
 	struct mheap *mh;

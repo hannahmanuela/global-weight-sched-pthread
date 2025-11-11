@@ -303,11 +303,12 @@ void test_incorrect_min_vtime_jump() {
 
 	run = schedule(c, mh);
 	assert(run == p1);
-	enqueue(c, p2);
 
 	printf("====\n");
 	printf("==== PROBLEM =====\n");
 	printf("====\n");
+
+	enqueue(c, p2);
 
 	printf("==== after enq =====\n");
 	printf("p1 vt: %u\n", p1->he.vruntime);

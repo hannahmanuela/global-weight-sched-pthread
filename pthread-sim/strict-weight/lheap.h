@@ -1,14 +1,16 @@
 #ifndef _LHEAP_H_
 #define _LHEAP_H_
 
-#include <pthread.h>
+//#include <pthread.h>
 
 #include "core.h"
+#include "lock.h"
 #include "heap.h"
 
 struct lheap {
 	struct heap *heap;
-	pthread_rwlock_t heap_lock;
+	//pthread_rwlock_t heap_lock;
+	struct spinlock lk;
 } __attribute__((aligned(64)));
 
 struct lheap *lh_new(int grp_cmp(struct heap_elem*,struct heap_elem*));

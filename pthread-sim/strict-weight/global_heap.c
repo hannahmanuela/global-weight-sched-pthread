@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "vt.h"
+#include "util.h"
 #include "ticks.h"
 #include "driver.h"
 #include "core.h"
@@ -53,7 +54,8 @@ void enqueue(struct core *c, struct process *p) {
 	vt_t wvt = grp_slot(p, old_nthread+1);
 	proc_set_init_vruntime(p, mh_min_vt(lh) + wvt);
 
-	proc_insert_mh(p, lh);
+	mh_add_process(c, p, lh);
+	// atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
 
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %d\n", p->pid, p->group->gid, p->group->nthread, p->lh, p->he.vruntime);
@@ -82,8 +84,9 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 	vt += grp_slot(p, nthread);
 	yieldL(p, time_passed, vt);
 
-	proc_insert_mh(p, lh);
-	
+	mh_add_process(c, p, lh);
+	// atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
+
 	if(debug) {
 		printf("%d(%d): yield time_passed %d nt %d w %d vt %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime);
 		mh_print(p->group->mh);
@@ -95,9 +98,9 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void dequeue(struct process *p, t_t time_passed) {
+void dequeue(struct core *c, struct process *p, t_t time_passed) {
 	struct lheap *lh = p->lh;
-	lh_lock_timed(lh);
+	lh_lock_timed(c, lh);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	if(debug) {

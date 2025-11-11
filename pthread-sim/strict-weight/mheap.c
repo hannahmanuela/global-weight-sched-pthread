@@ -77,37 +77,6 @@ void mh_print(struct mheap *mh) {
 	printf("=\n");
 }
 
-void mh_lock_stats(struct mheap *mh) {
-	printf("= mh: lock stats:\n");
-	float l_i = FLT_MAX;
-	float h_i = 0.0;
-	float l_r = FLT_MAX;
-	float h_r = 0.0;
-	float l_cycles = FLT_MAX;
-	float h_cycles = 0.0;
-	long a_cycles = 0;
-	long a_n = 0;
-	for (int i = 0; i < mh->nheap; i++) {
-		struct lheap *lh = mh->lh[i];
-		float in = AVG(lh->insert_cycles, lh->ninsert);
-		float out = AVG(lh->remove_cycles, lh->nremove);
-		l_i = MIN(l_i, in);
-		h_i = MAX(h_i, in);
-		l_r = MIN(l_r, out);
-		h_r = MAX(h_r, out);
-		float c = AVG(lh->wait_for_wr_heap_lock_cycles, lh->num_times_wr_heap_locked);
-		l_cycles = MIN(l_cycles, c);
-		h_cycles = MAX(h_cycles, c);
-		a_cycles += lh->wait_for_wr_heap_lock_cycles;
-		a_n += lh->num_times_wr_heap_locked;
-		//lh_stats(lh);
-	}
-	printf("  cycles: insert l %0.2f h %0.2f remove l %0.2f h %0.2f\n", l_i, h_i, l_r, h_r); 
-	printf("  lock cycles l %0.2f a %0.2f h %0.2f\n", l_cycles, AVG(a_cycles,a_n), h_cycles);
-
-	printf("=\n");
-}
-
 struct lheap *mh_heap(struct mheap *mh, int i) {
 	return mh->lh[i];
 }
@@ -117,13 +86,13 @@ struct lheap *mh_choose_heap(struct core *c, struct mheap *mh) {
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
-		lh_lock_timed(lh);		
+		lh_lock_timed(c, lh);		
 		return lh;
 	}
 retry:
 	int i = c_rand(c, mh->nheap);
 	struct lheap *lh = mh_heap(mh, i);
-	if(lh_try_lock_timed(lh) != 0) {
+	if(lh_try_lock_timed(c, lh) != 0) {
 		r++;
 		goto retry;
 	}
@@ -132,22 +101,22 @@ retry:
 }
 
 // caller must hold heap and proc lock
-void mh_add_process(struct process *p, struct lheap *lh) {
+void mh_add_process(struct core *c, struct process *p, struct lheap *lh) {
 	int start_tsc = safe_read_tsc();
 	p->lh = lh;
 	heap_push(lh->heap, &p->he);
 	int end_tsc = safe_read_tsc();
-	lh->insert_cycles += end_tsc - start_tsc;
-	p->lh->ninsert += 1;
+	c->insert_cycles += (end_tsc - start_tsc);
+	c->ninsert += 1;
 }
 
 // caller must hold heap lock
-struct process *mh_del_min_process(struct lheap *lh) {
+struct process *mh_del_min_process(struct core *c, struct lheap *lh) {
 	int start_tsc = safe_read_tsc();
 	struct heap_elem *he = heap_remove_min(lh->heap);
 	int end_tsc = safe_read_tsc();
-	lh->remove_cycles += end_tsc - start_tsc;
-	lh->nremove += 1;
+	c->remove_cycles += (end_tsc - start_tsc);
+	c->nremove += 1;
 	return (struct process *) he->elem;
 }
 
@@ -193,7 +162,7 @@ retry:
 			}
 		}
 	}
-	if(lh_try_lock_timed(lh_i) != 0) {
+	if(lh_try_lock_timed(c, lh_i) != 0) {
 		// printf("%d: retry %d another thread lock acquired heap\n", c->cid, i);
 		r++;
 		goto retry;
@@ -206,7 +175,7 @@ retry:
 		lh_unlock(lh_i);
 		goto retry;
 	}
-	struct process *p = mh_del_min_process(lh_i);
+	struct process *p = mh_del_min_process(c, lh_i);
 	lh_unlock(lh_i);
 	c->min_proc_cycles += (safe_read_tsc() - start);
 	c->nretry_del += (r + r_lock);
@@ -218,13 +187,13 @@ retry:
 struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
-		lh_lock_timed(lh);
+		lh_lock_timed(c, lh);
 		struct heap_elem *he = mh_min(lh);
 		if(he->vruntime == DUMMY) {
 			lh_unlock(lh);
 			return NULL;
 		}	
-		struct process *p = mh_del_min_process(lh);
+		struct process *p = mh_del_min_process(c, lh);
 		pthread_rwlock_wrlock(&p->proc_lock);
 		assert(p->lh == lh);
 		lh_unlock(lh);

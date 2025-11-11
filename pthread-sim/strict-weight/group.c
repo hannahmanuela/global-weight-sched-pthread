@@ -12,6 +12,17 @@
 
 extern bool debug;
 
+static void grp_add_process(struct process *p) {
+	struct process *curr_head = p->group->procs;
+	if (!curr_head) {
+		p->group->procs = p;
+		p->next = NULL;
+	} else {
+		p->next = curr_head;
+		p->group->procs = p;
+	}
+}
+
 struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     struct process *p = malloc(sizeof(struct process));
     p->pid = id;
@@ -22,8 +33,7 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     heap_elem_init(&p->he, 0, group->weight, p);
     p->mh = mh;
     p->lh = NULL;
-    if(p->group)
-	    grp_add_process(p);
+    grp_add_process(p);
     return p;
 }
 
@@ -71,11 +81,6 @@ void proc_add_vruntime(struct process *p, vt_t vt) {
         atomic_fetch_add(&p->he.vruntime, vt);
 }
 
-void proc_insert_mh(struct process *p, struct lheap *lh) {
-	mh_add_process(p, lh);
-        // atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
-}
-
 // set initial vruntime when group g becomes runnable
 // caller must hold group lock
 void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
@@ -91,18 +96,6 @@ void proc_lag_vruntime(struct process *p, vt_t min) {
         atomic_fetch_add(&p->he.vruntime, -min);
 }
 
-
-// add p to its groups for stats
-void grp_add_process(struct process *p) {
-	struct process *curr_head = p->group->procs;
-	if (!curr_head) {
-		p->group->procs = p;
-		p->next = NULL;
-	} else {
-		p->next = curr_head;
-		p->group->procs = p;
-	}
-}
 
 float grp_runtime(struct group *g) {
 	float run = 0.0;

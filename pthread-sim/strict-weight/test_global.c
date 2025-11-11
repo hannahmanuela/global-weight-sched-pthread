@@ -75,16 +75,16 @@ void test_grp_sleep_wakeup() {
 
 	p0 = schedule_retry(c, mh);
 	p1 = schedule_retry(c, mh);
-	dequeue(p1, tl);
+	dequeue(c, p1, tl);
 	yield(c, p0, tl);
 	p0 = schedule_retry(c, mh);
-	dequeue(p0, tl);
+	dequeue(c, p0, tl);
 	assert(schedule(c, mh) == NULL);
 	assert(mh->lh[0]->heap->heap_size == 1);
 	enqueue(c, p0);
 	assert(mh->lh[0]->heap->heap_size == 2);
 	p0 = schedule_retry(c, mh);
-	enqueue(0, p1);
+	enqueue(c, p1);
 	p1 = schedule_retry(c, mh);
 
 	cleanup(mh);
@@ -172,14 +172,14 @@ void mheap_sleeper(struct core *c, struct mheap *mh, int n, int sleep_id, int ti
 		if(sleeper != NULL) {
 			sleep[sleeper->group->gid] += 1;
 		}
-		struct process *p = schedule_retry(0, mh);
+		struct process *p = schedule_retry(c, mh);
 		//printf("%d: p gid %d\n", i, p->group->gid);
 		if(p->group->gid != sleep_id) {
 			yield(c, p, mh->tick_length);
 			ticks[p->group->gid] += 1;
 		} else if (sleeper == NULL) {
 			//printf("%d: deque: %d\n", i, sleep_id, ticks[p->group->gid]);
-			dequeue(p, mh->tick_length);
+			dequeue(c, p, mh->tick_length);
 			ticks[p->group->gid] += 1;
 			sleeping = i;
 			sleeper = p;

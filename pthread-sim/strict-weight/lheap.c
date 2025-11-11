@@ -12,31 +12,8 @@
 struct lheap *lh_new(int grp_cmp(struct heap_elem *, struct heap_elem*)) {
 	struct lheap *lh = (struct lheap *) malloc(sizeof(struct lheap));
 	lh->heap = heap_new(grp_cmp);
-	lh->wait_for_wr_heap_lock_cycles = 0;
-	lh->num_times_wr_heap_locked = 0;
-	lh->remove_cycles = 0;
-	lh->insert_cycles = 0;
-	lh->ninsert = 0;
-	lh->nremove = 0;
-	atomic_init(&lh->wait_for_rd_heap_lock_cycles, 0);
-	atomic_init(&lh->num_times_rd_heap_locked, 0);
 	pthread_rwlock_init(&lh->heap_lock, NULL);
 	return lh;
-}
-
-void lh_stats(struct lheap *lh) {
-	if ((lh->num_times_wr_heap_locked > 0) || (lh->num_times_rd_heap_locked > 0))
-		printf("== heap %p:\n", lh);
-	if (lh->num_times_wr_heap_locked > 0) {
-		printf("Heap write lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-		       lh->wait_for_wr_heap_lock_cycles / lh->num_times_wr_heap_locked,
-		       lh->wait_for_wr_heap_lock_cycles, lh->num_times_wr_heap_locked);
-	}
-	if (lh->num_times_rd_heap_locked > 0) {
-		printf("Heap read lock: avg %ld cycles (%ld total cycles, %ld operations)\n", 
-		       lh->wait_for_rd_heap_lock_cycles / lh->num_times_rd_heap_locked,
-		       lh->wait_for_rd_heap_lock_cycles, lh->num_times_rd_heap_locked);
-	}
 }
 
 void lh_unlock(struct lheap *lh) {
@@ -57,3 +34,20 @@ void lh_rdlock(struct lheap *lh) {
 	pthread_rwlock_rdlock(&lh->heap_lock);
 }
 
+// Wrapper functions for pthread_mutex operations with timing
+void lh_lock_timed(struct core *c, struct lheap *lh) {
+	long start_tsc = safe_read_tsc();
+	lh_lock(lh);
+	long end_tsc = safe_read_tsc();
+	c->wait_for_wr_heap_lock_cycles += (end_tsc - start_tsc);
+	c->num_times_wr_heap_locked++;
+}
+
+int lh_try_lock_timed(struct core *c, struct lheap *lh) {
+	long start_tsc = safe_read_tsc();
+	int l = lh_try_lock(lh);
+	long end_tsc = safe_read_tsc();
+	c->wait_for_wr_heap_lock_cycles += (end_tsc - start_tsc);
+	c->num_times_wr_heap_locked++;
+	return l;
+}

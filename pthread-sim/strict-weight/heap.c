@@ -12,7 +12,6 @@
 
 static void heap_alloc(struct heap *h) {
 	h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
-	assert(((long) h->heap) % CACHE_LINE_SZ == 0);
 	assert(sizeof(struct heap_elem) == 16);
 	h->heap_capacity = HEAP_CAPACITY;
 }
@@ -24,6 +23,9 @@ struct heap *heap_new(cmp_elem_t cmp) {
 	h->heap_capacity = 0;
 	lock_init(&h->lk);
 	heap_alloc(h);
+	assert(((long) h->heap) % CACHE_LINE_SZ == 0);
+	assert(((long) (&h->heap)) % CACHE_LINE_SZ == 0);
+	assert((((long) (&h->lk)) % CACHE_LINE_SZ) == 0);
 	assert((((long) (&h->heap_size)) % CACHE_LINE_SZ) == 0);
 	return h;
 }

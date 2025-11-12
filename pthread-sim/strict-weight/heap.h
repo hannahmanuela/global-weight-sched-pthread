@@ -8,7 +8,8 @@
 
 struct heap {
 	struct spinlock lk __attribute__((aligned(CACHE_LINE_SZ)));
-	struct heap_elem *heap;
+
+	struct heap_elem *heap __attribute__((aligned(CACHE_LINE_SZ)));
 
 	cmp_elem_t cmp_elem;
 	int heap_capacity;

@@ -128,27 +128,14 @@ struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	return (struct process *) he->elem;
 }
 
-// https://dl.acm.org/doi/10.1145/2755573.2755616
-struct process *mh_sample_min_group(struct core *c, struct mheap *mh) {
-	long r = 0;
-	long r_lock = 0;
-retry:
-	int i = c_rand(c, mh->nheap);
-	int j = c_rand(c, mh->nheap);
-	while (i == j) {
-		c->nrand++;
-		j = c_rand(c, mh->nheap);
-	}
+static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, vt_t *vt) {
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	long start = safe_read_tsc();
 	struct heap_elem *he_i = h_i->heap;
 	struct heap_elem *he_j = h_j->heap;
-	c->min_proc_cycles += (safe_read_tsc() - start);
 	vt_t vt_i = atomic_load(&he_i->vruntime);
 	vt_t vt_j = atomic_load(&he_j->vruntime);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
-		c->nsched_null += 1;
 		return NULL;
 	}
 	if (vt_i == DUMMY) {
@@ -167,21 +154,44 @@ retry:
 			}
 		}
 	}
-	if(mh_try_lock(c, h_i) != 0) {
+	*vt = vt_i;
+	return h_i;
+}
+
+// https://dl.acm.org/doi/10.1145/2755573.2755616
+struct process *mh_sample_min_group(struct core *c, struct mheap *mh) {
+	long r = 0;
+	long r_lock = 0;
+retry:
+	long start = safe_read_tsc();
+	int i = c_rand(c, mh->nheap);
+	int j = c_rand(c, mh->nheap);
+	while (i == j) {
+		c->nrand++;
+		j = c_rand(c, mh->nheap);
+	}
+	vt_t vt;
+	struct heap *h = mh_select(mh, i, j, &vt);
+	if (h == NULL) {
+		c->nsched_null += 1;
+		return NULL;
+	}
+	c->min_proc_cycles += (safe_read_tsc() - start);
+	if(mh_try_lock(c, h) != 0) {
 		// printf("%d: retry %d another thread lock acquired heap\n", c->cid, i);
 		r++;
 		goto retry;
 	}
-	int vt = heap_min(h_i)->vruntime;
-	if (vt != vt_i) {
+	vt_t vt0 = heap_min(h)->vruntime;
+	if (vt != vt0) {
 		// printf("%d: retry %p not min anymore %d %d ts %ld\n", c->cid, lh_i, vt_i, vt);
 		// heap_iter(lh_i->heap, print_elem);  
 		r_lock++;
-		mh_unlock(c, h_i);
+		mh_unlock(c, h);
 		goto retry;
 	}
-	struct process *p = mh_del_min_process(c, h_i);
-	mh_unlock(c, h_i);
+	struct process *p = mh_del_min_process(c, h);
+	mh_unlock(c, h);
 	c->nretry_del += (r + r_lock);
 	c->nretry_del_lock += r_lock;
 	if(r > c->max_retry_del)

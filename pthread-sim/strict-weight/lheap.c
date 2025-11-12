@@ -13,10 +13,11 @@
 extern bool with_tsc;
 
 struct lheap *lh_new(int grp_cmp(struct heap_elem *, struct heap_elem*)) {
-	struct lheap *lh = (struct lheap *) malloc(sizeof(struct lheap));
+	struct lheap *lh = aligned_alloc(CACHE_LINE_SZ, (sizeof(struct lheap)));
 	lh->heap = heap_new(grp_cmp);
 	// pthread_rwlock_init(&lh->heap_lock, NULL);
 	lock_init(&lh->lk);
+	assert(((long) &lh->lk) % CACHE_LINE_SZ == 0);
 	return lh;
 }
 

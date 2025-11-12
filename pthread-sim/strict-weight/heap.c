@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 
 #include "util.h"
@@ -10,14 +11,14 @@
 
 static void heap_alloc(struct heap *h) {
 	h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
-	long a = (long) &(h->heap[0]);
-	assert(a % CACHE_LINE_SZ == 0);
+	assert(((long) h->heap) % CACHE_LINE_SZ == 0);
 	assert(sizeof(struct heap_elem) == 16);
 	h->heap_capacity = HEAP_CAPACITY;
+	assert((((long) (&h->heap_size)) % CACHE_LINE_SZ) == 0);
 }
 
 struct heap *heap_new(cmp_elem_t cmp) {
-	struct heap *h = malloc(sizeof(struct heap));
+	struct heap *h = aligned_alloc(CACHE_LINE_SZ, (sizeof(struct heap)));
 	h->cmp_elem = cmp;
 	h->heap_size = 0;
 	h->heap_capacity = 0;

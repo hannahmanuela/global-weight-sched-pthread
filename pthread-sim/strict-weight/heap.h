@@ -2,14 +2,16 @@
 
 #define _HEAP_H_
 
+#include "util.h"
 #include "heap_elem.h"
 
 struct heap {
 	struct heap_elem *heap;
 	cmp_elem_t cmp_elem;
 	int heap_capacity;
-	int heap_size;
-}  __attribute__((aligned(64)));
+
+	int heap_size __attribute__((aligned(CACHE_LINE_SZ)));
+}  __attribute__((aligned(CACHE_LINE_SZ)));
 
 typedef void (*heap_iter_t)(struct heap_elem *);
 

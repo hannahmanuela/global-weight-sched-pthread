@@ -2,6 +2,7 @@
 
 #define _MHEAP_H_
 
+#include "util.h"
 #include "heap_elem.h"
 #include "core.h"
 #include "group.h"
@@ -9,10 +10,10 @@
 #include "lheap.h"
 
 struct mheap {
+	struct lheap **lh;
 	int nheap;
 	int tick_length;
-	struct lheap **lh;
-} __attribute__((aligned(64)));
+} __attribute__((aligned(CACHE_LINE_SZ)));
 
 struct mheap *mh_new(int grpcmp(struct heap_elem *, struct heap_elem *), int n, int tick_length); 
 void mh_free(struct mheap *mh);

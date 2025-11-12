@@ -20,7 +20,6 @@
 #include "core.h"
 #include "group.h"
 #include "heap.h"
-#include "lheap.h"
 #include "mheap.h"
 #include "global_heap.h"
 #include "util.h"

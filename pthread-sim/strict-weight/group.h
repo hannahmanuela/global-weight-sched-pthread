@@ -11,7 +11,7 @@
 
 struct process {
 	struct heap_elem he;
-	struct lheap *lh;
+	struct heap *h;
 	t_t runtime;  // number of us the process ran
 	pthread_rwlock_t proc_lock;
 

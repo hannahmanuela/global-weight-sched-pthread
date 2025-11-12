@@ -1,4 +1,4 @@
-OBJ = global_heap.o group.o mheap.o lheap.o heap.o util.c ticks.o core.o lock.o
+OBJ = global_heap.o group.o mheap.o heap.o util.c ticks.o core.o lock.o
 
 CC=gcc
 
@@ -17,7 +17,7 @@ global-heap: driver.o $(OBJ)
 test-global: test_global.o $(OBJ)
 	$(CC) -o $@ $^
 
-test-heap: test_heap.o heap.o
+test-heap: test_heap.o heap.o lock.o
 	$(CC) -o $@ $^
 
 %.o: %.c $(DEPS)

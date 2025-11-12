@@ -7,10 +7,9 @@
 #include "core.h"
 #include "group.h"
 #include "heap.h"
-#include "lheap.h"
 
 struct mheap {
-	struct lheap **lh;
+	struct heap **h;
 	int nheap;
 	int tick_length;
 } __attribute__((aligned(CACHE_LINE_SZ)));
@@ -19,10 +18,14 @@ struct mheap *mh_new(int grpcmp(struct heap_elem *, struct heap_elem *), int n, 
 void mh_free(struct mheap *mh);
 int mh_empty(struct group *g);
 void mh_print(struct mheap *mh);
-vt_t mh_min_vt(struct lheap *lh);
+vt_t mh_min_vt(struct heap *h);
 struct process *mh_min_proc(struct core *c, struct mheap *mh);
-struct lheap *mh_choose_heap(struct core *c, struct mheap *mh);
-void mh_add_process(struct core *c, struct process *p, struct lheap *lh);
+struct heap *mh_choose_heap(struct core *c, struct mheap *mh);
+void mh_add_process(struct core *c, struct process *p, struct heap *h);
 void mh_del_process(struct core *c, struct mheap *mh, struct process *p);
+
+void mh_unlock(struct core *, struct heap *h);
+void mh_lock(struct core *, struct heap *h);
+int mh_try_lock(struct core *, struct heap *h);
 
 #endif

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "util.h"
+#include "lock.h"
 #include "heap.h"
 
 #define HEAP_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
@@ -14,7 +15,6 @@ static void heap_alloc(struct heap *h) {
 	assert(((long) h->heap) % CACHE_LINE_SZ == 0);
 	assert(sizeof(struct heap_elem) == 16);
 	h->heap_capacity = HEAP_CAPACITY;
-	assert((((long) (&h->heap_size)) % CACHE_LINE_SZ) == 0);
 }
 
 struct heap *heap_new(cmp_elem_t cmp) {
@@ -22,7 +22,9 @@ struct heap *heap_new(cmp_elem_t cmp) {
 	h->cmp_elem = cmp;
 	h->heap_size = 0;
 	h->heap_capacity = 0;
+	lock_init(&h->lk);
 	heap_alloc(h);
+	assert((((long) (&h->heap_size)) % CACHE_LINE_SZ) == 0);
 	return h;
 }
 

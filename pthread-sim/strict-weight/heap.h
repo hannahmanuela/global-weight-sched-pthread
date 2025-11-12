@@ -4,9 +4,12 @@
 
 #include "util.h"
 #include "heap_elem.h"
+#include "lock.h"
 
 struct heap {
+	struct spinlock lk __attribute__((aligned(CACHE_LINE_SZ)));
 	struct heap_elem *heap;
+
 	cmp_elem_t cmp_elem;
 	int heap_capacity;
 

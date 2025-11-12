@@ -6,7 +6,7 @@
 #include "util.h"
 #include "vt.h"
 #include "driver.h"
-#include "lheap.h"
+#include "heap.h"
 #include "mheap.h"
 #include "group.h"
 
@@ -32,7 +32,7 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     p->next = NULL;
     heap_elem_init(&p->he, 0, group->weight, p);
     p->mh = mh;
-    p->lh = NULL;
+    p->h = NULL;
     grp_add_process(p);
     return p;
 }

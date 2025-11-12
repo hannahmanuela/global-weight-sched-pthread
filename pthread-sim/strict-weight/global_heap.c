@@ -8,7 +8,6 @@
 #include "ticks.h"
 #include "driver.h"
 #include "core.h"
-#include "lheap.h"
 #include "group.h"
 #include "mheap.h"
 
@@ -39,10 +38,10 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 
 // Add p to group and make p runnable
 void enqueue(struct core *c, struct process *p) {
-	struct lheap *lh = mh_choose_heap(c, p->mh);
+	struct heap *h = mh_choose_heap(c, p->mh);
 
 	pthread_rwlock_wrlock(&p->proc_lock);
-	assert(p->lh == NULL);
+	assert(p->h == NULL);
 
 	int old_nthread = atomic_fetch_add(&p->group->nthread, 1);
 
@@ -53,19 +52,19 @@ void enqueue(struct core *c, struct process *p) {
 	}
 
 	vt_t wvt = grp_slot(p, old_nthread+1);
-	proc_set_init_vruntime(p, mh_min_vt(lh) + wvt);
+	proc_set_init_vruntime(p, mh_min_vt(h) + wvt);
 
-	mh_add_process(c, p, lh);
+	mh_add_process(c, p, h);
 	// atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
 
 	if(debug) {
-		printf("%d(%d): enqueue nthread %d lh %p vt %u\n", p->pid, p->group->gid, p->group->nthread, p->lh, p->he.vruntime);
+		printf("%d(%d): enqueue nthread %d lh %p vt %u\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime);
 		mh_print(p->group->mh);
 	}
 
 
 	pthread_rwlock_unlock(&p->proc_lock);
-	lh_unlock(c, p->lh);
+	mh_unlock(c, p->h);
 }
 
 // Process p yields core
@@ -76,7 +75,7 @@ static void yieldL(struct process *p, vt_t time_passed, vt_t vt) {
 
 // Yield and enqueue
 void yield(struct core *c, struct process *p, t_t time_passed) {
-	struct lheap *lh = mh_choose_heap(c, p->mh);
+	struct heap *h = mh_choose_heap(c, p->mh);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	int nthread = atomic_load(&p->group->nthread);
@@ -85,7 +84,7 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 	vt += grp_slot(p, nthread);
 	yieldL(p, time_passed, vt);
 
-	mh_add_process(c, p, lh);
+	mh_add_process(c, p, h);
 	// atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
 
 	if(debug) {
@@ -94,14 +93,14 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 	}
 
 	pthread_rwlock_unlock(&p->proc_lock);
-	lh_unlock(c, p->lh);
+	mh_unlock(c, p->h);
 }
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
 void dequeue(struct core *c, struct process *p, t_t time_passed) {
-	struct lheap *lh = p->lh;
-	lh_lock(c, lh);
+	struct heap *h = p->h;
+	mh_lock(c, h);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	if(debug) {
@@ -111,9 +110,9 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 
 	vt_t vt = calc_delta(time_passed, p->he.weight);
 	yieldL(p, time_passed, vt);
-	proc_lag_vruntime(p, mh_min_vt(lh));
+	proc_lag_vruntime(p, mh_min_vt(h));
 
-	p->lh = NULL;
+	p->h = NULL;
 	assert(p->group->nthread >= p->group->nqueued);
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
@@ -121,7 +120,7 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 		ticks_gettime(p->group->sleepstart);
 	}
 	pthread_rwlock_unlock(&p->proc_lock);
-	lh_unlock(c, lh);
+	mh_unlock(c, h);
 }
 
 void stats(struct group *grps[], int n) {

@@ -8,7 +8,6 @@
 #include "core.h"
 #include "group.h"
 #include "heap.h"
-#include "lheap.h"
 #include "mheap.h"
 #include "global_heap.h"
 #include "util.h"
@@ -80,9 +79,9 @@ void test_grp_sleep_wakeup() {
 	p0 = schedule_retry(c, mh);
 	dequeue(c, p0, tl);
 	assert(schedule(c, mh) == NULL);
-	assert(mh->lh[0]->heap->heap_size == 1);
+	assert(mh->h[0]->heap_size == 1);
 	enqueue(c, p0);
-	assert(mh->lh[0]->heap->heap_size == 2);
+	assert(mh->h[0]->heap_size == 2);
 	p0 = schedule_retry(c, mh);
 	enqueue(c, p1);
 	p1 = schedule_retry(c, mh);
@@ -241,7 +240,7 @@ void test_worst(int nheap) {
 		struct core *c = c_new(0);
 		struct mheap *mh = mh_new(proc_cmp, nheap, tl);
 		struct group *g = grp_new(mh, 0, 10);
-		struct lheap *lh = mh_choose_heap(c, mh);
+		struct heap *h = mh_choose_heap(c, mh);
 
 		struct process *p = grp_new_process(mh, 1, g);
 		enqueue(c, p);
@@ -325,22 +324,22 @@ void test_incorrect_min_vtime_jump() {
 
 
 void main(int argc, char *argv[]) {
-	// srandom(getpid());
+	srandom(getpid());
 	//debug = true;
-	// test_mheap_many_grp(20, 0);
-	// test_grp_sleep_wakeup();
-	// test_mheap(1, PROC1);
-	// test_mheap(1, PROC2);
-	// test_mheap(2, PROC1);
-	// test_mheap_many_grp(1, GRP10, PROC2, 0);
-	// test_mheap_many_grp(2, GRP10, PROC2, 0);
-	// test_mheap_many_grp(5, GRP10, PROC2, 0);
-	// test_mheap_many_grp(1, GRP10, PROC2, 1);
-	// test_mheap_many_grp(5, GRP10, PROC2, 1);
-	// test_mheap_sleep(1, 0, GRP2);
-	// test_mheap_sleep(1, 1, GRP2);
-	// test_mheap_sleep(1, 2, 3);
-	// test_worst(112);
+	//test_mheap_many_grp(20, 0);
+	test_grp_sleep_wakeup();
+	test_mheap(1, PROC1);
+	test_mheap(1, PROC2);
+	test_mheap(2, PROC1);
+	test_mheap_many_grp(1, GRP10, PROC2, 0);
+	test_mheap_many_grp(2, GRP10, PROC2, 0);
+	test_mheap_many_grp(5, GRP10, PROC2, 0);
+	test_mheap_many_grp(1, GRP10, PROC2, 1);
+	test_mheap_many_grp(5, GRP10, PROC2, 1);
+	test_mheap_sleep(1, 0, GRP2);
+	test_mheap_sleep(1, 1, GRP2);
+	test_mheap_sleep(1, 2, 3);
+	test_worst(112);
 
 	test_incorrect_min_vtime_jump();
 }

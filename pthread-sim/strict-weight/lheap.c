@@ -17,6 +17,7 @@ struct lheap *lh_new(int grp_cmp(struct heap_elem *, struct heap_elem*)) {
 	lh->heap = heap_new(grp_cmp);
 	// pthread_rwlock_init(&lh->heap_lock, NULL);
 	lock_init(&lh->lk);
+	assert(((long) &lh->heap) % CACHE_LINE_SZ == 0);
 	assert(((long) &lh->lk) % CACHE_LINE_SZ == 0);
 	return lh;
 }

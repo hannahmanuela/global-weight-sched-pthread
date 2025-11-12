@@ -7,11 +7,10 @@
 #include "lock.h"
 #include "heap.h"
 
-#define HEAP_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
 #define D_ARY 2
 
 static void heap_alloc(struct heap *h) {
-	h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
+	//h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
 	assert(sizeof(struct heap_elem) == 16);
 	h->heap_capacity = HEAP_CAPACITY;
 }
@@ -31,7 +30,7 @@ struct heap *heap_new(cmp_elem_t cmp) {
 }
 
 void heap_free(struct heap *h) {
-	free(h->heap);
+	// free(h->heap);
 }
 
 void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e) {

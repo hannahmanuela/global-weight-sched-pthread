@@ -6,10 +6,13 @@
 #include "heap_elem.h"
 #include "lock.h"
 
+#define HEAP_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
+
 struct heap {
 	struct spinlock lk __attribute__((aligned(CACHE_LINE_SZ)));
 
-	struct heap_elem *heap __attribute__((aligned(CACHE_LINE_SZ)));
+	struct heap_elem heap[HEAP_CAPACITY] __attribute__((aligned(CACHE_LINE_SZ)));
+	// struct heap_elem *heap __attribute__((aligned(CACHE_LINE_SZ)));
 
 	cmp_elem_t cmp_elem;
 	int heap_capacity;

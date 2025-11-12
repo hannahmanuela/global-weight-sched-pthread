@@ -35,7 +35,6 @@ int num_cores;
 int time_work; // in usec
 
 extern bool debug;
-extern bool with_tsc;
 
 struct global_state {
 	struct mheap *mh;
@@ -222,27 +221,19 @@ void main(int argc, char *argv[]) {
     long hit = 0;
     long nsched_null = 0;
 
-    float l_i = FLT_MAX;
-    float h_i = 0.0;
-    float l_r = FLT_MAX;
-    float h_r = 0.0;
-    float l_cycles = FLT_MAX;
-    float h_cycles = 0.0;
-    long a_cycles = 0;
-    long a_n = 0; 
-
     for (int i = 0; i < num_cores; i++) {
 	    struct core *c = gs->cores[i];
 	    pthread_join(threads[c->cid], NULL);
 	    // c_print(); printf("\n");
-	    printf("max retry %d %d\n", c->max_retry_del, c->max_retry_del_lock);
+	    printf("max retry %d %d %0.2f\n", c->max_retry_del, c->max_retry_del_lock, AVG(c->nrand,c->nsched+c->nretry_del));
 	    float s = AVG(c->sched_cycles, c->nsched);
 	    nsched += c->nsched;
 	    nyield += c->nyield;
 	    s_h = MAX(s_h, s);
 	    s_l = MIN(s_l, s);
 	    s_c += c->sched_cycles;
-	    s = AVG(c->min_proc_cycles, c->nsched);
+	    // s = AVG(c->min_proc_cycles, c->nsched);
+	    s = AVG(c->min_proc_cycles, c->nsched+c->nretry_del);
 	    p_h = MAX(p_h, s);
 	    p_l = MIN(p_l, s);
 	    s = AVG(c->yield_cycles, c->nyield);
@@ -260,26 +251,11 @@ void main(int argc, char *argv[]) {
 	    nretry_del_lock += c->nretry_del_lock;
 	    hit += c->hit;
 	    nsched_null += c->nsched_null;
-
-	    float in = AVG(c->insert_cycles, c->ninsert);
-	    float out = AVG(c->remove_cycles, c->nremove);
-	    l_i = MIN(l_i, in);
-	    h_i = MAX(h_i, in);
-	    l_r = MIN(l_r, out);
-	    h_r = MAX(h_r, out);
-	    float hlc = AVG(c->wait_for_wr_heap_lock_cycles, c->num_times_wr_heap_locked);
-	    l_cycles = MIN(l_cycles, hlc);
-	    h_cycles = MAX(h_cycles, hlc);
-	    a_cycles += c->wait_for_wr_heap_lock_cycles;
-	    a_n += c->num_times_wr_heap_locked;
     }
     printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
 	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld %0.2f %0.2f retry del %ld (%ld) %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, nretry_del_lock, rdel_l, rdel_h);
     printf("  nsched_null %ld (%0.2f) hit %ld\n", nsched_null, AVG(nsched_null, nsched), hit);
-
-    printf("  cycles: insert l %0.2f h %0.2f remove l %0.2f h %0.2f\n", l_i, h_i, l_r, h_r); 
-    printf("  lock cycles l %0.2f a %0.2f h %0.2f\n", l_cycles, AVG(a_cycles, a_n), h_cycles);
 
     printf("=\n");
 

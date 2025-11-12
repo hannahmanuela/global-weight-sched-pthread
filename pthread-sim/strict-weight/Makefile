@@ -1,11 +1,11 @@
-OBJ = global_heap.o group.o mheap.o lheap.o heap.o util.c ticks.o core.o
+OBJ = global_heap.o group.o mheap.o lheap.o heap.o util.c ticks.o core.o lock.o
 
 CC=gcc
 
 CFLAGS += -I. -MMD -MP
 #CFLAGS += -g
 #CFLAGS += -O2
-CFLAGS += -O2 -g -fno-omit-frame-pointer
+CFLAGS += -g -O2 -fno-omit-frame-pointer
 DEPS = $(wildcard *.d)
 -include $(DEPS)
 

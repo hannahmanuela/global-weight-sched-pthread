@@ -13,7 +13,6 @@
 #include "mheap.h"
 
 bool debug;
-bool with_tsc;
 
 // Select next process to run
 struct process *schedule(struct core *c, struct mheap *mh) {
@@ -24,7 +23,7 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 		return NULL;
 	}
 
-	pthread_rwlock_wrlock(&min_proc->proc_lock);
+	//pthread_rwlock_wrlock(&min_proc->proc_lock);
 
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %u\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
@@ -33,7 +32,7 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 
         // atomic_fetch_add(&min_proc->group->nqueued, -1);  // for debugging 
 	
-	pthread_rwlock_unlock(&min_proc->proc_lock);
+	// pthread_rwlock_unlock(&min_proc->proc_lock);
 
 	return min_proc;
 }
@@ -66,7 +65,7 @@ void enqueue(struct core *c, struct process *p) {
 
 
 	pthread_rwlock_unlock(&p->proc_lock);
-	lh_unlock(p->lh);
+	lh_unlock(c, p->lh);
 }
 
 // Process p yields core
@@ -95,14 +94,14 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 	}
 
 	pthread_rwlock_unlock(&p->proc_lock);
-	lh_unlock(p->lh);
+	lh_unlock(c, p->lh);
 }
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
 void dequeue(struct core *c, struct process *p, t_t time_passed) {
 	struct lheap *lh = p->lh;
-	lh_lock_timed(c, lh);
+	lh_lock(c, lh);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	if(debug) {
@@ -122,7 +121,7 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 		ticks_gettime(p->group->sleepstart);
 	}
 	pthread_rwlock_unlock(&p->proc_lock);
-	lh_unlock(lh);
+	lh_unlock(c, lh);
 }
 
 void stats(struct group *grps[], int n) {

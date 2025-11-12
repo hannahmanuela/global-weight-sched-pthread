@@ -31,24 +31,15 @@ struct core {
 	long yield_cycles;
 	long nyield;
 
-	
 	long nretry_del;
 	long nretry_del_lock;
 	long nretry_ins;
 	long max_retry_del;
 	long max_retry_del_lock;
+	long nrand;
 
 	long hit;
 
-	long wait_for_wr_heap_lock_cycles;
-	long num_times_wr_heap_locked;
-	atomic_long wait_for_rd_heap_lock_cycles;
-	atomic_long num_times_rd_heap_locked;
-
-	long insert_cycles;
-	long remove_cycles;
-	long ninsert;
-	long nremove;	
 } __attribute__((aligned(64)));
 
 void c_print(struct core *c);

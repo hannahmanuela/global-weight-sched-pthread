@@ -88,13 +88,13 @@ struct lheap *mh_choose_heap(struct core *c, struct mheap *mh) {
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
-		lh_lock_timed(c, lh);		
+		lh_lock(c, lh);		
 		return lh;
 	}
 retry:
 	int i = c_rand(c, mh->nheap);
 	struct lheap *lh = mh_heap(mh, i);
-	if(lh_try_lock_timed(c, lh) != 0) {
+	if(lh_try_lock(c, lh) != 0) {
 		r++;
 		goto retry;
 	}
@@ -105,49 +105,36 @@ retry:
 // caller must hold heap and proc lock
 void mh_add_process(struct core *c, struct process *p, struct lheap *lh) {
 	p->lh = lh;
-	if(with_tsc) {
-		int start_tsc = safe_read_tsc();
-		heap_push(lh->heap, &p->he);
-		int end_tsc = safe_read_tsc();
-		c->insert_cycles += (end_tsc - start_tsc);
-		c->ninsert += 1;
-	} else {
-		heap_push(lh->heap, &p->he);
-	}
+	heap_push(lh->heap, &p->he);
 }
 
 // caller must hold heap lock
 struct process *mh_del_min_process(struct core *c, struct lheap *lh) {
 	struct heap_elem *he;
-	if(with_tsc) {
-		int start_tsc = safe_read_tsc();
-		he = heap_remove_min(lh->heap);
-		assert(lh->heap->heap_size > 0);  // dummy should stay on heap
-		int end_tsc = safe_read_tsc();
-		c->remove_cycles += (end_tsc - start_tsc);
-		c->nremove += 1;
-	} else {
-		he = heap_remove_min(lh->heap);
-	}
+	he = heap_remove_min(lh->heap);
+	assert(lh->heap->heap_size > 0);  // dummy should stay on heap
 	return (struct process *) he->elem;
 }
 
-
 // https://dl.acm.org/doi/10.1145/2755573.2755616
 struct process *mh_sample_min_group(struct core *c, struct mheap *mh) {
-	long start = safe_read_tsc();
 	long r = 0;
 	long r_lock = 0;
 retry:
 	int i = c_rand(c, mh->nheap);
 	int j = c_rand(c, mh->nheap);
 	while (i == j) {
+		c->nrand++;
 		j = c_rand(c, mh->nheap);
 	}
 	struct lheap *lh_i = mh->lh[i];
 	struct lheap *lh_j = mh->lh[j];
-	struct heap_elem *he_i = lh_i->heap->heap;
-	struct heap_elem *he_j = lh_j->heap->heap;
+	long start = safe_read_tsc();
+	struct heap *h_i = lh_i->heap;
+	struct heap *h_j = lh_j->heap;
+	struct heap_elem *he_i = h_i->heap;
+	struct heap_elem *he_j = h_j->heap;
+	c->min_proc_cycles += (safe_read_tsc() - start);
 	vt_t vt_i = atomic_load(&he_i->vruntime);
 	vt_t vt_j = atomic_load(&he_j->vruntime);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
@@ -170,7 +157,7 @@ retry:
 			}
 		}
 	}
-	if(lh_try_lock_timed(c, lh_i) != 0) {
+	if(lh_try_lock(c, lh_i) != 0) {
 		// printf("%d: retry %d another thread lock acquired heap\n", c->cid, i);
 		r++;
 		goto retry;
@@ -180,12 +167,11 @@ retry:
 		// printf("%d: retry %p not min anymore %d %d ts %ld\n", c->cid, lh_i, vt_i, vt);
 		// heap_iter(lh_i->heap, print_elem);  
 		r_lock++;
-		lh_unlock(lh_i);
+		lh_unlock(c, lh_i);
 		goto retry;
 	}
 	struct process *p = mh_del_min_process(c, lh_i);
-	lh_unlock(lh_i);
-	c->min_proc_cycles += (safe_read_tsc() - start);
+	lh_unlock(c, lh_i);
 	c->nretry_del += (r + r_lock);
 	c->nretry_del_lock += r_lock;
 	if(r > c->max_retry_del)
@@ -199,16 +185,16 @@ retry:
 struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct lheap *lh = mh_heap(mh, 0);
-		lh_lock_timed(c, lh);
+		lh_lock(c, lh);
 		struct heap_elem *he = mh_min(lh);
 		if(he->vruntime == DUMMY) {
-			lh_unlock(lh);
+			lh_unlock(c, lh);
 			return NULL;
 		}	
 		struct process *p = mh_del_min_process(c, lh);
 		pthread_rwlock_wrlock(&p->proc_lock);
 		assert(p->lh == lh);
-		lh_unlock(lh);
+		lh_unlock(c, lh);
 		return p;
 	}
 	return mh_sample_min_group(c, mh);

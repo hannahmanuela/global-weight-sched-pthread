@@ -133,8 +133,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct
 	struct heap *h_j = mh->h[j];
 	// vt_t vt_i = atomic_load(&h_i->min_vt);
 	// vt_t vt_j = atomic_load(&h_j->min_vt);
-	vt_t vt_i = atomic_load(&h_i->heap->vruntime);
-	vt_t vt_j = atomic_load(&h_j->heap->vruntime);
+	vt_t vt_i = atomic_load_explicit(&h_i->heap->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&h_j->heap->vruntime, __ATOMIC_RELAXED);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
 		return NULL;
 	}

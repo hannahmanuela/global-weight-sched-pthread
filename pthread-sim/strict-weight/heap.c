@@ -95,6 +95,7 @@ void heap_push(struct heap *h, struct heap_elem *e) {
 	int i = h->heap_size;
 	h->heap[h->heap_size++] = *e;
 	heap_sift_up(h, i);
+	//h->min_vt = h->heap[0].vruntime;
 }
 
 struct heap_elem *heap_remove_min(struct heap *h) {
@@ -105,6 +106,7 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 	if(last != 0) {
 		heap_swap(h, 0, last);
 		heap_sift_down(h, 0);
+		// h->min_vt = h->heap[0].vruntime;
 	}
 	return &(h->heap[last]);
 }

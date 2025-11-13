@@ -11,6 +11,8 @@
 struct heap {
 	struct spinlock lk __attribute__((aligned(CACHE_LINE_SZ)));
 
+	// vt_t min_vt; //  __attribute__((aligned(CACHE_LINE_SZ)));
+
 	struct heap_elem heap[HEAP_CAPACITY] __attribute__((aligned(CACHE_LINE_SZ)));
 	// struct heap_elem *heap __attribute__((aligned(CACHE_LINE_SZ)));
 
@@ -32,4 +34,3 @@ void heap_iter(struct heap *h, heap_iter_t);
 void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e);
 
 #endif
-	

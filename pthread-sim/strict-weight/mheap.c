@@ -128,13 +128,13 @@ struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	return (struct process *) he->elem;
 }
 
-static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, vt_t *vt) {
+static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct mheap *mh, int i, int j, vt_t *vt) {
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	struct heap_elem *he_i = h_i->heap;
-	struct heap_elem *he_j = h_j->heap;
-	vt_t vt_i = atomic_load(&he_i->vruntime);
-	vt_t vt_j = atomic_load(&he_j->vruntime);
+	// vt_t vt_i = atomic_load(&h_i->min_vt);
+	// vt_t vt_j = atomic_load(&h_j->min_vt);
+	vt_t vt_i = atomic_load(&h_i->heap->vruntime);
+	vt_t vt_j = atomic_load(&h_j->heap->vruntime);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
 		return NULL;
 	}
@@ -146,6 +146,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int 
 			vt_i = vt_j;
 			h_i = h_j;
 		} else if (vt_i == vt_j) {
+			struct heap_elem *he_i = h_i->heap;
+			struct heap_elem *he_j = h_j->heap;
 			int w_i = atomic_load(&he_i->weight);
 			int w_j = atomic_load(&he_j->weight);
 			if (w_j > w_i) {	
@@ -163,7 +165,6 @@ struct process *mh_sample_min_group(struct core *c, struct mheap *mh) {
 	long r = 0;
 	long r_lock = 0;
 retry:
-	long start = safe_read_tsc();
 	int i = c_rand(c, mh->nheap);
 	int j = c_rand(c, mh->nheap);
 	while (i == j) {
@@ -171,18 +172,23 @@ retry:
 		j = c_rand(c, mh->nheap);
 	}
 	vt_t vt;
-	struct heap *h = mh_select(mh, i, j, &vt);
+	struct heap *h = mh_select(c, mh, i, j, &vt);
 	if (h == NULL) {
 		c->nsched_null += 1;
 		return NULL;
 	}
-	c->min_proc_cycles += (safe_read_tsc() - start);
-	if(mh_try_lock(c, h) != 0) {
+
+	// if (lock_holding(&h->lk)) goto retry;
+
+	//long start = safe_read_tsc();
+	int l = mh_try_lock(c, h);
+	if (l != 0) {
 		// printf("%d: retry %d another thread lock acquired heap\n", c->cid, i);
 		r++;
 		goto retry;
 	}
-	vt_t vt0 = heap_min(h)->vruntime;
+	vt_t vt0 = h->heap->vruntime;
+	// vt_t vt0 = h->min_vt;
 	if (vt != vt0) {
 		// printf("%d: retry %p not min anymore %d %d ts %ld\n", c->cid, lh_i, vt_i, vt);
 		// heap_iter(lh_i->heap, print_elem);  
@@ -192,6 +198,7 @@ retry:
 	}
 	struct process *p = mh_del_min_process(c, h);
 	mh_unlock(c, h);
+	//c->min_proc_cycles += (safe_read_tsc() - start);
 	c->nretry_del += (r + r_lock);
 	c->nretry_del_lock += r_lock;
 	if(r > c->max_retry_del)

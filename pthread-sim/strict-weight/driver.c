@@ -224,7 +224,7 @@ void main(int argc, char *argv[]) {
 	    struct core *c = gs->cores[i];
 	    pthread_join(threads[c->cid], NULL);
 	    // c_print(); printf("\n");
-	    printf("max retry %d %d %0.2f\n", c->max_retry_del, c->max_retry_del_lock, AVG(c->nrand,c->nsched+c->nretry_del));
+	    printf("max retry %d %d avg rand %0.2f\n", c->max_retry_del, c->max_retry_del_lock, AVG(c->nrand,c->nsched+c->nretry_del));
 	    float s = AVG(c->sched_cycles, c->nsched);
 	    nsched += c->nsched;
 	    nyield += c->nyield;

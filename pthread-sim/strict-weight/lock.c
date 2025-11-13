@@ -19,14 +19,14 @@ lock_holding(struct spinlock *lk)
 void
 lock_acquire(struct spinlock *lk)
 {
-	while (atomic_flag_test_and_set(&lk->locked))
+	while (atomic_flag_test_and_set_explicit(&lk->locked, __ATOMIC_ACQUIRE))
 		;
 }
 
 int
 lock_try_acquire(struct spinlock *lk)
 {
-	int r = atomic_flag_test_and_set(&lk->locked);
+	int r = atomic_flag_test_and_set_explicit(&lk->locked,  __ATOMIC_ACQUIRE);
 
 	return r;
 }
@@ -36,5 +36,5 @@ lock_try_acquire(struct spinlock *lk)
 void
 lock_release(struct spinlock *lk)
 {
-	atomic_flag_clear(&lk->locked);
+	atomic_flag_clear_explicit(&lk->locked, __ATOMIC_RELEASE);
 }

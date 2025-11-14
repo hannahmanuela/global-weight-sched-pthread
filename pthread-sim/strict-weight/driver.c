@@ -251,7 +251,7 @@ void main(int argc, char *argv[]) {
 	    hit += c->hit;
 	    nsched_null += c->nsched_null;
     }
-    printf("  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n",
+    printf("tp %0.2fM/s  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n", AVG(nsched+nyield, TIME_TO_RUN)/1000000,
 	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld %0.2f %0.2f retry del %ld (%ld) %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, nretry_del_lock, rdel_l, rdel_h);
     printf("  nsched_null %ld (%0.2f) hit %ld\n", nsched_null, AVG(nsched_null, nsched), hit);

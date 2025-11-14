@@ -58,23 +58,6 @@ vt_t mh_min_vt(struct heap *h) {
 	return vt;
 }
 
-void mh_unlock(struct core *c, struct heap *h) {
-	// pthread_rwlock_unlock(&lh->heap_lock);
-	lock_release(&h->lk);
-}
-
-void mh_lock(struct core *c, struct heap *h) {
-	lock_acquire(&h->lk);
-	//pthread_rwlock_wrlock(&lh->heap_lock);
-}
-
-// if l = 0,  successful acquire
-int mh_try_lock(struct core *c, struct heap *h) {
-	// int l = pthread_rwlock_trywrlock(&lh->heap_lock);
-	int l = lock_try_acquire(&h->lk);
-	return l;
-}
-
 static void print_elem(struct heap_elem *e) {
 	if(e->vruntime == DUMMY) {
 		printf("[dummy vt %u w %d]", e->vruntime, e->weight);
@@ -100,13 +83,13 @@ struct heap *mh_choose_heap(struct core *c, struct mheap *mh) {
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct heap *h = mh->h[0];
-		mh_lock(c, h);		
+		lock_acquire(&h->lk);		
 		return h;
 	}
 retry:
 	int i = c_rand(c, mh->nheap);
 	struct heap *h = mh->h[i];
-	if(mh_try_lock(c, h) != 0) {
+	if(lock_try_acquire(&h->lk) != 0) {
 		r++;
 		goto retry;
 	}
@@ -131,8 +114,6 @@ struct process *mh_del_min_process(struct core *c, struct heap *h) {
 static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct mheap *mh, int i, int j, vt_t *vt) {
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	// vt_t vt_i = atomic_load(&h_i->min_vt);
-	// vt_t vt_j = atomic_load(&h_j->min_vt);
 	vt_t vt_i = atomic_load_explicit(&h_i->heap->vruntime, __ATOMIC_RELAXED);
 	vt_t vt_j = atomic_load_explicit(&h_j->heap->vruntime, __ATOMIC_RELAXED);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
@@ -178,10 +159,10 @@ retry:
 		return NULL;
 	}
 
-	// if (lock_holding(&h->lk)) goto retry;
+        // if (lock_holding(&h->lk)) goto retry;
 
 	//long start = safe_read_tsc();
-	int l = mh_try_lock(c, h);
+	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		// printf("%d: retry %d another thread lock acquired heap\n", c->cid, i);
 		r++;
@@ -193,11 +174,11 @@ retry:
 		// printf("%d: retry %p not min anymore %d %d ts %ld\n", c->cid, lh_i, vt_i, vt);
 		// heap_iter(lh_i->heap, print_elem);  
 		r_lock++;
-		mh_unlock(c, h);
+		lock_release(&h->lk);
 		goto retry;
 	}
 	struct process *p = mh_del_min_process(c, h);
-	mh_unlock(c, h);
+	lock_release(&h->lk);
 	//c->min_proc_cycles += (safe_read_tsc() - start);
 	c->nretry_del += (r + r_lock);
 	c->nretry_del_lock += r_lock;
@@ -212,15 +193,15 @@ retry:
 struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct heap *h = mh->h[0];
-		mh_lock(c, h);
+		lock_acquire(&h->lk);
 		struct heap_elem *he = mh_min(h);
 		if(he->vruntime == DUMMY) {
-			mh_unlock(c, h);
+			lock_release(&h->lk);
 			return NULL;
 		}	
 		struct process *p = mh_del_min_process(c, h);
 		assert(p->h == h);
-		mh_unlock(c, h);
+		lock_release(&h->lk);
 		return p;
 	}
 	return mh_sample_min_group(c, mh);

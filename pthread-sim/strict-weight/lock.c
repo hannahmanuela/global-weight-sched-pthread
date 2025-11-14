@@ -13,7 +13,7 @@ lock_init(struct spinlock *lk)
 int
 lock_holding(struct spinlock *lk)
 {
-	return atomic_load(&lk->locked);
+	return atomic_load_explicit(&lk->locked, __ATOMIC_RELAXED);
 }
 
 void
@@ -32,7 +32,6 @@ lock_try_acquire(struct spinlock *lk)
 }
 
 
-// Release the lock.
 void
 lock_release(struct spinlock *lk)
 {

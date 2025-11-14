@@ -64,7 +64,7 @@ void enqueue(struct core *c, struct process *p) {
 
 
 	pthread_rwlock_unlock(&p->proc_lock);
-	mh_unlock(c, p->h);
+	lock_release(&p->h->lk);
 }
 
 // Process p yields core
@@ -93,14 +93,14 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 	}
 
 	pthread_rwlock_unlock(&p->proc_lock);
-	mh_unlock(c, p->h);
+	lock_release(&p->h->lk);
 }
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
 void dequeue(struct core *c, struct process *p, t_t time_passed) {
 	struct heap *h = p->h;
-	mh_lock(c, h);
+	lock_acquire(&h->lk);
 	pthread_rwlock_wrlock(&p->proc_lock);
 
 	if(debug) {
@@ -120,7 +120,7 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 		ticks_gettime(p->group->sleepstart);
 	}
 	pthread_rwlock_unlock(&p->proc_lock);
-	mh_unlock(c, h);
+	lock_release(&h->lk);
 }
 
 void stats(struct group *grps[], int n) {

@@ -148,8 +148,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct
 		} else if (vt_i == vt_j) {
 			struct heap_elem *he_i = h_i->heap;
 			struct heap_elem *he_j = h_j->heap;
-			int w_i = atomic_load(&he_i->weight);
-			int w_j = atomic_load(&he_j->weight);
+			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
+			int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
 			if (w_j > w_i) {	
 				vt_i = vt_j;
 				h_i = h_j;

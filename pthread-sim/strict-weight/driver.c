@@ -218,12 +218,15 @@ void main(int argc, char *argv[]) {
     long nyield = 0;
     long hit = 0;
     long nsched_null = 0;
+    long max_retry_del = 0;
+    long max_retry_del_lock = 0;
+    long nnrand = 0;
 
     for (int i = 0; i < num_cores; i++) {
 	    struct core *c = gs->cores[i];
 	    pthread_join(threads[c->cid], NULL);
 	    // c_print(); printf("\n");
-	    printf("max retry %d %d avg rand %0.2f\n", c->max_retry_del, c->max_retry_del_lock, AVG(c->nrand,c->nsched+c->nretry_del));
+	    
 	    float s = AVG(c->sched_cycles, c->nsched);
 	    nsched += c->nsched;
 	    nyield += c->nyield;
@@ -249,12 +252,18 @@ void main(int argc, char *argv[]) {
 	    nretry_del_lock += c->nretry_del_lock;
 	    hit += c->hit;
 	    nsched_null += c->nsched_null;
+	    if(c->max_retry_del > max_retry_del)
+		    max_retry_del = c->max_retry_del;
+	    if(c->max_retry_del_lock > max_retry_del_lock)
+		    max_retry_del_lock = c->max_retry_del_lock;
+	    nnrand += c->nrand;
     }
     printf("tp %0.2fM/s (debug: %0.2f %0.2f)\n", AVG(nsched+nyield, TIME_TO_RUN)/1000000, p_l, p_h);
     printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
     printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
     printf("  retry del %ld (%ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
+    printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
     printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
     printf("  hit %ld\n", hit);
 	     

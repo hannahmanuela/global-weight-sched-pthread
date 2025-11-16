@@ -75,6 +75,9 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 
 	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
 	vt_t my_vt = grp_add_vruntime(p, wvt);
+
+	assert(my_vt >= p->he.vruntime);  // overflow?
+
 	p->he.vruntime = my_vt;
 
 	struct heap *h = mh_choose_heap(c, p->mh);

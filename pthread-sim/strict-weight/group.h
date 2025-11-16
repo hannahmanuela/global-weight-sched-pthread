@@ -13,6 +13,7 @@ struct process {
 	struct heap_elem he;
 	struct heap *h;
 	t_t runtime;  // number of us the process ran
+
 	pthread_rwlock_t proc_lock;
 
 	struct mheap *mh;
@@ -23,21 +24,21 @@ struct process {
 } __attribute__((aligned(64)));
 
 struct group {
-	vt_t vruntime;
-	vt_t lag;
+	vt_t vruntime  __attribute__((aligned(CACHE_LINE_SZ)));
+
+	vt_t lag __attribute__((aligned(CACHE_LINE_SZ)));
 	int nthread; // number of threads in the group
-	
-	int gid;
-	int weight;
-
-	pthread_rwlock_t group_lock;
-
 	t_t *sleeptime; // number of us slots the group wasn't runnable
 	t_t *sleepstart; // tick slots sleep started
 	t_t *time;
-	
-	struct process *procs;
+
+
+	pthread_rwlock_t group_lock __attribute__((aligned(CACHE_LINE_SZ)));
+
+	struct process *procs __attribute__((aligned(CACHE_LINE_SZ)));
 	struct mheap *mh;
+	int gid;
+	int weight;
 } __attribute__((aligned(64)));
 
 struct group *grp_new(struct mheap *mh, int id, int weight);

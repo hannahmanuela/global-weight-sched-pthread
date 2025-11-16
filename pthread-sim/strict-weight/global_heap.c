@@ -22,14 +22,10 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 		return NULL;
 	}
 
-	//pthread_rwlock_wrlock(&min_proc->proc_lock);
-
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %u\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 		mh_print(min_proc->mh);
 	}
-
-	// pthread_rwlock_unlock(&min_proc->proc_lock);
 
 	return min_proc;
 }
@@ -38,7 +34,6 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 void enqueue(struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(c, p->mh);
 
-	pthread_rwlock_wrlock(&p->proc_lock);
 	assert(p->h == NULL);
 
 	int old_nthread = atomic_fetch_add(&p->group->nthread, 1);
@@ -60,7 +55,6 @@ void enqueue(struct core *c, struct process *p) {
 		mh_print(p->group->mh);
 	}
 
-	pthread_rwlock_unlock(&p->proc_lock);
 	lock_release(&p->h->lk);
 }
 
@@ -77,13 +71,14 @@ static void grp_adjust_vruntime(struct process *p, t_t time_passed) {
 
 // Yield and enqueue
 void yield(struct core *c, struct process *p, t_t time_passed) {
-	struct heap *h = mh_choose_heap(c, p->mh);
-
 	grp_adjust_vruntime(p, time_passed);
 
 	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
 	vt_t my_vt = grp_add_vruntime(p, wvt);
 	p->he.vruntime = my_vt;
+
+	struct heap *h = mh_choose_heap(c, p->mh);
+	
 	mh_add_process(c, p, h);
 
 	if(debug) {
@@ -99,7 +94,6 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 void dequeue(struct core *c, struct process *p, t_t time_passed) {
 	struct heap *h = p->h;
 	lock_acquire(&h->lk);
-	pthread_rwlock_wrlock(&p->proc_lock);
 
 	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
@@ -117,7 +111,6 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 
 	p->h = NULL;
 
-	pthread_rwlock_unlock(&p->proc_lock);
 	lock_release(&h->lk);
 }
 

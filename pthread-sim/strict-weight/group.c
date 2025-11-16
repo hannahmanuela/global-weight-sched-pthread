@@ -83,7 +83,7 @@ void grp_set_vruntime(struct process *p, vt_t vt) {
 }
 
 vt_t grp_add_vruntime(struct process *p, vt_t vt) {
-	return atomic_fetch_add(&p->group->vruntime, vt);
+	return atomic_fetch_add_explicit(&p->group->vruntime, vt, __ATOMIC_RELAXED);
 }
 
 // remember vruntime for when group becomes runnable again

@@ -42,26 +42,23 @@ void enqueue(struct core *c, struct process *p) {
 	assert(p->h == NULL);
 
 	int old_nthread = atomic_fetch_add(&p->group->nthread, 1);
-
 	if(old_nthread == 0) {  // group has become runnable
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
-		vt_t vt = mh_min_vt(h);
-		vt = vt + p->group->lag;
+		vt_t vt = mh_min_vt(h) + p->group->lag;
 		grp_set_vruntime(p, vt);
 	}
 
 	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
-	vt_t vt = grp_add_vruntime(p, wvt);
-	p->he.vruntime = vt;
+	vt_t my_vt = grp_add_vruntime(p, wvt);
+	p->he.vruntime = my_vt;
 	mh_add_process(c, p, h);
 
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 		mh_print(p->group->mh);
 	}
-
 
 	pthread_rwlock_unlock(&p->proc_lock);
 	lock_release(&p->h->lk);
@@ -81,15 +78,12 @@ static void grp_adjust_vruntime(struct process *p, t_t time_passed) {
 // Yield and enqueue
 void yield(struct core *c, struct process *p, t_t time_passed) {
 	struct heap *h = mh_choose_heap(c, p->mh);
-	pthread_rwlock_wrlock(&p->proc_lock);
-
-	int nthread = atomic_load(&p->group->nthread);
 
 	grp_adjust_vruntime(p, time_passed);
 
 	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
-	vt_t vt = grp_add_vruntime(p, wvt);
-	p->he.vruntime = vt;
+	vt_t my_vt = grp_add_vruntime(p, wvt);
+	p->he.vruntime = my_vt;
 	mh_add_process(c, p, h);
 
 	if(debug) {
@@ -97,7 +91,6 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 		mh_print(p->group->mh);
 	}
 
-	pthread_rwlock_unlock(&p->proc_lock);
 	lock_release(&p->h->lk);
 }
 

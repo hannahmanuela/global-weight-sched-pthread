@@ -197,7 +197,7 @@ void main(int argc, char *argv[]) {
 	    pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
     }
 
-    printf("= num_cores %d num_groups %d nthreads %d nheap %d work %d\n", num_cores, num_groups, num_threads, gs->mh->nheap, time_work);
+    printf("= num_cores %d num_groups %d nprocs %d nheap %d work %d\n", num_cores, num_groups, num_threads, gs->mh->nheap, time_work);
     printf("= cores: %d\n", num_cores);
 
     float s_h = 0.0;

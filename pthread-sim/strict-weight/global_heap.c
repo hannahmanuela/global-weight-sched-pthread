@@ -29,8 +29,6 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 		mh_print(min_proc->mh);
 	}
 
-        // atomic_fetch_add(&min_proc->group->nqueued, -1);  // for debugging 
-	
 	// pthread_rwlock_unlock(&min_proc->proc_lock);
 
 	return min_proc;
@@ -49,16 +47,18 @@ void enqueue(struct core *c, struct process *p) {
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
+		vt_t vt = mh_min_vt(h);
+		vt = vt + p->group->lag;
+		grp_set_vruntime(p, vt);
 	}
 
-	vt_t wvt = grp_slot(p, old_nthread+1);
-	proc_set_init_vruntime(p, mh_min_vt(h) + wvt);
-
+	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
+	vt_t vt = grp_add_vruntime(p, wvt);
+	p->he.vruntime = vt;
 	mh_add_process(c, p, h);
-	// atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
 
 	if(debug) {
-		printf("%d(%d): enqueue nthread %d lh %p vt %u\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime);
+		printf("%d(%d): enqueue nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 		mh_print(p->group->mh);
 	}
 
@@ -67,10 +67,15 @@ void enqueue(struct core *c, struct process *p) {
 	lock_release(&p->h->lk);
 }
 
-// Process p yields core
-static void yieldL(struct process *p, vt_t time_passed, vt_t vt) {
+// proc may have run for less than its allocated time; in that
+// case adjust the proc's group vruntime.
+static void grp_adjust_vruntime(struct process *p, t_t time_passed) {
 	p->runtime += time_passed;
-	proc_add_vruntime(p, vt);
+	vt_t vt = calc_delta(time_passed, p->he.weight);
+	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
+	if (wvt > vt) {
+		grp_add_vruntime(p, -(wvt-vt));
+	}
 }
 
 // Yield and enqueue
@@ -80,12 +85,12 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 
 	int nthread = atomic_load(&p->group->nthread);
 
-	vt_t vt = calc_delta(time_passed, p->he.weight);
-	vt += grp_slot(p, nthread);
-	yieldL(p, time_passed, vt);
+	grp_adjust_vruntime(p, time_passed);
 
+	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
+	vt_t vt = grp_add_vruntime(p, wvt);
+	p->he.vruntime = vt;
 	mh_add_process(c, p, h);
-	// atomic_fetch_add(&p->group->nqueued, 1);    // for debugging
 
 	if(debug) {
 		printf("%d(%d): yield time_passed %ld nt %d w %d vt %u\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime);
@@ -108,19 +113,28 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 		mh_print(p->group->mh);
 	}
 
-	vt_t vt = calc_delta(time_passed, p->he.weight);
-	yieldL(p, time_passed, vt);
-	proc_lag_vruntime(p, mh_min_vt(h));
-
-	p->h = NULL;
-	assert(p->group->nthread >= p->group->nqueued);
+	grp_adjust_vruntime(p, time_passed);
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {
+		vt_t h_min = mh_min_vt(p->h);
+		p->group->lag = p->group->vruntime - h_min;
 		ticks_gettime(p->group->sleepstart);
 	}
+
+	p->h = NULL;
+
 	pthread_rwlock_unlock(&p->proc_lock);
 	lock_release(&h->lk);
+}
+
+void print(struct mheap *mh, struct group *grps[], int n) {
+	mh_print(mh);
+	printf("= groups %d:\n", n);
+	for(int i = 0; i < n; i++) {
+		printf("  "); grp_print(grps[i]); printf("\n");
+	}
+	printf("=\n");
 }
 
 void stats(struct group *grps[], int n) {

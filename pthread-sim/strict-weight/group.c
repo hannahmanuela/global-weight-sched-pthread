@@ -40,9 +40,10 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
 struct group *grp_new(struct mheap *mh, int id, int weight) {
     struct group *g = malloc(sizeof(struct group));
     g->gid = id;
+    g->vruntime = 0;
+    g->lag = 0;
     g->weight = weight;
     g->nthread = 0;
-    g->nqueued = 0;
     g->procs = NULL;
     g->sleepstart = new_ticks();
     ticks_gettime(g->sleepstart);
@@ -75,19 +76,14 @@ int proc_cmp(struct heap_elem *a, struct heap_elem *b) {
 	return 0;
 }
 
-void proc_add_vruntime(struct process *p, vt_t vt) {
-	// XXX handle wrap around
-	assert(p->he.vruntime + vt >= p->he.vruntime);
-        atomic_fetch_add(&p->he.vruntime, vt);
+void grp_set_vruntime(struct process *p, vt_t vt) {
+	if(debug)
+		printf("%d(%d): grp_set_vruntime: vt %u\n", p->pid, p->group->gid, vt);
+	atomic_store(&p->group->vruntime, vt);
 }
 
-// set initial vruntime when group g becomes runnable
-// caller must hold group lock
-void proc_set_init_vruntime(struct process *p, vt_t min_vt) {
-	vt_t nvt = min_vt + p->he.vruntime;
-	if(debug)
-		printf("%d(%d): grp_set_init_vruntime: mvt %u new vt %u\n", p->pid, p->group->gid, min_vt, nvt);
-        atomic_store(&p->he.vruntime, nvt);
+vt_t grp_add_vruntime(struct process *p, vt_t vt) {
+	return atomic_fetch_add(&p->group->vruntime, vt);
 }
 
 // remember vruntime for when group becomes runnable again
@@ -103,6 +99,10 @@ float grp_runtime(struct group *g) {
 		run += (float)(p->runtime);
 	}
 	return run;
+}
+
+void grp_print(struct group *g) {
+	printf("[%d: n %d vt %d lag %d]", g->gid, g->nthread, g->vruntime, g->lag);
 }
 
 void grp_stats(struct group *g, long sum) {

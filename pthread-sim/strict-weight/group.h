@@ -23,9 +23,10 @@ struct process {
 } __attribute__((aligned(64)));
 
 struct group {
+	vt_t vruntime;
+	vt_t lag;
 	int nthread; // number of threads in the group
-	int nqueued; // number of threads runnable
-
+	
 	int gid;
 	int weight;
 
@@ -44,15 +45,12 @@ vt_t grp_slot(struct process *p, int nthread);
 void proc_print(struct process *p);
 struct process *grp_new_process(struct mheap *mh, int id, struct group *g);
 int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
-vt_t proc_get_vruntime(struct process *p);
-void proc_add_vruntime(struct process *p, vt_t tick_length);
-void proc_set_init_vruntime(struct process *p, vt_t min);
-void proc_lag_vruntime(struct process *p, vt_t min);
-bool proc_adjust_vruntime(struct process *p, t_t time_passed, t_t tick_length);
 
-void grp_enqueue(struct group *g);
 void grp_stats(struct group *g, long tot);
+void grp_print(struct group *g);
 float grp_runtime(struct group *g);
+void grp_set_vruntime(struct process *p, vt_t min);
+vt_t grp_add_vruntime(struct process *p, vt_t min);
 
 #endif
 

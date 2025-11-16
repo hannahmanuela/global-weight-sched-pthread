@@ -110,6 +110,6 @@ void grp_stats(struct group *g, long sum) {
 	float run = grp_runtime(g);
 	// printf("%d: runtime %0.2f us sleeptime %d us weight %d ticks %0.2f\n", g->gid,
 	// run, t, g->weight, AVG(run, (sum-t)));
-	printf("%d: ticks %0.2f, ", g->gid, AVG(run, (sum-t)));
+	printf("%d: fraction of ticks %0.2f", g->gid, AVG(run, (sum-t)));
 }
 

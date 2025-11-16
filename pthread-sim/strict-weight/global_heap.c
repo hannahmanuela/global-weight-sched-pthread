@@ -133,7 +133,6 @@ void stats(struct group *grps[], int n) {
 	t_t idle = ticks_sum(ticks);
 	printf("= stats total ticks %ld us work %ld us idle %ld us\n", tot, work, idle);
 	for(int i = 0; i < n; i++) {
-		grp_stats(grps[i], tot);
+		printf("  "); grp_stats(grps[i], tot); printf("\n");
 	}
-	printf("\n=\n");
 }

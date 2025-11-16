@@ -198,7 +198,6 @@ void main(int argc, char *argv[]) {
     }
 
     printf("= num_cores %d num_groups %d nprocs %d nheap %d work %d\n", num_cores, num_groups, num_threads, gs->mh->nheap, time_work);
-    printf("= cores: %d\n", num_cores);
 
     float s_h = 0.0;
     float s_l = FLT_MAX;
@@ -251,13 +250,14 @@ void main(int argc, char *argv[]) {
 	    hit += c->hit;
 	    nsched_null += c->nsched_null;
     }
-    printf("tp %0.2fM/s  sched #%ld l %0.2f a %0.2f h %0.2f min_proc %0.2f %0.2f yield #%ld l %0.2f a %0.2f h %0.2f\n", AVG(nsched+nyield, TIME_TO_RUN)/1000000,
-	   nsched, s_l, AVG(s_c, nsched), s_h, p_l, p_h, nyield, y_l, AVG(y_c, nyield), y_h);
-    printf("  retry ins %ld %0.2f %0.2f retry del %ld (%ld) %0.2f %0.2f\n", nretry_ins, rins_l, rins_h, nretry_del, nretry_del_lock, rdel_l, rdel_h);
-    printf("  nsched_null %ld (%0.2f) hit %ld\n", nsched_null, AVG(nsched_null, nsched), hit);
-
-    printf("=\n");
-
+    printf("tp %0.2fM/s (debug: %0.2f %0.2f)\n", AVG(nsched+nyield, TIME_TO_RUN)/1000000, p_l, p_h);
+    printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
+    printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
+    printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
+    printf("  retry del %ld (%ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
+    printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
+    printf("  hit %ld\n", hit);
+	     
     stats(gs->grps, num_groups);
 }
 

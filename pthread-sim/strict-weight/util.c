@@ -48,7 +48,7 @@ int log_init(char *name) {
 
 void log_vt(int cid, vt_t t) {
 	pthread_mutex_lock(&log_mutex);
-	fprintf(log_fd, "%d: vruntime %d cid %d\n", safe_read_tsc(), t, cid);
+	fprintf(log_fd, "%d: vruntime %d cid %d\n", _rdtsc(), t, cid);
 	pthread_mutex_unlock(&log_mutex);
 }
 

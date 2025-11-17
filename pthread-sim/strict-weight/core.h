@@ -6,6 +6,11 @@
 
 #include "ticks.h"
 
+struct log_entry {
+	vt_t vt;
+	long ts;
+};
+
 struct core {
 	int cid;
 	unsigned int seed;
@@ -40,10 +45,19 @@ struct core {
 
 	long hit;
 
+	struct log_entry *log;
+	int log_nentry;
+	int fd;
+
 } __attribute__((aligned(64)));
+
+#define LOG_NENTRY  1000000
 
 void c_print(struct core *c);
 int c_rand(struct core *c, int n);
 struct core *c_new(int i);
+void c_log_init(struct core *c, char *name);
+void c_log_append(struct core *c, vt_t vt);
+void c_log_done(struct core *c);
 
 #endif

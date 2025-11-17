@@ -171,12 +171,12 @@ void main(int argc, char *argv[]) {
     time_work = atoi(argv[4]);
 
     //debug = true;
-    //log_init("log.txt");
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
     for (int i = 0; i < num_cores; i++) {
 	    gs->cores[i] = c_new(i);
+	    c_log_init(gs->cores[i], "/tmp/vtlog");
     }
     gs->mh = mh_new(proc_cmp, nheap, tick_length);
 
@@ -227,7 +227,9 @@ void main(int argc, char *argv[]) {
 	    struct core *c = gs->cores[i];
 	    pthread_join(threads[c->cid], NULL);
 	    // c_print(); printf("\n");
-	    
+
+	    c_log_done(c);
+
 	    float s = AVG(c->sched_cycles, c->nsched);
 	    nsched += c->nsched;
 	    nyield += c->nyield;

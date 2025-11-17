@@ -27,8 +27,8 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 		printf("%d: schedule %d(%d) vt %u\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 		mh_print(min_proc->mh);
 	}
-	if(log_fd != NULL) {
-		log_vt(c->cid, min_proc->he.vruntime);
+	if(c->fd > 0) {
+		c_log_append(c, min_proc->he.vruntime);
 	}
 
 	return min_proc;

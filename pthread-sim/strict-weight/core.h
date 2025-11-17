@@ -7,8 +7,8 @@
 #include "ticks.h"
 
 struct log_entry {
-	vt_t vt;
 	long ts;
+	vt_t vt;
 };
 
 struct core {

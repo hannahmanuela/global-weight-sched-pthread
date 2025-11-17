@@ -59,10 +59,10 @@ void c_log_append(struct core *c, vt_t vt) {
 	if(c->log_nentry == LOG_NENTRY) {
 		int n = write(c->fd, c->log, sizeof(struct log_entry) * LOG_NENTRY);
 		if (n <= 0) {
-			printf("%d\n", c->fd);
 			perror("c_log_append: write");
 			exit(1);
 		}
+		printf("%d: ts %ld vt %d\n", c->cid, c->log[0].ts, c->log[0].vt);
 		c->log_nentry = 0;
 	}
 	int i = c->log_nentry++;

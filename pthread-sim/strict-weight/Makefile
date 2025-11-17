@@ -9,7 +9,7 @@ CFLAGS += -g -O2 -fno-omit-frame-pointer
 DEPS = $(wildcard *.d)
 -include $(DEPS)
 
-all: global-heap test-heap test-global
+all: global-heap test-heap test-global logmerge
 
 global-heap: driver.o $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -18,6 +18,9 @@ test-global: test_global.o $(OBJ)
 	$(CC) -o $@ $^
 
 test-heap: test_heap.o heap.o lock.o
+	$(CC) -o $@ $^
+
+logmerge: logmerge.o
 	$(CC) -o $@ $^
 
 %.o: %.c $(DEPS)

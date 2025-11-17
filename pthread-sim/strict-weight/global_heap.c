@@ -12,6 +12,7 @@
 #include "mheap.h"
 
 bool debug;
+extern FILE *log_fd;
 
 // Select next process to run
 struct process *schedule(struct core *c, struct mheap *mh) {
@@ -25,6 +26,9 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %u\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 		mh_print(min_proc->mh);
+	}
+	if(log_fd != NULL) {
+		log_vt(c->cid, min_proc->he.vruntime);
 	}
 
 	return min_proc;

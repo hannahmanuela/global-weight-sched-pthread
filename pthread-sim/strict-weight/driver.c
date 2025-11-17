@@ -171,6 +171,7 @@ void main(int argc, char *argv[]) {
     time_work = atoi(argv[4]);
 
     //debug = true;
+    //log_init("log.txt");
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);

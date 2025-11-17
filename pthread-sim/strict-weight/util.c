@@ -5,12 +5,19 @@
 #include <string.h>
 #include <errno.h>
 #include <stdint.h>
+#include <pthread.h>
 
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <immintrin.h>
 #include <linux/perf_event.h>
 #include <asm/unistd.h>
+
+#include "vt.h"
+
+FILE *log_fd;
+
+pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 long safe_read_tsc() {
 	_mm_lfence();
@@ -29,6 +36,20 @@ double now()
 	struct timeval tv;
 	gettimeofday(&tv, 0);
 	return tv.tv_sec + tv.tv_usec / 1000000.0;
+}
+
+int log_init(char *name) {
+	log_fd = fopen(name, "w");
+	if (log_fd == NULL)
+		return -1;
+	else
+		return 0;
+}
+
+void log_vt(int cid, vt_t t) {
+	pthread_mutex_lock(&log_mutex);
+	fprintf(log_fd, "%d: vruntime %d cid %d\n", safe_read_tsc(), t, cid);
+	pthread_mutex_unlock(&log_mutex);
 }
 
 static long

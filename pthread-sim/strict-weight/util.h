@@ -11,9 +11,13 @@
 
 #define CACHE_LINE_SZ 64
 
+#include "vt.h"
+
 void error(char *);
 double now();
 long safe_read_tsc();
+int log_init(char *);
+void log_vt(int cid, vt_t t);
 
 uint64_t perf_read_l2(int fd);
 int perf_config(int cid);

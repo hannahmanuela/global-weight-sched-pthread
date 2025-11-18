@@ -32,6 +32,10 @@ int rank_error(struct log_entry *ring, int idx) {
 }
 
 void main(int argc, char *argv[]) {
+	if (argc != 2) {
+		printf("%s <logfile>.log\n", argv[0]);
+		exit(1);
+	}
 	sprintf(buf, "/tmp/%s.log", argv[1]);
 	int fd = open(buf, O_RDONLY);
 	if(fd < 0) {

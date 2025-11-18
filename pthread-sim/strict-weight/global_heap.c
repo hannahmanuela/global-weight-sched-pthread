@@ -34,6 +34,15 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 	return min_proc;
 }
 
+
+static void enq_proc_vt(struct core *c, struct process *p, struct heap *h) {
+	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
+	vt_t my_vt = grp_add_vruntime(p, wvt);
+	assert(my_vt >= p->he.vruntime);  // overflow?
+	p->he.vruntime = my_vt;
+	mh_add_process(c, p, h);
+}
+
 // Add p to group and make p runnable
 void enqueue(struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(c, p->mh);
@@ -53,12 +62,7 @@ void enqueue(struct core *c, struct process *p) {
 		grp_set_vruntime(p, vt);
 	}
 
-	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
-	vt_t my_vt = grp_add_vruntime(p, wvt);
-	assert(my_vt >= p->he.vruntime);  // overflow?
-	p->he.vruntime = my_vt;
-
-	mh_add_process(c, p, h);
+	enq_proc_vt(c, p, h);
 
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
@@ -83,13 +87,9 @@ static void grp_adjust_vruntime(struct process *p, t_t time_passed) {
 void yield(struct core *c, struct process *p, t_t time_passed) {
 	grp_adjust_vruntime(p, time_passed);
 
-	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
-	vt_t my_vt = grp_add_vruntime(p, wvt);
-	assert(my_vt >= p->he.vruntime);  // overflow?
-	p->he.vruntime = my_vt;
-
 	struct heap *h = mh_choose_heap(c, p->mh);
-	mh_add_process(c, p, h);
+
+	enq_proc_vt(c, p, h);
 
 	if(debug) {
 		printf("%d(%d): yield time_passed %ld nt %d w %d vt %u\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime);

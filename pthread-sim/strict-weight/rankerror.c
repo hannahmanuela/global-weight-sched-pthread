@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "core.h"
+#include "util.h"
 
 #define N 100
 
@@ -14,14 +15,14 @@ struct log_entry *ring;
 #define IDX(idx) ((idx+1) % N)
 
 void print(struct log_entry *r, int idx) {
-	for(int i = idx; IDX(i+1) != idx; i = IDX(i)) {
+	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
 		printf("%d: ts %ld vt %d\n", i, ring[i].ts, ring[i].vt);
 	}
 }
 
 int rank_error(struct log_entry *ring, int idx) {
 	int re = 0;
-	for(int i = idx; IDX(i+1) != idx; i = IDX(i)) {
+	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
 		if(ring[idx].vt > ring[i].vt) {
 			// printf("re: %d %d %d %d %d\n", idx, ring[idx].vt, i, ring[i].vt);
 			re += 1; 
@@ -55,11 +56,11 @@ void main(int argc, char *argv[]) {
 			perror("next ring read");
 			exit(1);
 		}
-		// printf("%d: read ts %ld vt %d\n", idx, ring[idx].ts, ring[idx].vt);
+		printf("%d: read ts %ld vt %d\n", idx, ring[idx].ts, ring[idx].vt);
 		if (n == 0)
 			break;
 		idx = IDX(idx + 1);
 		nentry += 1;
 	}
-	printf("sum_re %d n %d\n", sum_re, nentry);
+	printf("sum_re %d n %d\n", sum_re, nentry, AVG(sum_re, nentry));
 }

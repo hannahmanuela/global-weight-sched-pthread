@@ -36,7 +36,7 @@ void main(int argc, char *argv[]) {
 		}
 	}
 	// merge per-core logs into one log ordered by ts
-	for (int r = 0; r < 1000000; r++) {
+	while(1) {
 		long ts = 0;
 		int idx;
 		for (int i = 0; i < n; i++) {

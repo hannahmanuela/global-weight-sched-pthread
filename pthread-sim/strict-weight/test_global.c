@@ -139,15 +139,13 @@ void test_mheap_wakeup_lag() {
 	dequeue(c, p0, tl);
 	dequeue(c, p1, tl);
 
+	enqueue(c, p1);
+	printf("enq 1"); print(mh, gs, GRP3);
+	assert(p1->he.vruntime == 400);
+
 	enqueue(c, p0);
-	assert(p0->he.vruntime == 200);
-
 	printf("enq 0"); print(mh, gs, GRP3);
-
-	// XX overflows
-	//enqueue(c, p1);
-	//printf("enq 1"); print(mh, gs, GRP3);
-	//assert(p1->he.vruntime == 200);  // is that the right time?
+	assert(p0->he.vruntime == 200);
 }
 
 

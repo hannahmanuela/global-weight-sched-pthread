@@ -37,7 +37,6 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 // Add p to group and make p runnable
 void enqueue(struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(c, p->mh);
-
 	assert(p->h == NULL);
 
 	int old_nthread = atomic_fetch_add(&p->group->nthread, 1);
@@ -45,13 +44,20 @@ void enqueue(struct core *c, struct process *p) {
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
-		vt_t vt = mh_min_vt(h) + p->group->lag;
+		vt_t lag = p->group->vruntime - p->group->min_vt_deq;
+		vt_t h_min = mh_min_vt(h);
+		if(p->group->min_vt_deq > h_min) {
+			lag += (p->group->min_vt_deq-h_min);
+		}
+		vt_t vt = mh_min_vt(h) + lag;
 		grp_set_vruntime(p, vt);
 	}
 
 	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
 	vt_t my_vt = grp_add_vruntime(p, wvt);
+	assert(my_vt >= p->he.vruntime);  // overflow?
 	p->he.vruntime = my_vt;
+
 	mh_add_process(c, p, h);
 
 	if(debug) {
@@ -79,13 +85,10 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 
 	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
 	vt_t my_vt = grp_add_vruntime(p, wvt);
-
 	assert(my_vt >= p->he.vruntime);  // overflow?
-
 	p->he.vruntime = my_vt;
 
 	struct heap *h = mh_choose_heap(c, p->mh);
-	
 	mh_add_process(c, p, h);
 
 	if(debug) {
@@ -112,7 +115,7 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {
 		vt_t h_min = mh_min_vt(p->h);
-		p->group->lag = p->group->vruntime - h_min;
+		p->group->min_vt_deq = h_min;
 		ticks_gettime(p->group->sleepstart);
 	}
 

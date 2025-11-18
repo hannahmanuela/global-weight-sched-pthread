@@ -41,7 +41,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     struct group *g = malloc(sizeof(struct group));
     g->gid = id;
     g->vruntime = 0;
-    g->lag = 0;
     g->weight = weight;
     g->nthread = 0;
     g->procs = NULL;
@@ -102,7 +101,7 @@ float grp_runtime(struct group *g) {
 }
 
 void grp_print(struct group *g) {
-	printf("[%d: n %d vt %d lag %d]", g->gid, g->nthread, g->vruntime, g->lag);
+	printf("[%d: n %d vt %d min_vt_deq %d]", g->gid, g->nthread, g->vruntime, g->min_vt_deq);
 }
 
 void grp_stats(struct group *g, long sum) {

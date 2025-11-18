@@ -26,8 +26,9 @@ struct process {
 struct group {
 	vt_t vruntime  __attribute__((aligned(CACHE_LINE_SZ)));
 
-	vt_t lag __attribute__((aligned(CACHE_LINE_SZ)));
+	vt_t min_vt_deq __attribute__((aligned(CACHE_LINE_SZ)));
 	int nthread; // number of threads in the group
+
 	t_t *sleeptime; // number of us slots the group wasn't runnable
 	t_t *sleepstart; // tick slots sleep started
 	t_t *time;

@@ -52,10 +52,16 @@ void main(int argc, char *argv[]) {
 	int sum_re = 0;
 	int nentry = 0;
 	int max_re = 0;
+	long max_ts;
+	int max_vt;
 	while(1) {
 		int re = rank_error(ring, idx);
 		// if(re > 0) printf("%d: %ld rank_error %d\n", idx, ring[idx].ts, re);
-		if(re > max_re) max_re = re;
+		if(re > max_re) {
+			max_re = re;
+			max_ts = ring[idx].ts;
+			max_vt = ring[idx].vt;
+		}
 		sum_re += re;
 		int n = read(fd, ring+idx, sizeof(struct log_entry));
 		if (n < 0) {
@@ -68,5 +74,5 @@ void main(int argc, char *argv[]) {
 		idx = IDX(idx + 1);
 		nentry += 1;
 	}
-	printf("sum_re %d n %d %0.2f max %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re);
+	printf("sum_re %d n %d %0.2f max %d (%ld, %d)\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_ts, max_vt);
 }

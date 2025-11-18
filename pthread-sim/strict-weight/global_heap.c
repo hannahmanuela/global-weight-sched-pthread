@@ -34,7 +34,6 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 	return min_proc;
 }
 
-
 static void enq_proc_vt(struct core *c, struct process *p, struct heap *h) {
 	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
 	vt_t my_vt = grp_add_vruntime(p, wvt);

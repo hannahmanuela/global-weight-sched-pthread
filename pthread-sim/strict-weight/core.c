@@ -62,7 +62,7 @@ void c_log_append(struct core *c, vt_t vt) {
 			perror("c_log_append: write");
 			exit(1);
 		}
-		printf("%d: ts %ld vt %d\n", c->cid, c->log[0].ts, c->log[0].vt);
+		// printf("%d: ts %ld vt %d\n", c->cid, c->log[0].ts, c->log[0].vt);
 		c->log_nentry = 0;
 	}
 	int i = c->log_nentry++;

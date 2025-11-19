@@ -12,7 +12,7 @@ char buf[32];
 
 struct log_entry *ring; 
 
-#define IDX(idx) ((idx+1) % N)
+#define IDX(idx) ((idx) % N)
 
 void print(struct log_entry *r, int idx) {
 	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
@@ -24,7 +24,7 @@ int rank_error(struct log_entry *ring, int idx) {
 	int re = 0;
 	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
 		if(ring[idx].vt > ring[i].vt) {
-			// printf("re: %d %d %d %d %d\n", idx, ring[idx].vt, i, ring[i].vt);
+			// printf("re: idx %d %d i %d %d\n", idx, ring[idx].vt, i, ring[i].vt);
 			re += 1; 
 		}
 	}

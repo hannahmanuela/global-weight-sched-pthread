@@ -21,6 +21,7 @@ struct mheap *mh_new(int proc_cmp(struct heap_elem *, struct heap_elem *), int n
 	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap) * n);
 	for (int i=0; i < n; i++) {
 		mh->h[i] = heap_new(proc_cmp);
+		mh->h[i]->id = i;
 		// insert a dummy element so that the heap always has one elemement
 		struct heap_elem* he = malloc(sizeof(struct heap_elem));
 		heap_elem_init(he, DUMMY, 0, NULL);

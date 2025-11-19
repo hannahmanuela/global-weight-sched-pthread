@@ -28,7 +28,7 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 		mh_print(min_proc->mh);
 	}
 	if(c->fd > 0) {
-		c_log_append(c, min_proc->he.vruntime);
+		c_log_append(c, min_proc);
 	}
 
 	return min_proc;

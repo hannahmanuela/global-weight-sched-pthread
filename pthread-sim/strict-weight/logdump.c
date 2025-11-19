@@ -21,6 +21,7 @@ void main(int argc, char *argv[]) {
 		exit(1);
 	}
 	struct log_entry *log = malloc(sizeof(struct log_entry)* N);
+	long ts = 0;
 	while(1) {
 		int n = read(fd, log, sizeof(struct log_entry) * N);
 		if (n < 0) {
@@ -29,7 +30,13 @@ void main(int argc, char *argv[]) {
 		}
 		if (n == 0) break;
 		for (int i = 0; i < N; i++) {
-			printf("ts %ld vt %d\n", log[i].ts, log[i].vt);
+			if (ts > log[i].ts) {
+				printf("not sorted %d %ld\n", i, log[i].ts);
+				exit(1);
+			}
+			ts = log[i].ts;
+			printf("ts %ld vt %d cid %d pid %d(%d) hid %d\n", log[i].ts, log[i].vt, log[i].cid, log[i].pid, log[i].gid, log[i].hid);
 		}
 	}
+	close(fd);
 }

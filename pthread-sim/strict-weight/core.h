@@ -9,6 +9,10 @@
 struct log_entry {
 	long ts;
 	vt_t vt;
+	int cid;
+	int pid;
+	int gid;
+	int hid;
 };
 
 struct core {
@@ -57,7 +61,7 @@ void c_print(struct core *c);
 int c_rand(struct core *c, int n);
 struct core *c_new(int i);
 void c_log_init(struct core *c, char *name);
-void c_log_append(struct core *c, vt_t vt);
+void c_log_append(struct core *c, struct process *p);
 void c_log_done(struct core *c);
 
 #endif

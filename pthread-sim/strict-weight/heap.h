@@ -18,6 +18,7 @@ struct heap {
 
 	cmp_elem_t cmp_elem;
 	int heap_capacity;
+	int id;
 
 	int heap_size __attribute__((aligned(CACHE_LINE_SZ)));
 }  __attribute__((aligned(CACHE_LINE_SZ)));

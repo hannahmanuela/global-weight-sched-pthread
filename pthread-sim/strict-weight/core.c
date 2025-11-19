@@ -8,6 +8,8 @@
 
 #include "core.h"
 #include "util.h"
+#include "group.h"
+#include "mheap.h"
 
 void c_print(struct core *c) {
 	printf("%d: us(cycles): sched %ld %0.2f enq %ld %0.2f deq %ld %0.2f yield %ld %0.2f",
@@ -52,7 +54,7 @@ void c_log_init(struct core *c, char *name) {
 	}
 }
 
-void c_log_append(struct core *c, vt_t vt) {
+void c_log_append(struct core *c, struct process *p) {
 	if(c->log_nentry == 0) {
 		c->log = malloc(sizeof(struct log_entry) * LOG_NENTRY);
 	}
@@ -67,7 +69,11 @@ void c_log_append(struct core *c, vt_t vt) {
 	}
 	int i = c->log_nentry++;
 	c->log[i].ts = _rdtsc();
-	c->log[i].vt = vt;
+	c->log[i].vt = p->he.vruntime;
+	c->log[i].cid = c->cid;
+	c->log[i].pid = p->pid;
+	c->log[i].gid = p->group->gid;
+	c->log[i].hid = p->h->id;
 }
 
 void c_log_done(struct core *c) {

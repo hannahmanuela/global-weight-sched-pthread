@@ -9,7 +9,6 @@
 // Mutual exclusion lock.
 struct spinlock {
   uint32_t locked;       // Is the lock held?
-  struct core *c;   // The cpu holding the lock.
 };
 
 void lock_init(struct spinlock *lk);

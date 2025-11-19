@@ -345,8 +345,6 @@ void test_worst(int nheap) {
 	printf("== test_worst: avg %d worst %d\n", sum/n, worst);
 }
 
-
-
 void main(int argc, char *argv[]) {
 	srandom(getpid());
 	// debug = true;

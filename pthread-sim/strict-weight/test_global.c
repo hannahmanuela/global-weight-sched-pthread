@@ -140,12 +140,40 @@ void test_mheap_wakeup_lag() {
 	dequeue(c, p1, tl);
 
 	enqueue(c, p1);
-	printf("enq 1"); print(mh, gs, GRP3);
 	assert(p1->he.vruntime == 400);
 
 	enqueue(c, p0);
-	printf("enq 0"); print(mh, gs, GRP3);
 	assert(p0->he.vruntime == 200);
+
+	// experimenting
+	
+	p0 = schedule_retry(c, mh);
+	assert(p0->pid == 0);
+
+	p1 = schedule_retry(c, mh);
+	assert(p1->pid == 1);
+
+	struct process *p2 = schedule_retry(c, mh);
+	assert(p2->pid == 2);
+
+	printf("all running"); print(mh, gs, GRP3);
+
+	dequeue(c, p0, tl);
+	printf("deq 0"); print(mh, gs, GRP3);
+	dequeue(c, p1, tl);
+	dequeue(c, p2, tl);
+
+	printf("deq all"); print(mh, gs, GRP3);
+
+	enqueue(c, p1);
+
+	printf("enq 1"); print(mh, gs, GRP3);
+
+	enqueue(c, p2);
+
+	printf("enq 2"); print(mh, gs, GRP3);
+
+	// printf("yield 1"); print(mh, gs, GRP3);
 }
 
 

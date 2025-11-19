@@ -109,7 +109,7 @@ retry:
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 	p->h = h;
 	heap_push(h, &p->he);
-	heap_check(h);
+	// heap_check(h);
 }
 
 // caller must hold heap lock
@@ -123,10 +123,8 @@ struct process *mh_del_min_process(struct core *c, struct heap *h) {
 static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct mheap *mh, int i, int j, vt_t *vt) {
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	//vt_t vt_i = atomic_load_explicit(&h_i->heap->vruntime, __ATOMIC_RELAXED);
-	//vt_t vt_j = atomic_load_explicit(&h_j->heap->vruntime, __ATOMIC_RELAXED);
-	vt_t vt_i = atomic_load(&h_i->heap->vruntime);
-	vt_t vt_j = atomic_load(&h_j->heap->vruntime);
+	vt_t vt_i = atomic_load_explicit(&h_i->heap->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&h_j->heap->vruntime, __ATOMIC_RELAXED);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
 		return NULL;
 	}

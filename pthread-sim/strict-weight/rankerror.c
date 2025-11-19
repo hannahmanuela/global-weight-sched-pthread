@@ -6,7 +6,7 @@
 #include "core.h"
 #include "util.h"
 
-#define N 100
+#define N 200
 
 char buf[32];
 

@@ -21,6 +21,10 @@ struct process {
 
 	int pid;
 	struct process *next;
+
+	int other_hid;
+	vt_t other_vt;
+	
 } __attribute__((aligned(64)));
 
 struct group {

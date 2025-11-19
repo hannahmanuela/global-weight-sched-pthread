@@ -120,7 +120,8 @@ struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	return (struct process *) he->elem;
 }
 
-static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct mheap *mh, int i, int j, vt_t *vt) {
+static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
+	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
 	vt_t vt_i = atomic_load_explicit(&h_i->heap->vruntime, __ATOMIC_RELAXED);
@@ -131,11 +132,14 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct
 	if (vt_i == DUMMY) {
 		vt_i = vt_j;
 		h_i = h_j;
+		ovt = vt_i;
 	} else {
 		if (vt_i > vt_j) {
+			ovt = vt_i;
 			vt_i = vt_j;
 			h_i = h_j;
 		} else if (vt_i == vt_j) {
+			ovt = vt_i;
 			struct heap_elem *he_i = h_i->heap;
 			struct heap_elem *he_j = h_j->heap;
 			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
@@ -147,6 +151,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct
 		}
 	}
 	*vt = vt_i;
+	*other_vt = ovt;
 	return h_i;
 }
 
@@ -162,7 +167,8 @@ retry:
 		j = c_rand(c, mh->nheap);
 	}
 	vt_t vt;
-	struct heap *h = mh_select(c, mh, i, j, &vt);
+	vt_t other_vt;
+	struct heap *h = mh_select(c, mh, i, j, &vt, &other_vt);
 	if (h == NULL) {
 		c->nsched_null += 1;
 		return NULL;
@@ -188,6 +194,8 @@ retry:
 	}
 	struct process *p = mh_del_min_process(c, h);
 	lock_release(&h->lk);
+	p->other_hid = (h->id == i) ? j : i;
+	p->other_vt = other_vt;
 	//c->min_proc_cycles += (safe_read_tsc() - start);
 	c->nretry_del += (r + r_lock);
 	c->nretry_del_lock += r_lock;

@@ -10,13 +10,16 @@
 
 char buf[32];
 
+#define NBIN 50
+int bin[NBIN];
+
 struct log_entry *ring; 
 
 #define IDX(idx) ((idx) % N)
 
 void print(struct log_entry *r, int idx) {
 	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
-		printf("%d: ts %ld vt %d\n", i, ring[i].ts, ring[i].vt);
+		printf("%d: ts %ld vt %d cid %d pid %d(%d) hid %d\n", i, ring[i].ts, ring[i].vt, ring[i].cid, ring[i].pid, ring[i].gid, ring[i].hid);
 	}
 }
 
@@ -24,8 +27,12 @@ int rank_error(struct log_entry *ring, int idx) {
 	int re = 0;
 	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
 		if(ring[idx].vt > ring[i].vt) {
-			// printf("re: idx %d %d i %d %d\n", idx, ring[idx].vt, i, ring[i].vt);
 			re += 1; 
+			if(re == 40) {
+			  printf("re: idx %d %d i %d %d\n", idx, ring[idx].vt, i, ring[i].vt);
+			  
+			  print(ring, idx);
+			}
 		}
 	}
 	return re;
@@ -62,6 +69,7 @@ void main(int argc, char *argv[]) {
 			max_ts = ring[idx].ts;
 			max_vt = ring[idx].vt;
 		}
+		bin[(re%NBIN)]++;
 		sum_re += re;
 		int n = read(fd, ring+idx, sizeof(struct log_entry));
 		if (n < 0) {
@@ -75,4 +83,8 @@ void main(int argc, char *argv[]) {
 		nentry += 1;
 	}
 	printf("sum_re %d n %d %0.2f max %d (%ld, %d)\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_ts, max_vt);
+	printf("distribution of rank errors:\n");
+	for(int i = 0; i < NBIN; i++)
+		printf("  re %d: %d\n", i, bin[i]);
+	printf("=\n");
 }

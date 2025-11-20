@@ -67,8 +67,6 @@ void enqueue(struct core *c, struct process *p) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 		mh_print(p->group->mh);
 	}
-
-	lock_release(&p->h->lk);
 }
 
 // proc may have run for less than its allocated time; in that
@@ -94,8 +92,6 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 		printf("%d(%d): yield time_passed %ld nt %d w %d vt %u\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime);
 		mh_print(p->group->mh);
 	}
-
-	lock_release(&p->h->lk);
 }
 
 // Process p is not runnable and yields core, which may make

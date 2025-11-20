@@ -110,6 +110,7 @@ void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 	p->h = h;
 	heap_push(h, &p->he);
 	// heap_check(h);
+	lock_release(&p->h->lk);
 }
 
 // caller must hold heap lock
@@ -156,7 +157,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct
 }
 
 // https://dl.acm.org/doi/10.1145/2755573.2755616
-struct process *mh_sample_min_group(struct core *c, struct mheap *mh) {
+struct process *mh_sample_min_proc(struct core *c, struct mheap *mh) {
 	long r = 0;
 	long r_lock = 0;
 retry:
@@ -221,6 +222,6 @@ struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 		lock_release(&h->lk);
 		return p;
 	}
-	return mh_sample_min_group(c, mh);
+	return mh_sample_min_proc(c, mh);
 }
 	

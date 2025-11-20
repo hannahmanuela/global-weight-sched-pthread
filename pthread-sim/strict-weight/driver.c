@@ -71,25 +71,25 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		mycore->current_process = schedule(gh, mycore);
+		mycore->current_process = gh_schedule(gh, mycore);
 		break;
 	case YIELD:
 		mycore->total += gh->tick_length;
 		if(p) {
 			mycore->work += gh->tick_length;
-			yield(gh, mycore, p, gh->tick_length);
+			gh_yield(gh, mycore, p, gh->tick_length);
 		} else {
 			mycore->idle += gh->tick_length;
 		}
 		// mycore->current_process = NULL;
 		break;
 	case ENQ:
-	        enqueue(gh, mycore, p);
+	        gh_enqueue(gh, mycore, p);
 		break;
 	case DEQ:
 		mycore->total += gh->tick_length;
 		mycore->work += gh->tick_length/2;
-		dequeue(gh, mycore, p, gh->tick_length/2);
+		gh_dequeue(gh, mycore, p, gh->tick_length/2);
 		mycore->current_process = NULL;
 		break;
 	}
@@ -187,7 +187,7 @@ void main(int argc, char *argv[]) {
 	    gs->grps[i] = g;
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(gs->gh->mh, i*num_threads_p_group+j, g);
-		    enqueue(gs->gh, gs->cores[0], p);
+		    gh_enqueue(gs->gh, gs->cores[0], p);
 	    }
     }
 
@@ -270,7 +270,7 @@ void main(int argc, char *argv[]) {
     printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
     printf("  hit %ld\n", hit);
 	     
-    stats(gs->gh, gs->grps, num_groups);
+    gh_stats(gs->gh, gs->grps, num_groups);
 }
 
 

@@ -23,7 +23,7 @@ struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct h
 }
 
 // Select next process to run
-struct process *schedule(struct global_heap *gh, struct core *c) {
+struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 	//if (c->current_process && mh_is_min(c->current_process))
 	// c->hit++;
 	struct process *min_proc = mh_min_proc(c, gh->mh);
@@ -51,7 +51,7 @@ static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *
 }
 
 // Add p to group and make p runnable
-void enqueue(struct global_heap *gh, struct core *c, struct process *p) {
+void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(c, p->mh);
 	assert(p->h == NULL);
 
@@ -89,7 +89,7 @@ static void grp_adjust_vruntime(struct global_heap *gh, struct process *p, t_t t
 }
 
 // Yield and enqueue
-void yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
 	grp_adjust_vruntime(gh, p, time_passed);
 
 	struct heap *h = mh_choose_heap(c, p->mh);
@@ -104,7 +104,7 @@ void yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_p
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
 	struct heap *h = p->h;
 	lock_acquire(&h->lk);
 
@@ -127,7 +127,7 @@ void dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time
 	lock_release(&h->lk);
 }
 
-void print(struct global_heap *gh, struct group *grps[], int n) {
+void gh_print(struct global_heap *gh, struct group *grps[], int n) {
 	mh_print(gh->mh);
 	printf("= groups %d:\n", n);
 	for(int i = 0; i < n; i++) {
@@ -136,7 +136,7 @@ void print(struct global_heap *gh, struct group *grps[], int n) {
 	printf("=\n");
 }
 
-void stats(struct global_heap *gh, struct group *grps[], int n) {
+void gh_stats(struct global_heap *gh, struct group *grps[], int n) {
 	t_t *ticks = new_ticks();
 	ticks_gettime(ticks);
 	t_t tot = ticks_sum(ticks);

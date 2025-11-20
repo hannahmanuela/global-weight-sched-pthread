@@ -7,9 +7,9 @@ struct global_heap {
 };
 
 struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct heap_elem *), int n);
-struct process *schedule(struct global_heap *gh, struct core *c);
-void yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed);
-void enqueue(struct global_heap *gh, struct core *c, struct process *p);
-void dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_gotten);
-void stats(struct global_heap *gh, struct group *gs[], int n);
-void print(struct global_heap *gh, struct group *gs[], int n);
+struct process *gh_schedule(struct global_heap *gh, struct core *c);
+void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed);
+void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p);
+void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_gotten);
+void gh_stats(struct global_heap *gh, struct group *gs[], int n);
+void gh_print(struct global_heap *gh, struct group *gs[], int n);

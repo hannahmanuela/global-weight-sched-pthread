@@ -51,10 +51,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     return g;
 }
 
-vt_t grp_slot(struct process *p, int nthread) {
-	return calc_delta(p->mh->tick_length, p->he.weight) * (nthread-1);
-}
-
 void proc_print(struct process *p) {
 	printf("(pid %d(%d) vt %u, w %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
 }	

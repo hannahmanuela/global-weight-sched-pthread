@@ -11,10 +11,9 @@
 struct mheap {
 	struct heap **h;
 	int nheap;
-	int tick_length;
 } __attribute__((aligned(CACHE_LINE_SZ)));
 
-struct mheap *mh_new(int grpcmp(struct heap_elem *, struct heap_elem *), int n, int tick_length); 
+struct mheap *mh_new(int grpcmp(struct heap_elem *, struct heap_elem *), int n);
 void mh_free(struct mheap *mh);
 void mh_print(struct mheap *mh);
 vt_t mh_min_vt(struct heap *h);

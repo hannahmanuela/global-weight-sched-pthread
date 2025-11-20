@@ -14,7 +14,7 @@
 #include "mheap.h"
 #include "util.h"
 
-struct mheap *mh_new(int proc_cmp(struct heap_elem *, struct heap_elem *), int n, int tick_length) {
+struct mheap *mh_new(int proc_cmp(struct heap_elem *, struct heap_elem *), int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap) * n);
 	for (int i=0; i < n; i++) {
@@ -26,7 +26,6 @@ struct mheap *mh_new(int proc_cmp(struct heap_elem *, struct heap_elem *), int n
 		heap_push(mh->h[i], he);
 	}
 	mh->nheap = n;
-	mh->tick_length = tick_length;
 	return mh;
 }
 
@@ -74,7 +73,7 @@ static void print_elem(struct heap_elem *e) {
 }
 
 void mh_print(struct mheap *mh) {
-	printf("= mh tl %d\n", mh->tick_length);
+	printf("= mh:\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
 		printf("  Heap %d size %d: \n", i, h->heap_size);

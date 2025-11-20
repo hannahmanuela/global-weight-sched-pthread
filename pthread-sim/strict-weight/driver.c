@@ -29,11 +29,13 @@
 // #define TIME_TO_RUN 20  // sec
 #define TIME_TO_RUN 1  // sec
 
+int tick_length = 1000;
 int num_groups = 4;
 int num_cores;
 int time_work; // in usec
 bool do_log;
 bool do_ts_op;
+struct global_heap *gh;
 
 extern bool debug;
 
@@ -66,34 +68,36 @@ void ticks_getwork(t_t *ticks) {
 #define DEQ 3
 
 void doop(struct core *mycore, int op, long *cycles, long *n, struct process *p) {
-	long ts = safe_read_tsc();
+	long ts = 0;
+	if(do_ts_op) ts = safe_read_tsc();
 	int c = mycore->cid;
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		mycore->current_process = schedule(mycore, gs->mh);
+		mycore->current_process = schedule(gh, mycore, gs->mh);
 		break;
 	case YIELD:
-		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
+		atomic_fetch_add(&(mycore->total.tick), tick_length);
 		if(p) {
-			atomic_fetch_add(&(mycore->work.tick), gs->mh->tick_length);
-			yield(mycore, p, gs->mh->tick_length);
+			atomic_fetch_add(&(mycore->work.tick), tick_length);
+			yield(gh, mycore, p, tick_length);
 		} else {
-			atomic_fetch_add(&(mycore->idle.tick), gs->mh->tick_length);
+			atomic_fetch_add(&(mycore->idle.tick), tick_length);
 		}
 		// mycore->current_process = NULL;
 		break;
 	case ENQ:
-	        enqueue(mycore, p);
+	        enqueue(gh, mycore, p);
 		break;
 	case DEQ:
-		atomic_fetch_add(&(mycore->total.tick), gs->mh->tick_length);
-		atomic_fetch_add(&(mycore->work.tick), gs->mh->tick_length/2);
-		dequeue(mycore, p, gs->mh->tick_length/2);
+		atomic_fetch_add(&(mycore->total.tick), tick_length);
+		atomic_fetch_add(&(mycore->work.tick), tick_length/2);
+		dequeue(gh, mycore, p, tick_length/2);
 		mycore->current_process = NULL;
 		break;
 	}
-	long op_cycles = safe_read_tsc() - ts;
+	long op_cycles = 0;
+	if (do_ts_op) op_cycles = safe_read_tsc() - ts;
 	*cycles += op_cycles;
 	*n += 1;
 }
@@ -165,7 +169,6 @@ void main(int argc, char *argv[]) {
 	    exit(1);
     }
     num_cores = atoi(argv[1]);
-    int tick_length = 1000;
     int num_threads = atoi(argv[2]);
     int nheap = atoi(argv[3]);
     int num_threads_p_group = num_threads/num_groups;
@@ -180,7 +183,8 @@ void main(int argc, char *argv[]) {
 	    gs->cores[i] = c_new(i);
 	    if (do_log) c_log_init(gs->cores[i], "/tmp/vtlog");
     }
-    gs->mh = mh_new(proc_cmp, nheap, tick_length);
+    gh = gh_new(tick_length);
+    gs->mh = mh_new(proc_cmp, nheap);
 
     gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
     for (int i = 0; i < num_groups; i++) {
@@ -189,7 +193,7 @@ void main(int argc, char *argv[]) {
 	    gs->grps[i] = g;
 	    for (int j = 0; j < num_threads_p_group; j++) {
 		    struct process *p = grp_new_process(gs->mh, i*num_threads_p_group+j, g);
-		    enqueue(gs->cores[0], p);
+		    enqueue(gh, gs->cores[0], p);
 	    }
     }
 
@@ -272,7 +276,7 @@ void main(int argc, char *argv[]) {
     printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
     printf("  hit %ld\n", hit);
 	     
-    stats(gs->grps, num_groups);
+    stats(gh, gs->grps, num_groups);
 }
 
 

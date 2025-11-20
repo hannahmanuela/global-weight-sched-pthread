@@ -2,11 +2,13 @@
 #include <limits.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "vt.h"
 #include "util.h"
 #include "ticks.h"
 #include "driver.h"
+#include "global_heap.h"
 #include "core.h"
 #include "group.h"
 #include "mheap.h"
@@ -14,8 +16,14 @@
 bool debug;
 extern FILE *log_fd;
 
+struct global_heap *gh_new(int tick_length) {
+	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
+	gh->tick_length = tick_length;
+	return gh;
+}
+
 // Select next process to run
-struct process *schedule(struct core *c, struct mheap *mh) {
+struct process *schedule(struct global_heap *gh, struct core *c, struct mheap *mh) {
 	//if (c->current_process && mh_is_min(c->current_process))
 	// c->hit++;
 	struct process *min_proc = mh_min_proc(c, mh);
@@ -34,8 +42,8 @@ struct process *schedule(struct core *c, struct mheap *mh) {
 	return min_proc;
 }
 
-static void enq_proc_vt(struct core *c, struct process *p, struct heap *h) {
-	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
+static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
+	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
 	vt_t my_vt = grp_add_vruntime(p, wvt);
 	assert(my_vt >= p->he.vruntime);  // overflow?
 	p->he.vruntime = my_vt;
@@ -43,7 +51,7 @@ static void enq_proc_vt(struct core *c, struct process *p, struct heap *h) {
 }
 
 // Add p to group and make p runnable
-void enqueue(struct core *c, struct process *p) {
+void enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(c, p->mh);
 	assert(p->h == NULL);
 
@@ -61,7 +69,7 @@ void enqueue(struct core *c, struct process *p) {
 		grp_set_vruntime(p, vt);
 	}
 
-	enq_proc_vt(c, p, h);
+	enq_proc_vt(gh, c, p, h);
 
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
@@ -71,22 +79,22 @@ void enqueue(struct core *c, struct process *p) {
 
 // proc may have run for less than its allocated time; in that
 // case adjust the proc's group vruntime.
-static void grp_adjust_vruntime(struct process *p, t_t time_passed) {
+static void grp_adjust_vruntime(struct global_heap *gh, struct process *p, t_t time_passed) {
 	p->runtime += time_passed;
 	vt_t vt = calc_delta(time_passed, p->he.weight);
-	vt_t wvt = calc_delta(p->mh->tick_length, p->he.weight);
+	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
 	if (wvt > vt) {
 		grp_add_vruntime(p, -(wvt-vt));
 	}
 }
 
 // Yield and enqueue
-void yield(struct core *c, struct process *p, t_t time_passed) {
-	grp_adjust_vruntime(p, time_passed);
+void yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+	grp_adjust_vruntime(gh, p, time_passed);
 
 	struct heap *h = mh_choose_heap(c, p->mh);
 
-	enq_proc_vt(c, p, h);
+	enq_proc_vt(gh, c, p, h);
 
 	if(debug) {
 		printf("%d(%d): yield time_passed %ld nt %d w %d vt %u\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime);
@@ -96,7 +104,7 @@ void yield(struct core *c, struct process *p, t_t time_passed) {
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void dequeue(struct core *c, struct process *p, t_t time_passed) {
+void dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
 	struct heap *h = p->h;
 	lock_acquire(&h->lk);
 
@@ -105,7 +113,7 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 		mh_print(p->group->mh);
 	}
 
-	grp_adjust_vruntime(p, time_passed);
+	grp_adjust_vruntime(gh, p, time_passed);
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {
@@ -119,7 +127,7 @@ void dequeue(struct core *c, struct process *p, t_t time_passed) {
 	lock_release(&h->lk);
 }
 
-void print(struct mheap *mh, struct group *grps[], int n) {
+void print(struct global_heap *gh, struct mheap *mh, struct group *grps[], int n) {
 	mh_print(mh);
 	printf("= groups %d:\n", n);
 	for(int i = 0; i < n; i++) {
@@ -128,7 +136,7 @@ void print(struct mheap *mh, struct group *grps[], int n) {
 	printf("=\n");
 }
 
-void stats(struct group *grps[], int n) {
+void stats(struct global_heap *gh, struct group *grps[], int n) {
 	t_t *ticks = new_ticks();
 	ticks_gettime(ticks);
 	t_t tot = ticks_sum(ticks);

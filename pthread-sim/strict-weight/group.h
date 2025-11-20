@@ -43,7 +43,6 @@ struct group {
 } __attribute__((aligned(CACHE_LINE_SZ)));
 
 struct group *grp_new(struct mheap *mh, int id, int weight);
-vt_t grp_slot(struct process *p, int nthread);
 void proc_print(struct process *p);
 struct process *grp_new_process(struct mheap *mh, int id, struct group *g);
 int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);

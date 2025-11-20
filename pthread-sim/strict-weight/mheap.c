@@ -121,6 +121,15 @@ struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	return (struct process *) he->elem;
 }
 
+static void  __attribute__ ((noinline)) mh_rand_heaps(struct core *c, struct mheap *mh, int *i, int *j) {
+	*i = c_rand(c, mh->nheap);
+	*j = c_rand(c, mh->nheap);
+	while (*i == *j) {
+		c->nrand++;
+		*j = c_rand(c, mh->nheap);
+	}
+}
+
 static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
@@ -161,14 +170,11 @@ struct process *mh_sample_min_proc(struct core *c, struct mheap *mh) {
 	long r = 0;
 	long r_lock = 0;
 retry:
-	int i = c_rand(c, mh->nheap);
-	int j = c_rand(c, mh->nheap);
-	while (i == j) {
-		c->nrand++;
-		j = c_rand(c, mh->nheap);
-	}
+	int i, j;
 	vt_t vt;
 	vt_t other_vt;
+
+	mh_rand_heaps(c, mh, &i, &j);
 	struct heap *h = mh_select(c, mh, i, j, &vt, &other_vt);
 	if (h == NULL) {
 		c->nsched_null += 1;

@@ -14,8 +14,6 @@
 #include "mheap.h"
 #include "util.h"
 
-extern bool with_tsc;
-
 struct mheap *mh_new(int proc_cmp(struct heap_elem *, struct heap_elem *), int n, int tick_length) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap) * n);

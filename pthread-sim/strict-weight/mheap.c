@@ -6,7 +6,6 @@
 #include <float.h>
 
 #include "vt.h"
-#include "ticks.h"
 #include "driver.h"
 #include "core.h"
 #include "group.h"

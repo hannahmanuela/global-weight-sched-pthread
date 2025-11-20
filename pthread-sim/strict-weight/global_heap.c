@@ -6,7 +6,6 @@
 
 #include "vt.h"
 #include "util.h"
-#include "ticks.h"
 #include "driver.h"
 #include "global_heap.h"
 #include "core.h"

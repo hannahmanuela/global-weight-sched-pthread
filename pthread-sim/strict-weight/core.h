@@ -4,7 +4,7 @@
 
 #include <stdatomic.h>
 
-#include "ticks.h"
+#include "vt.h"
 
 struct log_entry {
 	long ts;
@@ -20,9 +20,9 @@ struct log_entry {
 struct core {
 	int cid;
 	unsigned int seed;
-	struct tick work;
-	struct tick idle;
-	struct tick total;
+	t_t work;
+	t_t idle;
+	t_t total;
 	struct process *current_process;
 	struct process *pool;
 

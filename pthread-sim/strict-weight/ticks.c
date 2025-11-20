@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include <ticks.h>
+#include "vt.h"
 
 extern int num_cores;
 

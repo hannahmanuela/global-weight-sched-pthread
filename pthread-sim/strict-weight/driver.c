@@ -16,7 +16,6 @@
 #include <float.h>
 
 #include "vt.h"
-#include "ticks.h"
 #include "core.h"
 #include "group.h"
 #include "heap.h"
@@ -29,7 +28,6 @@
 // #define TIME_TO_RUN 20  // sec
 #define TIME_TO_RUN 2  // sec
 
-int tick_length = 1000;
 int num_groups = 4;
 int num_cores;
 int time_work; // in usec
@@ -48,17 +46,17 @@ struct global_state* gs;
 
 void ticks_gettime(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i]->total.tick));
+		ticks[i] = atomic_load(&(gs->cores[i]->total));
 }
 
 void ticks_getidle(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i]->idle.tick));
+		ticks[i] = atomic_load(&(gs->cores[i]->idle));
 }
 
 void ticks_getwork(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i]->work.tick));
+		ticks[i] = atomic_load(&(gs->cores[i]->work));
 }
 
 #define SCHEDULE 0
@@ -76,12 +74,12 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 		mycore->current_process = schedule(gh, mycore);
 		break;
 	case YIELD:
-		// atomic_fetch_add_explicit(&(mycore->total.tick), gh->tick_length, __ATOMIC_RELAXED);
+		mycore->total += gh->tick_length;
 		if(p) {
-			// atomic_fetch_add(&(mycore->work.tick), tick_length);
+			mycore->work += gh->tick_length;
 			yield(gh, mycore, p, gh->tick_length);
 		} else {
-			atomic_fetch_add(&(mycore->idle.tick), gh->tick_length);
+			mycore->idle += gh->tick_length;
 		}
 		// mycore->current_process = NULL;
 		break;
@@ -89,9 +87,9 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 	        enqueue(gh, mycore, p);
 		break;
 	case DEQ:
-		atomic_fetch_add(&(mycore->total.tick), tick_length);
-		atomic_fetch_add(&(mycore->work.tick), tick_length/2);
-		dequeue(gh, mycore, p, tick_length/2);
+		mycore->total += gh->tick_length;
+		mycore->work += gh->tick_length/2;
+		dequeue(gh, mycore, p, gh->tick_length/2);
 		mycore->current_process = NULL;
 		break;
 	}
@@ -150,7 +148,6 @@ void *run_core(void* core) {
 
 	int cont = 1;
 	double start = now();
-	//int fd = perf_config(mycore->cid);
 	for (int i = 0; now() - start < TIME_TO_RUN; i++) {
 		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 		if(time_work > 0) 
@@ -161,7 +158,6 @@ void *run_core(void* core) {
 	}
 }
 
-
 void main(int argc, char *argv[]) {
     if (argc != 5) {
 	    fprintf(stderr, "usage: <num_cores> <num_threads> <num_heaps> <time_work (us)>\n");
@@ -171,6 +167,7 @@ void main(int argc, char *argv[]) {
     int num_threads = atoi(argv[2]);
     int nheap = atoi(argv[3]);
     int num_threads_p_group = num_threads/num_groups;
+    int tick_length = 1000;
     time_work = atoi(argv[4]);
 
     //debug = true;

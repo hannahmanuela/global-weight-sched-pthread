@@ -4,7 +4,6 @@
 #include <unistd.h>
 
 #include "vt.h"
-#include "ticks.h"
 #include "core.h"
 #include "group.h"
 #include "heap.h"

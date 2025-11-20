@@ -12,9 +12,8 @@
 struct process {
 	struct heap_elem he;
 	struct heap *h;
-	t_t runtime;  // number of us the process ran
 
-	pthread_rwlock_t proc_lock;
+	t_t runtime;  // number of us the process ran
 
 	struct mheap *mh;
 	struct group *group;
@@ -25,7 +24,7 @@ struct process {
 	int other_hid;
 	vt_t other_vt;
 	
-} __attribute__((aligned(64)));
+} __attribute__((aligned(CACHE_LINE_SZ)));
 
 struct group {
 	vt_t vruntime  __attribute__((aligned(CACHE_LINE_SZ)));
@@ -37,14 +36,11 @@ struct group {
 	t_t *sleepstart; // tick slots sleep started
 	t_t *time;
 
-
-	pthread_rwlock_t group_lock __attribute__((aligned(CACHE_LINE_SZ)));
-
 	struct process *procs __attribute__((aligned(CACHE_LINE_SZ)));
 	struct mheap *mh;
 	int gid;
 	int weight;
-} __attribute__((aligned(64)));
+} __attribute__((aligned(CACHE_LINE_SZ)));
 
 struct group *grp_new(struct mheap *mh, int id, int weight);
 vt_t grp_slot(struct process *p, int nthread);

@@ -27,7 +27,6 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     struct process *p = malloc(sizeof(struct process));
     p->pid = id;
     p->runtime = 0;
-    pthread_rwlock_init(&p->proc_lock, NULL);
     p->group = group;
     p->next = NULL;
     heap_elem_init(&p->he, 0, group->weight, p);
@@ -49,7 +48,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
     g->sleeptime = new_ticks();
     g->time = new_ticks();
     g->mh = mh;
-    pthread_rwlock_init(&g->group_lock, NULL);
     return g;
 }
 

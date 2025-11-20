@@ -33,9 +33,9 @@ int num_groups = 4;
 int num_cores;
 int time_work; // in usec
 bool do_log;
+bool do_ts_op;
 
 extern bool debug;
-
 
 struct global_state {
 	struct mheap *mh;
@@ -156,7 +156,6 @@ void *run_core(void* core) {
 		// sleepwakeup(mycore);
 		// action(mycore, rand() % 3);
 	}
-	//printf("perf %ld\n", perf_read_l2(fd));
 }
 
 
@@ -173,6 +172,7 @@ void main(int argc, char *argv[]) {
     time_work = atoi(argv[4]);
 
     //debug = true;
+    //do_log = true;
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);

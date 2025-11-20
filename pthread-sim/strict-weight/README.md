@@ -5,9 +5,9 @@ proportional to its weight as a share of the sum of weights of
 runnable groups.
 
 In global-heap each group has a weight and a list of runnable
-processes in the group.  Global-heap maintains a `vruntime` for each
-group and selects a process with the lowest `vruntime` to run on a
-core.
+processes in the group.  Global-heap selects a process with the global
+lowest `vruntime` to run on a core.  Global-heap also maintains a
+`vruntime` for each group for computing a process's vruntime.
 
 Consider a tick_length of 1000us and two groups, g1 with weight 10 and
 g2 with weight 20.  The first core to schedule arbitrarily picks g1,

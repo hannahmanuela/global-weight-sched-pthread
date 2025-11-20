@@ -30,10 +30,10 @@ vruntime would be updated by the diff to the expected (-500) divided
 by the weight (10) = -50; leaving the group with a vruntime as if the
 core had only added the time it actually ran. 
 
-Other processes of the same group will not have their vruntimes not
-moved back because the process didn't run for its full vruntime.  If
-the same process runs again immediately, then it will benefit from the
-updated group vruntime.   This also avoids the need to update the
+Other processes of the same group will not have their vruntime's moved
+back because the process didn't run for its full vruntime.  If the
+same process runs again immediately, then it will benefit from the
+updated group vruntime.  This also avoids the need to update the
 vruntimes of enqueued processes of the same group, and having to
 update the global heap of runnable processes.
 

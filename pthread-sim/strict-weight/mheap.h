@@ -11,7 +11,7 @@
 struct mheap {
 	struct heap **h;
 	int nheap;
-} __attribute__((aligned(CACHE_LINE_SZ)));
+};
 
 struct mheap *mh_new(int grpcmp(struct heap_elem *, struct heap_elem *), int n);
 void mh_free(struct mheap *mh);

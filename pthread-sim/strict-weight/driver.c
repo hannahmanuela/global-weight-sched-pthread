@@ -265,7 +265,7 @@ void main(int argc, char *argv[]) {
     printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
     printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
     printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
-    printf("  retry del %ld (%ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
+    printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
     printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
     printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
     printf("  hit %ld\n", hit);

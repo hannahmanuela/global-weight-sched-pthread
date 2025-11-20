@@ -175,8 +175,6 @@ retry:
 		return NULL;
 	}
 
-        // if (lock_holding(&h->lk)) goto retry;
-
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		r++;

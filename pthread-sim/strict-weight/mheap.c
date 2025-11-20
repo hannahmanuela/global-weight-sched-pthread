@@ -104,16 +104,15 @@ retry:
 	return h;
 }
 
-// caller must hold heap and proc lock
+// caller must hold heap lock
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 	p->h = h;
 	heap_push(h, &p->he);
-	// heap_check(h);
 	lock_release(&p->h->lk);
 }
 
 // caller must hold heap lock
-struct process *mh_del_min_process(struct core *c, struct heap *h) {
+static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	struct heap_elem *he;
 	he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
@@ -165,7 +164,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct
 }
 
 // https://dl.acm.org/doi/10.1145/2755573.2755616
-struct process *mh_sample_min_proc(struct core *c, struct mheap *mh) {
+static struct process *mh_sample_min_proc(struct core *c, struct mheap *mh) {
 	long r = 0;
 	long r_lock = 0;
 retry:
@@ -207,7 +206,6 @@ retry:
 	return p;
 }
 
-// returns with proc locked
 struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 	if (mh->nheap == 1) {
 		struct heap *h = mh->h[0];

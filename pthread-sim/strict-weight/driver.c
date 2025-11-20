@@ -27,7 +27,7 @@
 #define TRACE
 
 // #define TIME_TO_RUN 20  // sec
-#define TIME_TO_RUN 1  // sec
+#define TIME_TO_RUN 2  // sec
 
 int tick_length = 1000;
 int num_groups = 4;
@@ -66,32 +66,32 @@ void ticks_getwork(t_t *ticks) {
 #define ENQ 2
 #define DEQ 3
 
-void doop(struct core *mycore, int op, long *cycles, long *n, struct process *p) {
+void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, long *n, struct process *p) {
 	long ts = 0;
 	if(do_ts_op) ts = safe_read_tsc();
 	int c = mycore->cid;
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		mycore->current_process = schedule(gs->gh, mycore);
+		mycore->current_process = schedule(gh, mycore);
 		break;
 	case YIELD:
-		atomic_fetch_add(&(mycore->total.tick), tick_length);
+		// atomic_fetch_add_explicit(&(mycore->total.tick), gh->tick_length, __ATOMIC_RELAXED);
 		if(p) {
-			atomic_fetch_add(&(mycore->work.tick), tick_length);
-			yield(gs->gh, mycore, p, tick_length);
+			// atomic_fetch_add(&(mycore->work.tick), tick_length);
+			yield(gh, mycore, p, gh->tick_length);
 		} else {
-			atomic_fetch_add(&(mycore->idle.tick), tick_length);
+			atomic_fetch_add(&(mycore->idle.tick), gh->tick_length);
 		}
 		// mycore->current_process = NULL;
 		break;
 	case ENQ:
-	        enqueue(gs->gh, mycore, p);
+	        enqueue(gh, mycore, p);
 		break;
 	case DEQ:
 		atomic_fetch_add(&(mycore->total.tick), tick_length);
 		atomic_fetch_add(&(mycore->work.tick), tick_length/2);
-		dequeue(gs->gh, mycore, p, tick_length/2);
+		dequeue(gh, mycore, p, tick_length/2);
 		mycore->current_process = NULL;
 		break;
 	}
@@ -106,10 +106,10 @@ void doop(struct core *mycore, int op, long *cycles, long *n, struct process *p)
 #define SLEEP 2
 
 // simulator actions
-void action(struct core *mycore, int choice) {
+void action(struct global_heap *gh, struct core *mycore, int choice) {
 	switch(choice) {
 	case RUN: // Run for full tick
-		doop(mycore, YIELD, &mycore->yield_cycles, &mycore->nyield, mycore->current_process); 
+		doop(gh, mycore, YIELD, &mycore->yield_cycles, &mycore->nyield, mycore->current_process); 
 		break;
 	case WAKEUP: // Make a process runnable
 		// pick an existing process from the pool?
@@ -119,23 +119,23 @@ void action(struct core *mycore, int choice) {
 		}
 		mycore->pool = p->next;
 		p->next = NULL;
-		doop(mycore, ENQ, &mycore->enq_cycles, &mycore->nenq, p);
+		doop(gh, mycore, ENQ, &mycore->enq_cycles, &mycore->nenq, p);
 		break;
 	case SLEEP: // Make current process not runnable (e.g., go to sleep)
 		p = mycore->current_process;
 		if (!p) {
 			return;
 		}
-		doop(mycore, DEQ, &mycore->deq_cycles, &mycore->ndeq, p);
+		doop(gh, mycore, DEQ, &mycore->deq_cycles, &mycore->ndeq, p);
 		p->next = mycore->pool;
 		mycore->pool = p;
 		break;
 	}
 }
 
-void sleepwakeup(struct core *mycore) {
-	action(mycore, SLEEP);
-	action(mycore, WAKEUP);
+void sleepwakeup(struct global_heap *gh, struct core *mycore) {
+	action(gh, mycore, SLEEP);
+	action(gh, mycore, WAKEUP);
 }
 
 void *run_core(void* core) {
@@ -152,12 +152,12 @@ void *run_core(void* core) {
 	double start = now();
 	//int fd = perf_config(mycore->cid);
 	for (int i = 0; now() - start < TIME_TO_RUN; i++) {
-		doop(mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 		if(time_work > 0) 
 			usleep(time_work);
-		action(mycore, RUN);
-		// sleepwakeup(mycore);
-		// action(mycore, rand() % 3);
+		action(gs->gh, mycore, RUN);
+		// sleepwakeup(gh, mycore);
+		// action(gh, mycore, rand() % 3);
 	}
 }
 

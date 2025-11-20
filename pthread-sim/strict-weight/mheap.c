@@ -87,7 +87,6 @@ void mh_print(struct mheap *mh) {
 }
 
 struct heap *mh_choose_heap(struct core *c, struct mheap *mh) {
-	double rand;
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct heap *h = mh->h[0];
@@ -183,18 +182,14 @@ retry:
 
         // if (lock_holding(&h->lk)) goto retry;
 
-	//long start = safe_read_tsc();
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
-		// printf("%d: retry %d another thread lock acquired heap\n", c->cid, i);
 		r++;
 		goto retry;
 	}
 	vt_t vt0 = h->heap->vruntime;
 	// vt_t vt0 = h->min_vt;
 	if (vt != vt0) {
-		// printf("%d: retry %p not min anymore %d %d ts %ld\n", c->cid, lh_i, vt_i, vt);
-		// heap_iter(lh_i->heap, print_elem);  
 		r_lock++;
 		lock_release(&h->lk);
 		goto retry;
@@ -203,7 +198,6 @@ retry:
 	lock_release(&h->lk);
 	p->other_hid = (h->id == i) ? j : i;
 	p->other_vt = other_vt;
-	//c->min_proc_cycles += (safe_read_tsc() - start);
 	c->nretry_del += (r + r_lock);
 	c->nretry_del_lock += r_lock;
 	if(r > c->max_retry_del)

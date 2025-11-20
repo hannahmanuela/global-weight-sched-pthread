@@ -32,8 +32,10 @@
 int num_groups = 4;
 int num_cores;
 int time_work; // in usec
+bool do_log;
 
 extern bool debug;
+
 
 struct global_state {
 	struct mheap *mh;
@@ -176,7 +178,7 @@ void main(int argc, char *argv[]) {
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
     for (int i = 0; i < num_cores; i++) {
 	    gs->cores[i] = c_new(i);
-	    c_log_init(gs->cores[i], "/tmp/vtlog");
+	    if (do_log) c_log_init(gs->cores[i], "/tmp/vtlog");
     }
     gs->mh = mh_new(proc_cmp, nheap, tick_length);
 

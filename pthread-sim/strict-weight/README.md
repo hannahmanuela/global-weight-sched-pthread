@@ -19,12 +19,23 @@ vruntime and the core will run a process from it; but g2's weight is
 20 so its vruntime will only be updated to be 1000/20 = 50. We thus
 ensures a 2:1 ratio of core runtime.
 
+Updating the g1's runtime immediately also ensures that when another
+process becomes runnable it will get a higher vruntime than the
+process just selected. 
+
 If a process doesn't run for a full tick length, the group's vruntime
 is moved down by the difference. For instance, if the initial process
 from g1 in the example above exist after 500us, then the group's
 vruntime would be updated by the diff to the expected (-500) divided
 by the weight (10) = -50; leaving the group with a vruntime as if the
-core had only added the time it actually ran.
+core had only added the time it actually ran. 
+
+Other processes of the same group will not have their vruntimes not
+moved back because the process didn't run for its full vruntime.  If
+the same process runs again immediately, then it will benefit from the
+updated group vruntime.   This also avoids the need to update the
+vruntimes of enqueued processes of the same group, and having to
+update the global heap of runnable processes.
 
 When a group's last process exits, the group "goes to sleep". In that
 case, the system min vruntime is stored in the group's min_vt_deq.

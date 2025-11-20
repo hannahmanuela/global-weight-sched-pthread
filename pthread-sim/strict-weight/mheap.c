@@ -59,7 +59,7 @@ vt_t mh_min_vt(struct heap *h) {
 	return vt;
 }
 
-vt_t heap_check(struct heap *h) {
+static vt_t heap_check(struct heap *h) {
 	vt_t min = mh_min_vt(h);
 	for (int i = 0; i < h->heap_size; i++) {
 		assert(min <= h->heap[i].vruntime);

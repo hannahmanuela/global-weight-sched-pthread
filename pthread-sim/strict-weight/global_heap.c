@@ -16,17 +16,18 @@
 bool debug;
 extern FILE *log_fd;
 
-struct global_heap *gh_new(int tick_length) {
+struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct heap_elem *), int n) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
 	gh->tick_length = tick_length;
+	gh->mh = mh_new(cmp, n);
 	return gh;
 }
 
 // Select next process to run
-struct process *schedule(struct global_heap *gh, struct core *c, struct mheap *mh) {
+struct process *schedule(struct global_heap *gh, struct core *c) {
 	//if (c->current_process && mh_is_min(c->current_process))
 	// c->hit++;
-	struct process *min_proc = mh_min_proc(c, mh);
+	struct process *min_proc = mh_min_proc(c, gh->mh);
 	if (min_proc == NULL) {
 		return NULL;
 	}
@@ -127,8 +128,8 @@ void dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time
 	lock_release(&h->lk);
 }
 
-void print(struct global_heap *gh, struct mheap *mh, struct group *grps[], int n) {
-	mh_print(mh);
+void print(struct global_heap *gh, struct group *grps[], int n) {
+	mh_print(gh->mh);
 	printf("= groups %d:\n", n);
 	for(int i = 0; i < n; i++) {
 		printf("  "); grp_print(grps[i]); printf("\n");

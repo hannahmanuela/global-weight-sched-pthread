@@ -5,8 +5,10 @@ proportional to its weight as a share of the sum of weights of
 runnable groups.
 
 In global-heap each group has a weight and a list of runnable
-processes in the group.  Global-heap selects a process with the global
-lowest `vruntime` to run on a core.  Global-heap also maintains a
+processes in the group. Each runnable process has a `vruntime` and
+global-heap maintains a heap sorted by `vruntime`.  When a core needs a
+process to run, global-heap removes the process with the lowest
+`vruntime` from the heap and runs it.  Global-heap also maintains a
 `vruntime` for each group for computing a process's vruntime.
 
 Consider a tick_length of 1000us and two groups, g1 with weight 10 and
@@ -21,7 +23,9 @@ ensures a 2:1 ratio of core runtime.
 
 Updating the g1's runtime immediately also ensures that when another
 process becomes runnable it will get a higher vruntime than the
-process just selected. 
+process just selected.  That is, if two processes of g1 become
+runnable, global-heap will insert the first with a vruntime
+of 100 into the heap and insert the second one with vruntime of 200.
 
 If a process doesn't run for a full tick length, the group's vruntime
 is moved down by the difference. For instance, if the initial process
@@ -34,8 +38,8 @@ Other processes of the same group will not have their vruntime's moved
 back because the process didn't run for its full vruntime.  If the
 same process runs again immediately, then it will benefit from the
 updated group vruntime.  This also avoids the need to update the
-vruntimes of enqueued processes of the same group, and having to
-update the global heap of runnable processes.
+vruntimes of processes of the same group in the heap and sort the heap
+again.
 
 When a group's last process exits, the group "goes to sleep". In that
 case, the system min vruntime is stored in the group's min_vt_deq.
@@ -47,8 +51,3 @@ since the group was dequeued.
 
 To implement the global heap in scalable way, it uses multiple
 heaps, inspired by https://dl.acm.org/doi/10.1145/2755573.2755616.
-
-
-
-
-

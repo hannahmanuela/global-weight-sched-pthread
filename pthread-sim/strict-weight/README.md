@@ -1,5 +1,6 @@
-Global-heap is a design to implement cgroups with global weights.  The
-cgroup documentation specifies that each group should get CPU time
+Global-heap is a scheduler that schedule processes in accordance to
+global weight of the cgroup that a process belongs to.  The cgroup
+documentation specifies that each group should get CPU time
 proportional to its weight as a share of the sum of weights of
 runnable groups.
 

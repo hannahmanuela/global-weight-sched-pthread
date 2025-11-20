@@ -20,7 +20,6 @@ struct log_entry {
 struct core {
 	int cid;
 	unsigned int seed;
-	struct drand48_data *buf;
 	struct tick work;
 	struct tick idle;
 	struct tick total;

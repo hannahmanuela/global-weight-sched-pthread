@@ -35,6 +35,7 @@ bool do_log;
 bool do_ts_op;
 
 extern bool debug;
+extern bool do_affinity;
 
 struct global_state {
 	struct global_heap *gh;
@@ -170,6 +171,7 @@ void main(int argc, char *argv[]) {
 
     //debug = true;
     //do_log = true;
+    do_affinity = true;
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);

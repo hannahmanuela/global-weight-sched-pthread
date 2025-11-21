@@ -217,3 +217,26 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 	return mh_sample_min_proc(mh, c);
 }
 	
+struct process *mh_is_min(struct core *c) {
+	struct process *p = NULL;
+	struct process *cp = c->process;
+	struct heap *h = cp->h;
+	lock_acquire(&h->lk);
+	int idx = -1;
+	for (int i = 0; i < h->heap_size; i++) {
+		struct process *p = (struct process *) (h->heap[i].elem);
+		if(p == cp) {
+			idx = i;
+			break;
+		}
+	}
+	struct process *p0 = (struct process *) (mh_min(h)->elem);
+	printf("mh_is_min: pid %d vt %ld w %d @idx %d pid %d vt %ld wt %d\n", p0->pid, p0->he.vruntime, p0->group->weight, idx, cp->pid, cp->he.vruntime, cp->group->weight);
+	if (p0 == cp) {
+		p = mh_del_min_process(c, h);
+		assert(p0 == cp);
+		c->hit++;
+	}
+	lock_release(&h->lk);
+	return p;
+}

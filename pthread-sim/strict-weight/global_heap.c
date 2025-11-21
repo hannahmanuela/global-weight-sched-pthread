@@ -24,9 +24,12 @@ struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct h
 
 // Select next process to run
 struct process *gh_schedule(struct global_heap *gh, struct core *c) {
-	//if (c->current_process && mh_is_min(c->current_process))
-	// c->hit++;
-	struct process *min_proc = mh_min_proc(gh->mh, c);
+	struct process *min_proc;
+	if(do_affinity && c->process && ((min_proc = mh_is_min(c)) != NULL)) {
+		c->hit++;
+	} else {
+		min_proc = mh_min_proc(gh->mh, c);
+	}
 	if (min_proc == NULL) {
 		return NULL;
 	}

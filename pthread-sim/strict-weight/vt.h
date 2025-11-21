@@ -4,7 +4,7 @@
 
 typedef long t_t;
 typedef int vt_t;
-typedef int w_t;
+typedef short w_t;
 
 // XXX handle vt_t wrap around
 #define DUMMY (INT_MAX)   // if vt_t is DUMMY, then dummy heap_elem

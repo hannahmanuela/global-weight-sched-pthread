@@ -6,9 +6,12 @@
 #include <stdbool.h>
 #include "vt.h"
 
+typedef short idx_t;
+
 struct heap_elem {
 	vt_t vruntime;
-	int weight;
+	w_t weight;
+	idx_t idx;
 	void *elem;
 };
 

@@ -63,9 +63,6 @@ int proc_cmp(struct heap_elem *a, struct heap_elem *b) {
 	// Prefer higher weight
 	if (a->weight > b->weight) return -1;
 	if (a->weight < b->weight) return 1;
-	// tie-breaker by gid for determinism
-	//if (a->pid < b->pid) return -1;
-	//if (a->pid > b->pid) return 1;
 	return 0;
 }
 
@@ -78,13 +75,6 @@ void grp_set_vruntime(struct process *p, vt_t vt) {
 vt_t grp_add_vruntime(struct process *p, vt_t vt) {
 	return atomic_fetch_add_explicit(&p->group->vruntime, vt, __ATOMIC_RELAXED);
 }
-
-// remember vruntime for when group becomes runnable again
-// caller must hold group lock
-void proc_lag_vruntime(struct process *p, vt_t min) {
-        atomic_fetch_add(&p->he.vruntime, -min);
-}
-
 
 float grp_runtime(struct group *g) {
 	float run = 0.0;

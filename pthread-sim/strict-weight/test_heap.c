@@ -38,47 +38,47 @@ int cmp_elem(struct heap_elem *a, struct heap_elem *b) {
 }
 
 int main() {
-    struct heap *heap = heap_new(cmp_elem);
-    struct elem *elems[N];
-    int i;
+	struct heap *heap = heap_new();
+	struct elem *elems[N];
+	int i;
 
-    for (i = 0; i < N; i++) {
-	 elems[i] = make_elem(i, i*N);
-	 heap_push(heap, &(elems[i]->he));
-    }
+	for (i = 0; i < N; i++) {
+		elems[i] = make_elem(i, i*N);
+		heap_push(heap, &(elems[i]->he));
+	}
     
-    assert(heap->heap_size == N);
+	assert(heap->heap_size == N);
 
-    // peek min
-    struct heap_elem *he = heap_min(heap);
-    assert(he->elem == elems[0]);
+	// peek min
+	struct heap_elem *he = heap_min(heap);
+	assert(he->elem == elems[0]);
     
-    for (i = 0; i < N; i ++) {
-	    he = heap_remove_min(heap);
-	    assert(he->vruntime == i * N);
-	    struct elem *e = (struct elem *) he->elem;
-	    assert(he->vruntime == e->he.vruntime);
-	    e->he.vruntime += N*N;
-    }
+	for (i = 0; i < N; i ++) {
+		he = heap_remove_min(heap);
+		assert(he->vruntime == i * N);
+		struct elem *e = (struct elem *) he->elem;
+		assert(he->vruntime == e->he.vruntime);
+		e->he.vruntime += N*N;
+	}
 
-    heap_print(heap);
+	heap_print(heap);
 
-    for (i = N-1; i >= 0; i--) {
-	 heap_push(heap, &(elems[i]->he));
-    }
+	for (i = N-1; i >= 0; i--) {
+		heap_push(heap, &(elems[i]->he));
+	}
 
-    heap_print(heap);
+	heap_print(heap);
 
-    for (i = 0; i < N; i ++) {
-	    he = heap_remove_min(heap);
-	    assert(he->vruntime == (i * N) + N*N);
-	    struct elem *e = (struct elem *) he->elem;
-	    assert(he->vruntime == e->he.vruntime);
-	    e->he.vruntime += N*N;
-    }
+	for (i = 0; i < N; i ++) {
+		he = heap_remove_min(heap);
+		assert(he->vruntime == (i * N) + N*N);
+		struct elem *e = (struct elem *) he->elem;
+		assert(he->vruntime == e->he.vruntime);
+		e->he.vruntime += N*N;
+	}
 
-    printf("heap tests passed\n");
-    return 0;
+	printf("heap tests passed\n");
+	return 0;
 }
 
 

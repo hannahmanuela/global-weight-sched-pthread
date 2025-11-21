@@ -171,7 +171,7 @@ void main(int argc, char *argv[]) {
 
     //debug = true;
     //do_log = true;
-    do_affinity = true;
+    //do_affinity = true;
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
@@ -179,7 +179,7 @@ void main(int argc, char *argv[]) {
 	    gs->cores[i] = c_new(i);
 	    if (do_log) c_log_init(gs->cores[i], "/tmp/vtlog");
     }
-    gs->gh = gh_new(tick_length, proc_cmp, nheap);
+    gs->gh = gh_new(tick_length, nheap);
     gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
     for (int i = 0; i < num_groups; i++) {
 	    // struct group *g = grp_new(gs->mh, i, 10);

@@ -15,9 +15,8 @@ static void heap_alloc(struct heap *h) {
 	h->heap_capacity = HEAP_CAPACITY;
 }
 
-struct heap *heap_new(cmp_elem_t cmp) {
+struct heap *heap_new() {
 	struct heap *h = aligned_alloc(CACHE_LINE_SZ, (sizeof(struct heap)));
-	h->cmp_elem = cmp;
 	h->heap_size = 0;
 	h->heap_capacity = 0;
 	lock_init(&h->lk);
@@ -37,6 +36,16 @@ void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e) {
 	he->vruntime = vt;
 	he->weight = w;
 	he->elem = e;
+}
+
+static int heap_elem_cmp(struct heap_elem *a, struct heap_elem *b) {
+	// Compare by vruntime; lower is higher priority
+	if (a->vruntime < b->vruntime) return -1;
+	if (a->vruntime > b->vruntime) return 1;
+	// Prefer higher weight
+	if (a->weight > b->weight) return -1;
+	if (a->weight < b->weight) return 1;
+	return 0;
 }
 
 struct heap_elem *heap_min(struct heap *h) {
@@ -60,7 +69,7 @@ static inline void heap_swap(struct heap *h, int i, int j) {
 static void heap_sift_up(struct heap *h, int idx) {
 	while (idx > 0) {
 		int parent = (idx - 1) / D_ARY;
-		if (h->cmp_elem(&(h->heap[idx]), &(h->heap[parent])) < 0) {
+		if (heap_elem_cmp(&(h->heap[idx]), &(h->heap[parent])) < 0) {
 			heap_swap(h, idx, parent);
 			idx = parent;
 		} else {
@@ -76,7 +85,7 @@ static void heap_sift_down(struct heap *h, int idx) {
 		int smallest = idx;
 		for (int i = 0; i < D_ARY; i++) {
 			int c = left + i;
-			if ((c < n) && h->cmp_elem(&(h->heap[c]), &(h->heap[smallest])) < 0) {
+			if ((c < n) && heap_elem_cmp(&(h->heap[c]), &(h->heap[smallest])) < 0) {
 				smallest = c;
 			}
 		}

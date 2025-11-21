@@ -6,7 +6,7 @@ struct global_heap {
 	struct mheap *mh;
 };
 
-struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct heap_elem *), int n);
+struct global_heap *gh_new(int tick_length, int n);
 struct process *gh_schedule(struct global_heap *gh, struct core *c);
 void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed);
 void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p);

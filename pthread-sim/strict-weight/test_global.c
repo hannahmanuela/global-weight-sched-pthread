@@ -42,7 +42,7 @@ static struct process *schedule_retry(struct core *c, struct global_heap *gh) {
 }
 
 static struct global_heap *mk_mheap(struct core *c, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
-	struct global_heap *gh = gh_new(tl, proc_cmp, nheap);
+	struct global_heap *gh = gh_new(tl, nheap);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(gh->mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
@@ -323,7 +323,7 @@ void test_worst(int nheap) {
 	int worst;
 	for(int t = 0; t < n; t++) {
 		struct core *c = c_new(0);
-		struct global_heap *gh = gh_new(tl, proc_cmp, nheap);
+		struct global_heap *gh = gh_new(tl, nheap);
 		struct group *g = grp_new(gh->mh, 0, 10);
 		struct heap *h = mh_choose_heap(gh->mh, c);
 

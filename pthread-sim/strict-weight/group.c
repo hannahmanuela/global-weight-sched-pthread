@@ -55,16 +55,7 @@ void proc_print(struct process *p) {
 	printf("(pid %d(%d) vt %u, w %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
 }	
 
-// caller must hold group lock for both groups
-int proc_cmp(struct heap_elem *a, struct heap_elem *b) {
-	// Compare by vruntime; lower is higher priority
-	if (a->vruntime < b->vruntime) return -1;
-	if (a->vruntime > b->vruntime) return 1;
-	// Prefer higher weight
-	if (a->weight > b->weight) return -1;
-	if (a->weight < b->weight) return 1;
-	return 0;
-}
+
 
 void grp_set_vruntime(struct process *p, vt_t vt) {
 	if(debug)

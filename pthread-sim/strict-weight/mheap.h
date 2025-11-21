@@ -13,7 +13,7 @@ struct mheap {
 	int nheap;
 };
 
-struct mheap *mh_new(int grpcmp(struct heap_elem *, struct heap_elem *), int n);
+struct mheap *mh_new(int n);
 void mh_free(struct mheap *mh);
 void mh_print(struct mheap *mh);
 vt_t mh_min_vt(struct heap *h);

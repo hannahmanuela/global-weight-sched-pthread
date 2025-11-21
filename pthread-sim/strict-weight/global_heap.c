@@ -15,10 +15,10 @@
 bool debug;
 bool do_affinity;
 
-struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct heap_elem *), int n) {
+struct global_heap *gh_new(int tick_length, int n) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
 	gh->tick_length = tick_length;
-	gh->mh = mh_new(cmp, n);
+	gh->mh = mh_new(n);
 	return gh;
 }
 

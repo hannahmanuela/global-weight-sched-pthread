@@ -16,7 +16,6 @@ struct heap {
 	struct heap_elem heap[HEAP_CAPACITY] __calign__;
 	// struct heap_elem *heap __calign__;
 
-	cmp_elem_t cmp_elem;
 	int heap_capacity;
 	int id;
 
@@ -25,7 +24,7 @@ struct heap {
 
 typedef void (*heap_iter_t)(struct heap_elem *);
 
-struct heap *heap_new(cmp_elem_t f);
+struct heap *heap_new();
 void heap_free(struct heap *h);
 struct heap_elem *heap_min(struct heap *h);
 void heap_push(struct heap *h, struct heap_elem *e);

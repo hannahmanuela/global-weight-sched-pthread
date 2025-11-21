@@ -9,19 +9,19 @@
 #define HEAP_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
 
 struct heap {
-	struct spinlock lk __attribute__((aligned(CACHE_LINE_SZ)));
+	struct spinlock lk __calign__;
 
-	// vt_t min_vt; //  __attribute__((aligned(CACHE_LINE_SZ)));
+	// vt_t min_vt; //  __calign__;
 
-	struct heap_elem heap[HEAP_CAPACITY] __attribute__((aligned(CACHE_LINE_SZ)));
-	// struct heap_elem *heap __attribute__((aligned(CACHE_LINE_SZ)));
+	struct heap_elem heap[HEAP_CAPACITY] __calign__;
+	// struct heap_elem *heap __calign__;
 
 	cmp_elem_t cmp_elem;
 	int heap_capacity;
 	int id;
 
-	int heap_size __attribute__((aligned(CACHE_LINE_SZ)));
-}  __attribute__((aligned(CACHE_LINE_SZ)));
+	int heap_size __calign__;
+}  __calign__;
 
 typedef void (*heap_iter_t)(struct heap_elem *);
 

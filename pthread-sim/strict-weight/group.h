@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <stdint.h> 
 
+#include "util.h"
 #include "vt.h"
 #include "heap_elem.h"
 #include "heap.h"
@@ -24,23 +25,23 @@ struct process {
 	int other_hid;
 	vt_t other_vt;
 	
-} __attribute__((aligned(CACHE_LINE_SZ)));
+} __calign__;
 
 struct group {
-	vt_t vruntime  __attribute__((aligned(CACHE_LINE_SZ)));
+	vt_t vruntime  __calign__;
 
-	vt_t min_vt_deq __attribute__((aligned(CACHE_LINE_SZ)));
+	vt_t min_vt_deq __calign__;
 	int nthread; // number of threads in the group
 
 	t_t *sleeptime; // number of us slots the group wasn't runnable
 	t_t *sleepstart; // tick slots sleep started
 	t_t *time;
 
-	struct process *procs __attribute__((aligned(CACHE_LINE_SZ)));
+	struct process *procs __calign__;
 	struct mheap *mh;
 	int gid;
 	int weight;
-} __attribute__((aligned(CACHE_LINE_SZ)));
+} __calign__;
 
 struct group *grp_new(struct mheap *mh, int id, int weight);
 void proc_print(struct process *p);

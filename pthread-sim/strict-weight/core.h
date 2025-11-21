@@ -5,6 +5,7 @@
 #include <stdatomic.h>
 
 #include "vt.h"
+#include "util.h"
 
 struct log_entry {
 	long ts;
@@ -54,7 +55,7 @@ struct core {
 	int log_nentry;
 	int fd;
 
-} __attribute__((aligned(64)));
+} __calign__;
 
 #define LOG_NENTRY  1000000
 

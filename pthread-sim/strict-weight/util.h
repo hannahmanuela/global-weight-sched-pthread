@@ -11,7 +11,7 @@
 
 #define CACHE_LINE_SZ 64
 
-#include "vt.h"
+#define __calign__ __attribute__((aligned(CACHE_LINE_SZ)))
 
 void error(char *);
 double now();

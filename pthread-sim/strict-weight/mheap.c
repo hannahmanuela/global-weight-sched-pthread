@@ -82,7 +82,7 @@ void mh_print(struct mheap *mh) {
 	printf("=\n");
 }
 
-struct heap *mh_choose_heap(struct core *c, struct mheap *mh) {
+struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct heap *h = mh->h[0];
@@ -115,7 +115,7 @@ static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	return (struct process *) he->elem;
 }
 
-static void  __attribute__ ((noinline)) mh_rand_heaps(struct core *c, struct mheap *mh, int *i, int *j) {
+static void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, struct core *c, int *i, int *j) {
 	*i = c_rand(c, mh->nheap);
 	*j = c_rand(c, mh->nheap);
 	while (*i == *j) {
@@ -124,7 +124,7 @@ static void  __attribute__ ((noinline)) mh_rand_heaps(struct core *c, struct mhe
 	}
 }
 
-static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
+static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
@@ -160,7 +160,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct core *c, struct
 }
 
 // https://dl.acm.org/doi/10.1145/2755573.2755616
-static struct process *mh_sample_min_proc(struct core *c, struct mheap *mh) {
+static struct process *mh_sample_min_proc(struct mheap *mh, struct core *c) {
 	long r = 0;
 	long r_lock = 0;
 retry:
@@ -168,8 +168,8 @@ retry:
 	vt_t vt;
 	vt_t other_vt;
 
-	mh_rand_heaps(c, mh, &i, &j);
-	struct heap *h = mh_select(c, mh, i, j, &vt, &other_vt);
+	mh_rand_heaps(mh, c, &i, &j);
+	struct heap *h = mh_select(mh, c, i, j, &vt, &other_vt);
 	if (h == NULL) {
 		c->nsched_null += 1;
 		return NULL;
@@ -200,7 +200,7 @@ retry:
 	return p;
 }
 
-struct process *mh_min_proc(struct core *c, struct mheap *mh) {
+struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 	if (mh->nheap == 1) {
 		struct heap *h = mh->h[0];
 		lock_acquire(&h->lk);
@@ -214,6 +214,6 @@ struct process *mh_min_proc(struct core *c, struct mheap *mh) {
 		lock_release(&h->lk);
 		return p;
 	}
-	return mh_sample_min_proc(c, mh);
+	return mh_sample_min_proc(mh, c);
 }
 	

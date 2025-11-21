@@ -325,7 +325,7 @@ void test_worst(int nheap) {
 		struct core *c = c_new(0);
 		struct global_heap *gh = gh_new(tl, proc_cmp, nheap);
 		struct group *g = grp_new(gh->mh, 0, 10);
-		struct heap *h = mh_choose_heap(c, gh->mh);
+		struct heap *h = mh_choose_heap(gh->mh, c);
 
 		struct process *p = grp_new_process(gh->mh, 1, g);
 		gh_enqueue(gh, c, p);

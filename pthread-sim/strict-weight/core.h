@@ -24,7 +24,7 @@ struct core {
 	t_t work;
 	t_t idle;
 	t_t total;
-	struct process *current_process;
+	struct process *process;
 	struct process *pool;
 
 	long sched_cycles;

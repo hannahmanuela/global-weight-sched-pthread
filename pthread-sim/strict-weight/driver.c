@@ -71,7 +71,7 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		mycore->current_process = gh_schedule(gh, mycore);
+		mycore->process = gh_schedule(gh, mycore);
 		break;
 	case YIELD:
 		mycore->total += gh->tick_length;
@@ -81,7 +81,6 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 		} else {
 			mycore->idle += gh->tick_length;
 		}
-		// mycore->current_process = NULL;
 		break;
 	case ENQ:
 	        gh_enqueue(gh, mycore, p);
@@ -90,7 +89,6 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 		mycore->total += gh->tick_length;
 		mycore->work += gh->tick_length/2;
 		gh_dequeue(gh, mycore, p, gh->tick_length/2);
-		mycore->current_process = NULL;
 		break;
 	}
 	long op_cycles = 0;
@@ -107,7 +105,7 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 void action(struct global_heap *gh, struct core *mycore, int choice) {
 	switch(choice) {
 	case RUN: // Run for full tick
-		doop(gh, mycore, YIELD, &mycore->yield_cycles, &mycore->nyield, mycore->current_process); 
+		doop(gh, mycore, YIELD, &mycore->yield_cycles, &mycore->nyield, mycore->process); 
 		break;
 	case WAKEUP: // Make a process runnable
 		// pick an existing process from the pool?
@@ -120,7 +118,7 @@ void action(struct global_heap *gh, struct core *mycore, int choice) {
 		doop(gh, mycore, ENQ, &mycore->enq_cycles, &mycore->nenq, p);
 		break;
 	case SLEEP: // Make current process not runnable (e.g., go to sleep)
-		p = mycore->current_process;
+		p = mycore->process;
 		if (!p) {
 			return;
 		}

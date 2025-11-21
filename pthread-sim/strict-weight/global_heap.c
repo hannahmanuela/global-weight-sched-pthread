@@ -13,6 +13,7 @@
 #include "mheap.h"
 
 bool debug;
+bool do_affinity;
 
 struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct heap_elem *), int n) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
@@ -25,7 +26,7 @@ struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct h
 struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 	//if (c->current_process && mh_is_min(c->current_process))
 	// c->hit++;
-	struct process *min_proc = mh_min_proc(c, gh->mh);
+	struct process *min_proc = mh_min_proc(gh->mh, c);
 	if (min_proc == NULL) {
 		return NULL;
 	}
@@ -51,7 +52,7 @@ static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *
 
 // Add p to group and make p runnable
 void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
-	struct heap *h = mh_choose_heap(c, p->mh);
+	struct heap *h = mh_choose_heap(p->mh, c);
 	assert(p->h == NULL);
 
 	int old_nthread = atomic_fetch_add(&p->group->nthread, 1);
@@ -91,7 +92,7 @@ static void grp_adjust_vruntime(struct global_heap *gh, struct process *p, t_t t
 void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
 	grp_adjust_vruntime(gh, p, time_passed);
 
-	struct heap *h = mh_choose_heap(c, p->mh);
+	struct heap *h = mh_choose_heap(p->mh, c);
 
 	enq_proc_vt(gh, c, p, h);
 

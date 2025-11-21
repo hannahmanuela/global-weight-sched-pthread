@@ -7,7 +7,7 @@
 #include "lock.h"
 #include "heap.h"
 
-#define D_ARY 2
+#define D_ARY 4
 
 static void heap_alloc(struct heap *h) {
 	//h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);

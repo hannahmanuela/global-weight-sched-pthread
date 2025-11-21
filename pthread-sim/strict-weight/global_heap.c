@@ -13,7 +13,6 @@
 #include "mheap.h"
 
 bool debug;
-extern FILE *log_fd;
 
 struct global_heap *gh_new(int tick_length, int cmp(struct heap_elem *, struct heap_elem *), int n) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));

@@ -9,6 +9,8 @@
 
 #define D_ARY 4
 
+extern bool do_affinity;
+
 static void heap_alloc(struct heap *h) {
 	//h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
 	assert(sizeof(struct heap_elem) == 16);
@@ -64,6 +66,10 @@ static inline void heap_swap(struct heap *h, int i, int j) {
 	struct heap_elem tmp = h->heap[i];
 	h->heap[i] = h->heap[j];
 	h->heap[j] = tmp;
+	if(do_affinity) {
+		h->heap[i].idx = j;
+		h->heap[j].idx = i;
+	}
 }
 
 static void heap_sift_up(struct heap *h, int idx) {

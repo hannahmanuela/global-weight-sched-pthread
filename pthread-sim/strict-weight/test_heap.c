@@ -9,6 +9,8 @@
 
 #define N 4
 
+bool do_affinity = false;
+
 struct elem {
 	int id;
 	struct heap_elem he;

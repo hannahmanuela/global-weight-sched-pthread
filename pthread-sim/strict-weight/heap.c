@@ -7,13 +7,13 @@
 #include "lock.h"
 #include "heap.h"
 
-#define D_ARY 4
+#define D_ARY 2
 
 extern bool do_affinity;
 
 static void heap_alloc(struct heap *h) {
 	//h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
-	assert(sizeof(struct heap_elem) == 16);
+	assert(sizeof(struct heap_elem) == 8);
 	h->heap_capacity = HEAP_CAPACITY;
 }
 
@@ -34,10 +34,10 @@ void heap_free(struct heap *h) {
 	// free(h->heap);
 }
 
-void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e) {
+void heap_elem_init(struct heap_elem *he, vt_t vt, int w) {
 	he->vruntime = vt;
 	he->weight = w;
-	he->elem = e;
+	he->idx = -1;
 }
 
 static int heap_elem_cmp(struct heap_elem *a, struct heap_elem *b) {
@@ -53,29 +53,29 @@ static int heap_elem_cmp(struct heap_elem *a, struct heap_elem *b) {
 struct heap_elem *heap_min(struct heap *h) {
 	if (h->heap_size == 0)
 		return NULL;
-	return h->heap;
+	return h->heap[0];
 } 
 
 void heap_iter(struct heap *heap, heap_iter_t iter) {
 	for (int i = 0; i < heap->heap_size; i++) {
-		iter(&heap->heap[i]);
+		iter(heap->heap[i]);
 	}
 }
 
 static inline void heap_swap(struct heap *h, int i, int j) {
-	struct heap_elem tmp = h->heap[i];
+	struct heap_elem *tmp = h->heap[i];
 	h->heap[i] = h->heap[j];
 	h->heap[j] = tmp;
 	if(do_affinity) {
-		h->heap[i].idx = j;
-		h->heap[j].idx = i;
+		h->heap[i]->idx = j;
+		h->heap[j]->idx = i;
 	}
 }
 
 static void heap_sift_up(struct heap *h, int idx) {
 	while (idx > 0) {
 		int parent = (idx - 1) / D_ARY;
-		if (heap_elem_cmp(&(h->heap[idx]), &(h->heap[parent])) < 0) {
+		if (heap_elem_cmp(h->heap[idx], h->heap[parent]) < 0) {
 			heap_swap(h, idx, parent);
 			idx = parent;
 		} else {
@@ -91,7 +91,7 @@ static void heap_sift_down(struct heap *h, int idx) {
 		int smallest = idx;
 		for (int i = 0; i < D_ARY; i++) {
 			int c = left + i;
-			if ((c < n) && heap_elem_cmp(&(h->heap[c]), &(h->heap[smallest])) < 0) {
+			if ((c < n) && heap_elem_cmp(h->heap[c], h->heap[smallest]) < 0) {
 				smallest = c;
 			}
 		}
@@ -108,7 +108,7 @@ static void heap_sift_down(struct heap *h, int idx) {
 void heap_push(struct heap *h, struct heap_elem *e) {
 	assert(h->heap_size+1 < h->heap_capacity);
 	int i = h->heap_size;
-	h->heap[h->heap_size++] = *e;
+	h->heap[h->heap_size++] = e;
 	heap_sift_up(h, i);
 	//h->min_vt = h->heap[0].vruntime;
 }
@@ -123,5 +123,5 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 		heap_sift_down(h, 0);
 		// h->min_vt = h->heap[0].vruntime;
 	}
-	return &(h->heap[last]);
+	return h->heap[last];
 }

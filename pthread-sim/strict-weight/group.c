@@ -29,7 +29,7 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     p->runtime = 0;
     p->group = group;
     p->next = NULL;
-    heap_elem_init(&p->he, 0, group->weight, p);
+    heap_elem_init(&p->he, 0, group->weight);
     p->mh = mh;
     p->h = NULL;
     grp_add_process(p);

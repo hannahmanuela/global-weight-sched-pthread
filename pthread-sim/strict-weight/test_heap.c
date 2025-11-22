@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "heap.h"
+#include "util.h"
 
 #define N 4
 
@@ -17,7 +18,7 @@ struct elem {
 };
 	
 void heap_elem_print(struct heap_elem *he) {
-	struct elem *e = (struct elem *) he->elem;
+	struct elem *e = container_of(he, struct elem, he);
 	printf("id %d vt %d\n", e->id, he->vruntime);
 }
 
@@ -26,10 +27,10 @@ void heap_print(struct heap *heap) {
 	heap_iter(heap, heap_elem_print);
 }
 
-static struct elem* make_elem(int id, int svt) {
+static struct elem* make_elem(int id, int vt) {
 	struct elem *e = malloc(sizeof(struct elem));
 	e->id = id;
-	heap_elem_init(&e->he, svt, 0, e);
+	heap_elem_init(&e->he, vt, 0);
 	return e;
 }
 
@@ -53,13 +54,11 @@ int main() {
 
 	// peek min
 	struct heap_elem *he = heap_min(heap);
-	assert(he->elem == elems[0]);
     
 	for (i = 0; i < N; i ++) {
 		he = heap_remove_min(heap);
 		assert(he->vruntime == i * N);
-		struct elem *e = (struct elem *) he->elem;
-		assert(he->vruntime == e->he.vruntime);
+		struct elem *e = container_of(he, struct elem, he);
 		e->he.vruntime += N*N;
 	}
 
@@ -74,8 +73,7 @@ int main() {
 	for (i = 0; i < N; i ++) {
 		he = heap_remove_min(heap);
 		assert(he->vruntime == (i * N) + N*N);
-		struct elem *e = (struct elem *) he->elem;
-		assert(he->vruntime == e->he.vruntime);
+		struct elem *e = container_of(he, struct elem, he);
 		e->he.vruntime += N*N;
 	}
 

@@ -13,7 +13,7 @@ struct heap {
 
 	// vt_t min_vt; //  __calign__;
 
-	struct heap_elem heap[HEAP_CAPACITY] __calign__;
+	struct heap_elem *heap[HEAP_CAPACITY] __calign__;
 	// struct heap_elem *heap __calign__;
 
 	int heap_capacity;
@@ -31,6 +31,6 @@ void heap_push(struct heap *h, struct heap_elem *e);
 struct heap_elem *heap_remove_min(struct heap *h);
 void heap_iter(struct heap *h, heap_iter_t);
 
-void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *e);
+void heap_elem_init(struct heap_elem *he, vt_t vt, int w);
 
 #endif

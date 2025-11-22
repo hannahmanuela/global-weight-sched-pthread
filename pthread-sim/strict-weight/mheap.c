@@ -21,20 +21,15 @@ struct mheap *mh_new(int n) {
 		mh->h[i]->id = i;
 		// insert a dummy element so that the heap always has one elemement
 		struct heap_elem* he = malloc(sizeof(struct heap_elem));
-		heap_elem_init(he, DUMMY, 0, NULL);
+		heap_elem_init(he, DUMMY, 0);
 		heap_push(mh->h[i], he);
 	}
 	mh->nheap = n;
 	return mh;
 }
 
-static void mh_free_item(struct heap_elem *e) {
-	free(e->elem);
-}
-
 void mh_free(struct mheap *mh) {
 	for (int i = 0; i < mh->nheap; i++) {
-		heap_iter(mh->h[i], mh_free_item);
 		heap_free(mh->h[i]);
 	}
 }
@@ -58,7 +53,7 @@ vt_t mh_min_vt(struct heap *h) {
 static vt_t heap_check(struct heap *h) {
 	vt_t min = mh_min_vt(h);
 	for (int i = 0; i < h->heap_size; i++) {
-		assert(min <= h->heap[i].vruntime);
+		assert(min <= h->heap[i]->vruntime);
 	}
 }
 
@@ -67,7 +62,7 @@ static void print_elem(struct heap_elem *e) {
 		printf("[dummy vt %u w %d]", e->vruntime, e->weight);
 		return;
 	}
-	struct process *p = (struct process *) e->elem;
+	struct process *p = container_of(e, struct process, he);
 	printf("["); proc_print(p); printf("]");
 }
 
@@ -109,10 +104,10 @@ void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 
 // caller must hold heap lock
 static struct process *mh_del_min_process(struct core *c, struct heap *h) {
-	struct heap_elem *he;
-	he = heap_remove_min(h);
+	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
-	return (struct process *) he->elem;
+	struct process *p = container_of(he, struct process, he);
+	return p;
 }
 
 static void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, struct core *c, int *i, int *j) {
@@ -128,8 +123,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, stru
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	vt_t vt_i = atomic_load_explicit(&h_i->heap->vruntime, __ATOMIC_RELAXED);
-	vt_t vt_j = atomic_load_explicit(&h_j->heap->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_i = atomic_load_explicit(&h_i->heap[0]->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&h_j->heap[0]->vruntime, __ATOMIC_RELAXED);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
 		return NULL;
 	}
@@ -144,8 +139,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, stru
 			h_i = h_j;
 		} else if (vt_i == vt_j) {
 			ovt = vt_i;
-			struct heap_elem *he_i = h_i->heap;
-			struct heap_elem *he_j = h_j->heap;
+			struct heap_elem *he_i = h_i->heap[0];
+			struct heap_elem *he_j = h_j->heap[0];
 			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
 			int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
 			if (w_j > w_i) {	
@@ -180,7 +175,7 @@ retry:
 		r++;
 		goto retry;
 	}
-	vt_t vt0 = h->heap->vruntime;
+	vt_t vt0 = h->heap[0]->vruntime;
 	// vt_t vt0 = h->min_vt;
 	if (vt != vt0) {
 		r_lock++;
@@ -224,13 +219,13 @@ struct process *mh_is_min(struct core *c) {
 	lock_acquire(&h->lk);
 	int idx = -1;
 	for (int i = 0; i < h->heap_size; i++) {
-		struct process *p = (struct process *) (h->heap[i].elem);
+		struct process *p = container_of(h->heap[i], struct process, he);
 		if(p == cp) {
 			idx = i;
 			break;
 		}
 	}
-	struct process *p0 = (struct process *) (mh_min(h)->elem);
+	struct process *p0 = container_of(mh_min(h), struct process, he);
 	printf("mh_is_min: pid %d vt %ld w %d @idx %d pid %d vt %ld wt %d\n", p0->pid, p0->he.vruntime, p0->group->weight, idx, cp->pid, cp->he.vruntime, cp->group->weight);
 	if (p0 == cp) {
 		p = mh_del_min_process(c, h);

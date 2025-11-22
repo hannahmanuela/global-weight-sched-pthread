@@ -81,13 +81,13 @@ struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct heap *h = mh->h[0];
-		lock_acquire(&h->lk);		
+		lock_acquire(&h->lk, c);		
 		return h;
 	}
 retry:
 	int i = c_rand(c, mh->nheap);
 	struct heap *h = mh->h[i];
-	if(lock_try_acquire(&h->lk) != 0) {
+	if(lock_try_acquire(&h->lk, c) != 0) {
 		r++;
 		goto retry;
 	}
@@ -103,7 +103,7 @@ void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 		mh_print(p->mh);
 	}
 	heap_push(h, &p->he);
-	lock_release(&p->h->lk);
+	lock_release(&p->h->lk, c);
 }
 
 // caller must hold heap lock
@@ -175,7 +175,7 @@ retry:
 		return NULL;
 	}
 
-	int l = lock_try_acquire(&h->lk);
+	int l = lock_try_acquire(&h->lk, c);
 	if (l != 0) {
 		r++;
 		goto retry;
@@ -184,11 +184,11 @@ retry:
 	// vt_t vt0 = h->min_vt;
 	if (vt != vt0) {
 		r_lock++;
-		lock_release(&h->lk);
+		lock_release(&h->lk, c);
 		goto retry;
 	}
 	struct process *p = mh_del_min_process(c, h);
-	lock_release(&h->lk);
+	lock_release(&h->lk, c);
 	p->other_hid = (h->id == i) ? j : i;
 	p->other_vt = other_vt;
 	c->nretry_del += (r + r_lock);
@@ -203,15 +203,15 @@ retry:
 struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 	if (mh->nheap == 1) {
 		struct heap *h = mh->h[0];
-		lock_acquire(&h->lk);
+		lock_acquire(&h->lk, c);
 		struct heap_elem *he = mh_min(h);
 		if(he->vruntime == DUMMY) {
-			lock_release(&h->lk);
+			lock_release(&h->lk, c);
 			return NULL;
 		}	
 		struct process *p = mh_del_min_process(c, h);
 		assert(p->h == h);
-		lock_release(&h->lk);
+		lock_release(&h->lk, c);
 		return p;
 	}
 	return mh_sample_min_proc(mh, c);
@@ -221,15 +221,15 @@ struct process *mh_is_min(struct core *c) {
 	struct process *p = NULL;
 	struct process *cp = c->process;
 	struct heap *h = cp->h;
-	lock_acquire(&h->lk);
+	lock_acquire(&h->lk, c);
 	struct process *p0 = container_of(mh_min(h), struct process, he);
 	if (p0 == cp) {
 		assert(cp->he.idx == 0);
 		assert(p0->he.idx == cp->he.idx);
 		// p = mh_del_min_process(c, h);
-		//assert(p0 == p);
+		// assert(p0 == p);
 		c->hit++;
 	}
-	lock_release(&h->lk);
+	lock_release(&h->lk, c);
 	return p;
 }

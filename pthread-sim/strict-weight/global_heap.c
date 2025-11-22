@@ -109,7 +109,7 @@ void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t tim
 // p's group not runnable
 void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
 	struct heap *h = p->h;
-	lock_acquire(&h->lk);
+	lock_acquire(&h->lk, c);
 
 	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
@@ -127,7 +127,7 @@ void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t t
 
 	p->h = NULL;
 
-	lock_release(&h->lk);
+	lock_release(&h->lk, c);
 }
 
 void gh_print(struct global_heap *gh, struct group *grps[], int n) {

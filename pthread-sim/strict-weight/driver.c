@@ -171,7 +171,7 @@ void main(int argc, char *argv[]) {
 
     //debug = true;
     //do_log = true;
-    //do_affinity = true;
+    do_affinity = true;
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);

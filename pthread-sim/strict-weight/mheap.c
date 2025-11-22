@@ -226,8 +226,9 @@ struct process *mh_is_min(struct core *c) {
 		}
 	}
 	struct process *p0 = container_of(mh_min(h), struct process, he);
-	printf("mh_is_min: pid %d vt %ld w %d @idx %d pid %d vt %ld wt %d\n", p0->pid, p0->he.vruntime, p0->group->weight, idx, cp->pid, cp->he.vruntime, cp->group->weight);
+	printf("mh_is_min: pid %d vt %ld w %d idx %ld @idx %d pid %d vt %ld wt %d\n", p0->pid, p0->he.vruntime, p0->group->weight, p0->he.idx, idx, cp->pid, cp->he.vruntime, cp->group->weight);
 	if (p0 == cp) {
+		assert(p0->he.idx == idx);
 		p = mh_del_min_process(c, h);
 		assert(p0 == cp);
 		c->hit++;

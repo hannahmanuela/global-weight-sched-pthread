@@ -171,7 +171,7 @@ void main(int argc, char *argv[]) {
 
     //debug = true;
     //do_log = true;
-    do_affinity = true;
+    //do_affinity = true;
 
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
@@ -191,7 +191,7 @@ void main(int argc, char *argv[]) {
 	    }
     }
 
-    // printf("==="); mh_print(gs->mh);
+    // printf("==="); mh_print(gs->gh->mh);
 
     pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
     for (int i = 0; i < num_cores; i ++) {

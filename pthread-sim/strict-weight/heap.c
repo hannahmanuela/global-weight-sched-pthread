@@ -15,6 +15,8 @@ static void heap_alloc(struct heap *h) {
 	//h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
 	assert(sizeof(struct heap_elem) == 8);
 	h->heap_capacity = HEAP_CAPACITY;
+	for (int i = 0; i < h->heap_capacity; i++)
+		h->heap[i] = NULL;
 }
 
 struct heap *heap_new() {
@@ -67,8 +69,8 @@ static inline void heap_swap(struct heap *h, int i, int j) {
 	h->heap[i] = h->heap[j];
 	h->heap[j] = tmp;
 	if(do_affinity) {
-		h->heap[i]->idx = j;
-		h->heap[j]->idx = i;
+		h->heap[i]->idx = i;
+		h->heap[j]->idx = j;
 	}
 }
 
@@ -107,8 +109,11 @@ static void heap_sift_down(struct heap *h, int idx) {
 
 void heap_push(struct heap *h, struct heap_elem *e) {
 	assert(h->heap_size+1 < h->heap_capacity);
+	assert(e->idx == -1);
 	int i = h->heap_size;
+	assert(h->heap[i] == NULL);
 	h->heap[h->heap_size++] = e;
+	e->idx = i;
 	heap_sift_up(h, i);
 	//h->min_vt = h->heap[0].vruntime;
 }
@@ -123,5 +128,7 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 		heap_sift_down(h, 0);
 		// h->min_vt = h->heap[0].vruntime;
 	}
-	return h->heap[last];
+	struct heap_elem *he = h->heap[last];
+	h->heap[last] = NULL;			       
+	return he;
 }

@@ -59,7 +59,7 @@ static vt_t heap_check(struct heap *h) {
 
 static void print_elem(struct heap_elem *e) {
 	if(e->vruntime == DUMMY) {
-		printf("[dummy vt %u w %d]", e->vruntime, e->weight);
+		printf("[dummy vt %u w %d idx %d]", e->vruntime, e->weight, e->idx);
 		return;
 	}
 	struct process *p = container_of(e, struct process, he);
@@ -98,6 +98,10 @@ retry:
 // caller must hold heap lock
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 	p->h = h;
+	if(h->heap_size + 1 >= h->heap_capacity) {
+		printf("hid %d\n", h->id);
+		mh_print(p->mh);
+	}
 	heap_push(h, &p->he);
 	lock_release(&p->h->lk);
 }
@@ -107,6 +111,7 @@ static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
 	struct process *p = container_of(he, struct process, he);
+	p->he.idx = -1;
 	return p;
 }
 
@@ -217,20 +222,12 @@ struct process *mh_is_min(struct core *c) {
 	struct process *cp = c->process;
 	struct heap *h = cp->h;
 	lock_acquire(&h->lk);
-	int idx = -1;
-	for (int i = 0; i < h->heap_size; i++) {
-		struct process *p = container_of(h->heap[i], struct process, he);
-		if(p == cp) {
-			idx = i;
-			break;
-		}
-	}
 	struct process *p0 = container_of(mh_min(h), struct process, he);
-	printf("mh_is_min: pid %d vt %ld w %d idx %ld @idx %d pid %d vt %ld wt %d\n", p0->pid, p0->he.vruntime, p0->group->weight, p0->he.idx, idx, cp->pid, cp->he.vruntime, cp->group->weight);
 	if (p0 == cp) {
-		assert(p0->he.idx == idx);
-		p = mh_del_min_process(c, h);
-		assert(p0 == cp);
+		assert(cp->he.idx == 0);
+		assert(p0->he.idx == cp->he.idx);
+		// p = mh_del_min_process(c, h);
+		//assert(p0 == p);
 		c->hit++;
 	}
 	lock_release(&h->lk);

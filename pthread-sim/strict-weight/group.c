@@ -52,7 +52,7 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 }
 
 void proc_print(struct process *p) {
-	printf("(pid %d(%d) vt %u, w %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
+	printf("(pid %d(%d) vt %u w %d idx %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight, p->he.idx);
 }	
 
 

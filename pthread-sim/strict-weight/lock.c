@@ -32,8 +32,9 @@ int
 lock_try_acquire(struct spinlock *lk, void *c)
 {
 	int r = atomic_flag_test_and_set_explicit(&lk->locked,  __ATOMIC_ACQUIRE);
-	if(r == 0)
+	if(r == 0) {
 		lk->c = c;
+	}
 	return r;
 }
 

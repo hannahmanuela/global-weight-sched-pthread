@@ -66,6 +66,17 @@ static void print_elem(struct heap_elem *e) {
 	printf("["); proc_print(p); printf("]");
 }
 
+void mh_print_min(struct mheap *mh) {
+	printf("= mh min:\n");
+	for (int i = 0; i < mh->nheap; i++) {
+		struct heap *h = mh->h[i];
+		printf("%d(%d): ", i, h->heap_size);
+		print_elem(h->heap[0]);
+		printf("\n");
+	}
+	printf("=\n");
+}
+
 void mh_print(struct mheap *mh) {
 	printf("= mh:\n");
 	for (int i = 0; i < mh->nheap; i++) {
@@ -97,13 +108,12 @@ retry:
 
 // caller must hold heap lock
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
-	p->h = h;
 	if(h->heap_size + 1 >= h->heap_capacity) {
-		printf("hid %d\n", h->id);
 		mh_print(p->mh);
 	}
 	heap_push(h, &p->he);
-	lock_release(&p->h->lk, c);
+	p->h = h;
+	lock_release(&h->lk, c);
 }
 
 // caller must hold heap lock
@@ -228,7 +238,6 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 struct process *mh_min_affinity(struct core *c) {
 	struct process *cp = c->process;
 	struct heap *h = cp->h;
-
 	lock_acquire(&h->lk, c);
 	lock_acquire(&cp->lk, c);
 	if (cp->cid != c->cid) {  // some other core is running cp or has run it
@@ -236,16 +245,14 @@ struct process *mh_min_affinity(struct core *c) {
 		lock_release(&h->lk, c);
 		return NULL;
 	}
+	assert(cp->he.idx >= 0);
 	struct process *p = NULL;
-	struct process *p0 = container_of(mh_min(h), struct process, he);
-	if (p0 == cp) {
-		assert(cp->he.idx == 0);
-		assert(p0->he.idx == cp->he.idx);
+	if (cp->he.idx == 0) {  // the current min?
+		mh_print_min(cp->mh);
 		p = mh_remove_min(h);
-		assert(p0 == p);
+		assert(cp == p);
 		assert(cp->cid == p->cid);
 		p->he.idx = -1;
-		c->hit++;
 	}
 	lock_release(&cp->lk, c);
 	lock_release(&h->lk, c);

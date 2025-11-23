@@ -35,7 +35,7 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 	}
 
 	if(debug) {
-		printf("%d: schedule %d(%d) vt %u\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
+		printf("%d: schedule %d(%d) vt %d h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
 		mh_print(min_proc->mh);
 	}
 	if(c->fd > 0) {
@@ -100,7 +100,7 @@ void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t tim
 	enq_proc_vt(gh, c, p, h);
 
 	if(debug) {
-		printf("%d(%d): yield time_passed %ld nt %d w %d vt %u\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime);
+		printf("%d(%d): yield time_passed %ld nt %d w %d vt %d h %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime, h->id);
 		mh_print(p->group->mh);
 	}
 }

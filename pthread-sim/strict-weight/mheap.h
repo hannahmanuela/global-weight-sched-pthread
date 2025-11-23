@@ -20,6 +20,6 @@ vt_t mh_min_vt(struct heap *h);
 struct process *mh_min_proc(struct mheap *mh, struct core *c);
 struct heap *mh_choose_heap( struct mheap *mh, struct core *c);
 void mh_add_process(struct core *c, struct process *p, struct heap *h);
-struct process *mh_is_min(struct core *c);
+struct process *mh_min_affinity(struct core *c);
 
 #endif

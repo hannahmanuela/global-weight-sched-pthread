@@ -111,7 +111,10 @@ static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
 	struct process *p = container_of(he, struct process, he);
+	lock_acquire(&p->lk, c);
 	p->he.idx = -1;
+	p->cid = c->cid;
+	lock_release(&p->lk, c);
 	return p;
 }
 
@@ -217,19 +220,31 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 	return mh_sample_min_proc(mh, c);
 }
 	
-struct process *mh_is_min(struct core *c) {
-	struct process *p = NULL;
+struct process *mh_min_affinity(struct core *c) {
 	struct process *cp = c->process;
 	struct heap *h = cp->h;
+
 	lock_acquire(&h->lk, c);
+	lock_acquire(&cp->lk, c);
+	if (cp->cid != c->cid) {  // some other core is running cp or has run it
+		lock_release(&cp->lk, c);
+		lock_release(&h->lk, c);
+		return NULL;
+	}
+	struct process *p = NULL;
 	struct process *p0 = container_of(mh_min(h), struct process, he);
 	if (p0 == cp) {
 		assert(cp->he.idx == 0);
 		assert(p0->he.idx == cp->he.idx);
-		// p = mh_del_min_process(c, h);
-		// assert(p0 == p);
+		struct heap_elem *he = heap_remove_min(h);
+		assert(h->heap_size > 0);  // dummy should stay on heap
+		p = container_of(he, struct process, he);
+		assert(p0 == p);
+		assert(cp->cid == p->cid);
+		p->he.idx = -1;
 		c->hit++;
 	}
+	lock_release(&cp->lk, c);
 	lock_release(&h->lk, c);
 	return p;
 }

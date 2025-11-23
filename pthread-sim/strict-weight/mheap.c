@@ -142,6 +142,44 @@ static void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, struct c
 	}
 }
 
+static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, struct core *c, int i, int *j) {
+	*j = c_rand(c, mh->nheap);
+	while (i == *j) {
+		c->nrand++;
+		*j = c_rand(c, mh->nheap);
+	}
+}
+
+static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
+	vt_t ovt;
+	struct heap *h_i = mh->h[i];
+	struct heap *h_j = mh->h[j];
+	vt_t vt_i = atomic_load_explicit(&h_i->heap[0]->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&h_j->heap[0]->vruntime, __ATOMIC_RELAXED);
+	if (vt_j == DUMMY) {
+		ovt = DUMMY;
+	} else {
+		if (vt_i > vt_j) {
+			ovt = vt_i;
+			vt_i = vt_j;
+			h_i = h_j;
+		} else if (vt_i == vt_j) {
+			ovt = vt_i;
+			struct heap_elem *he_i = h_i->heap[0];
+			struct heap_elem *he_j = h_j->heap[0];
+			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
+			int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
+			if (w_j > w_i) {	
+				vt_i = vt_j;
+				h_i = h_j;
+			}
+		}
+	}
+	*vt = vt_i;
+	*other_vt = ovt;
+	return h_i;
+}
+
 static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
@@ -236,24 +274,66 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 }
 	
 struct process *mh_min_affinity(struct core *c) {
+	long r = 0;
+	long r_lock = 0;
 	struct process *cp = c->process;
 	struct heap *h = cp->h;
+	struct process *p = NULL;
 	lock_acquire(&h->lk, c);
 	lock_acquire(&cp->lk, c);
 	if (cp->cid != c->cid) {  // some other core is running cp or has run it
-		lock_release(&cp->lk, c);
-		lock_release(&h->lk, c);
-		return NULL;
+		goto end;
 	}
 	assert(cp->he.idx >= 0);
-	struct process *p = NULL;
-	if (cp->he.idx == 0) {  // the current min?
+	if(cp->he.idx > 0) {
+		goto end;
+	}
+retry:
+	int j;
+	vt_t vt;
+	vt_t other_vt;
+	mh_rand_heap(cp->mh, c, h->id, &j);
+	struct heap *h1 = mh_select_affinity(cp->mh, c, h->id, j, &vt, &other_vt);
+	
+	if (h1 == h) {
 		mh_print_min(cp->mh);
 		p = mh_remove_min(h);
 		assert(cp == p);
 		assert(cp->cid == p->cid);
 		p->he.idx = -1;
+		p->other_hid = j;
+		p->other_vt = other_vt;
+		c->hit++;
+		c->nretry_del += (r + r_lock);
+		c->nretry_del_lock += r_lock;
+		if(r > c->max_retry_del)
+			c->max_retry_del = r;
+		if(r_lock > c->max_retry_del_lock)
+			c->max_retry_del_lock = r_lock;
+		goto end;
 	}
+	int l = lock_try_acquire(&h1->lk, c);
+	if (l != 0) {
+		r++;
+		goto retry;
+	}
+	vt_t vt0 = h1->heap[0]->vruntime;
+	if (vt != vt0) {
+		r_lock++;
+		lock_release(&h1->lk, c);
+		goto retry;
+	}	
+	p = mh_del_min_process(c, h1);
+	lock_release(&h1->lk, c);
+	p->other_hid = h->id;
+	p->other_vt = other_vt;
+	c->nretry_del += (r + r_lock);
+	c->nretry_del_lock += r_lock;
+	if(r > c->max_retry_del)
+		c->max_retry_del = r;
+	if(r_lock > c->max_retry_del_lock)
+		c->max_retry_del_lock = r_lock;
+end:
 	lock_release(&cp->lk, c);
 	lock_release(&h->lk, c);
 	return p;

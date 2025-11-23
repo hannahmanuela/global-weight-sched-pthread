@@ -107,10 +107,15 @@ void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 }
 
 // caller must hold heap lock
-static struct process *mh_del_min_process(struct core *c, struct heap *h) {
+static struct process *mh_remove_min(struct heap *h) {
 	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
-	struct process *p = container_of(he, struct process, he);
+	return container_of(he, struct process, he);
+}
+
+// caller must hold heap lock
+static struct process *mh_del_min_process(struct core *c, struct heap *h) {
+	struct process *p = mh_remove_min(h);
 	lock_acquire(&p->lk, c);
 	p->he.idx = -1;
 	p->cid = c->cid;
@@ -236,9 +241,7 @@ struct process *mh_min_affinity(struct core *c) {
 	if (p0 == cp) {
 		assert(cp->he.idx == 0);
 		assert(p0->he.idx == cp->he.idx);
-		struct heap_elem *he = heap_remove_min(h);
-		assert(h->heap_size > 0);  // dummy should stay on heap
-		p = container_of(he, struct process, he);
+		p = mh_remove_min(h);
 		assert(p0 == p);
 		assert(cp->cid == p->cid);
 		p->he.idx = -1;

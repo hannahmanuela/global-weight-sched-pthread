@@ -12,8 +12,8 @@
 #include "group.h"
 #include "mheap.h"
 
-bool debug;
-bool do_affinity;
+bool debug = false;
+bool do_affinity = false;
 
 struct global_heap *gh_new(int tick_length, int n) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));

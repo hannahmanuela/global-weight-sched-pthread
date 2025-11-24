@@ -158,40 +158,49 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -g <ngrp> -w <time_to_work (us) <num_cores> <num_threads> <num_heaps>\n", s);
+	fprintf(stderr, "%s -a -d -l -g <ngrp> -w <time_to_work (us) -h nheap <num_cores> <num_threads>\n", s);
 	exit(1);
 
 }
 
 void main(int argc, char *argv[]) {
 	int opt = 0;
+	int nheap = 0;
 
-	while ((opt = getopt(argc, argv, "g:w:")) != -1) {
+	while ((opt = getopt(argc, argv, "adlg:w:")) != -1) {
 		switch(opt) {
+		case 'a':
+			do_affinity = true;
+			break;
+		case 'd':
+			debug = true;
+			break;
+		case 'l':
+			do_log = true;
+			break;
 		case 'g':
 			num_groups = atoi(optarg);
 			break;
 		case 'w':
 			time_work = atoi(optarg);
 			break;
+		case 'h':
+			nheap = atoi(optarg);
+			break;
 		}
 	}
 
-	if (argc - optind != 3) {
+	if (argc - optind != 2) {
 		usage(argv[0]);
 	}
     
 	num_cores = atoi(argv[optind]);
-	printf("num_cores %d num_grp %d\n", num_cores, num_groups);
+	if (nheap == 0)
+		nheap = num_cores * 2;
 	int num_threads = atoi(argv[optind+1]);
 	printf("num_threads %d\n", num_threads);
-	int nheap = atoi(argv[optind+2]);
 	int num_threads_p_group = num_threads/num_groups;
 	int tick_length = 1000;
-
-	//debug = true;
-	//do_log = true;
-	do_affinity = true;
 
 	gs = malloc(sizeof(struct global_state));
 	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
@@ -211,14 +220,14 @@ void main(int argc, char *argv[]) {
 		}
 	}
 
-	// printf("==="); mh_print(gs->gh->mh);
+	printf("==="); mh_print(gs->gh->mh);
 
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= num_cores %d num_groups %d nprocs %d nheap %d work %d\n", num_cores, num_groups, num_threads, gs->gh->mh->nheap, time_work);
+	printf("= num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d\n", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;
@@ -246,6 +255,7 @@ void main(int argc, char *argv[]) {
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = gs->cores[i];
 		pthread_join(threads[c->cid], NULL);
+
 		// c_print(); printf("\n");
 
 		c_log_done(c);
@@ -273,11 +283,13 @@ void main(int argc, char *argv[]) {
 		rdel_l = MIN(rdel_l, s);
 		nretry_del += (c->nretry_del + c->nretry_del_lock);
 		nretry_del_lock += c->nretry_del_lock;
-		for (i = 0; i < num_groups; i++) {
-			printf("%d ", c->hit[i]);
-			hit += c->hit[i];
+
+		for (int j = 0; j < num_groups; j++) {
+			printf("gid %d: %d ", j, c->hit[j]);
+			hit += c->hit[j];
 		}
 		printf("\n");
+
 		nsched_null += c->nsched_null;
 		if(c->max_retry_del > max_retry_del)
 			max_retry_del = c->max_retry_del;

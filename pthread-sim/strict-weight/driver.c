@@ -166,6 +166,7 @@ void usage(char *s) {
 void main(int argc, char *argv[]) {
 	int opt = 0;
 	int nheap = 0;
+	int tick_length = 1000;
 
 	while ((opt = getopt(argc, argv, "adlg:w:")) != -1) {
 		switch(opt) {
@@ -198,9 +199,7 @@ void main(int argc, char *argv[]) {
 	if (nheap == 0)
 		nheap = num_cores * 2;
 	int num_threads = atoi(argv[optind+1]);
-	printf("num_threads %d\n", num_threads);
 	int num_threads_p_group = num_threads/num_groups;
-	int tick_length = 1000;
 
 	gs = malloc(sizeof(struct global_state));
 	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);

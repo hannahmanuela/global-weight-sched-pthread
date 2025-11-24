@@ -157,124 +157,144 @@ void *run_core(void* core) {
 	}
 }
 
+void usage(char *s) {
+	fprintf(stderr, "%s -g <ngrp> -w <time_to_work (us) <num_cores> <num_threads> <num_heaps>\n", s);
+	exit(1);
+
+}
+
 void main(int argc, char *argv[]) {
-    if (argc != 5) {
-	    fprintf(stderr, "usage: <num_cores> <num_threads> <num_heaps> <time_work (us)>\n");
-	    exit(1);
-    }
-    num_cores = atoi(argv[1]);
-    int num_threads = atoi(argv[2]);
-    int nheap = atoi(argv[3]);
-    int num_threads_p_group = num_threads/num_groups;
-    int tick_length = 1000;
-    time_work = atoi(argv[4]);
+	int opt = 0;
 
-    //debug = true;
-    //do_log = true;
-    do_affinity = true;
+	while ((opt = getopt(argc, argv, "g:w:")) != -1) {
+		switch(opt) {
+		case 'g':
+			num_groups = atoi(optarg);
+			break;
+		case 'w':
+			time_work = atoi(optarg);
+			break;
+		}
+	}
 
-    gs = malloc(sizeof(struct global_state));
-    gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
-    for (int i = 0; i < num_cores; i++) {
-	    gs->cores[i] = c_new(i, num_groups);
-	    if (do_log) c_log_init(gs->cores[i], "/tmp/vtlog");
-    }
-    gs->gh = gh_new(tick_length, nheap);
-    gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
-    for (int i = 0; i < num_groups; i++) {
-	    // struct group *g = grp_new(gs->mh, i, 10);
-	    struct group *g = grp_new(gs->gh->mh, i, 10*(i+1));
-	    gs->grps[i] = g;
-	    for (int j = 0; j < num_threads_p_group; j++) {
-		    struct process *p = grp_new_process(gs->gh->mh, i*num_threads_p_group+j, g);
-		    gh_enqueue(gs->gh, gs->cores[0], p);
-	    }
-    }
+	if (argc - optind != 3) {
+		usage(argv[0]);
+	}
+    
+	num_cores = atoi(argv[optind]);
+	printf("num_cores %d num_grp %d\n", num_cores, num_groups);
+	int num_threads = atoi(argv[optind+1]);
+	printf("num_threads %d\n", num_threads);
+	int nheap = atoi(argv[optind+2]);
+	int num_threads_p_group = num_threads/num_groups;
+	int tick_length = 1000;
 
-    // printf("==="); mh_print(gs->gh->mh);
+	//debug = true;
+	//do_log = true;
+	do_affinity = true;
 
-    pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
-    for (int i = 0; i < num_cores; i ++) {
-	    pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
-    }
+	gs = malloc(sizeof(struct global_state));
+	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
+	for (int i = 0; i < num_cores; i++) {
+		gs->cores[i] = c_new(i, num_groups);
+		if (do_log) c_log_init(gs->cores[i], "/tmp/vtlog");
+	}
+	gs->gh = gh_new(tick_length, nheap);
+	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
+	for (int i = 0; i < num_groups; i++) {
+		// struct group *g = grp_new(gs->mh, i, 10);
+		struct group *g = grp_new(gs->gh->mh, i, 10*(i+1));
+		gs->grps[i] = g;
+		for (int j = 0; j < num_threads_p_group; j++) {
+			struct process *p = grp_new_process(gs->gh->mh, i*num_threads_p_group+j, g);
+			gh_enqueue(gs->gh, gs->cores[0], p);
+		}
+	}
 
-    printf("= num_cores %d num_groups %d nprocs %d nheap %d work %d\n", num_cores, num_groups, num_threads, gs->gh->mh->nheap, time_work);
+	// printf("==="); mh_print(gs->gh->mh);
 
-    float s_h = 0.0;
-    float s_l = FLT_MAX;
-    float p_h = 0.0;
-    float p_l = FLT_MAX;
-    float y_h = 0.0;
-    float y_l = FLT_MAX;
-    float rins_h = 0.0;
-    float rins_l = FLT_MAX;
-    float rdel_h = 0.0;
-    float rdel_l = FLT_MAX;
-    long nretry_ins = 0;
-    long nretry_del = 0;
-    long nretry_del_lock = 0;
-    long y_c = 0;
-    long s_c = 0;
-    long nsched = 0;
-    long nyield = 0;
-    long hit = 0;
-    long nsched_null = 0;
-    long max_retry_del = 0;
-    long max_retry_del_lock = 0;
-    long nnrand = 0;
+	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
+	for (int i = 0; i < num_cores; i ++) {
+		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
+	}
 
-    for (int i = 0; i < num_cores; i++) {
-	    struct core *c = gs->cores[i];
-	    pthread_join(threads[c->cid], NULL);
-	    // c_print(); printf("\n");
+	printf("= num_cores %d num_groups %d nprocs %d nheap %d work %d\n", num_cores, num_groups, num_threads, gs->gh->mh->nheap, time_work);
 
-	    c_log_done(c);
+	float s_h = 0.0;
+	float s_l = FLT_MAX;
+	float p_h = 0.0;
+	float p_l = FLT_MAX;
+	float y_h = 0.0;
+	float y_l = FLT_MAX;
+	float rins_h = 0.0;
+	float rins_l = FLT_MAX;
+	float rdel_h = 0.0;
+	float rdel_l = FLT_MAX;
+	long nretry_ins = 0;
+	long nretry_del = 0;
+	long nretry_del_lock = 0;
+	long y_c = 0;
+	long s_c = 0;
+	long nsched = 0;
+	long nyield = 0;
+	long hit = 0;
+	long nsched_null = 0;
+	long max_retry_del = 0;
+	long max_retry_del_lock = 0;
+	long nnrand = 0;
 
-	    float s = AVG(c->sched_cycles, c->nsched);
-	    nsched += c->nsched;
-	    nyield += c->nyield;
-	    s_h = MAX(s_h, s);
-	    s_l = MIN(s_l, s);
-	    s_c += c->sched_cycles;
-	    // s = AVG(c->min_proc_cycles, c->nsched);
-	    s = AVG(c->min_proc_cycles, c->nsched+c->nretry_del);
-	    p_h = MAX(p_h, s);
-	    p_l = MIN(p_l, s);
-	    s = AVG(c->yield_cycles, c->nyield);
-	    y_h = MAX(y_h, s);
-	    y_c += c->yield_cycles;
-	    y_l = MIN(y_l, s);
-	    s = AVG(c->nretry_ins, (c->nenq + c->nyield));
-	    rins_h = MAX(rins_h, s);
-	    rins_l = MIN(rins_l, s);
-	    nretry_ins += c->nretry_ins;
-	    s = AVG((c->nretry_del+c->nretry_del_lock), c->nsched);
-	    rdel_h = MAX(rdel_h, s);	
-	    rdel_l = MIN(rdel_l, s);
-	    nretry_del += (c->nretry_del + c->nretry_del_lock);
-	    nretry_del_lock += c->nretry_del_lock;
-	    for (i = 0; i < num_groups; i++) {
-		    printf("%d ", c->hit[i]);
-		    hit += c->hit[i];
-	    }
-	    printf("\n");
-	    nsched_null += c->nsched_null;
-	    if(c->max_retry_del > max_retry_del)
-		    max_retry_del = c->max_retry_del;
-	    if(c->max_retry_del_lock > max_retry_del_lock)
-		    max_retry_del_lock = c->max_retry_del_lock;
-	    nnrand += c->nrand;
-    }
-    printf("tp %0.2fM/s (debug: %0.2f %0.2f)\n", AVG(nsched+nyield, TIME_TO_RUN)/1000000, p_l, p_h);
-    printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
-    printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
-    printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
-    printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
-    printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
-    printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
-    printf("  hit %ld\n", hit);
+	for (int i = 0; i < num_cores; i++) {
+		struct core *c = gs->cores[i];
+		pthread_join(threads[c->cid], NULL);
+		// c_print(); printf("\n");
+
+		c_log_done(c);
+
+		float s = AVG(c->sched_cycles, c->nsched);
+		nsched += c->nsched;
+		nyield += c->nyield;
+		s_h = MAX(s_h, s);
+		s_l = MIN(s_l, s);
+		s_c += c->sched_cycles;
+		// s = AVG(c->min_proc_cycles, c->nsched);
+		s = AVG(c->min_proc_cycles, c->nsched+c->nretry_del);
+		p_h = MAX(p_h, s);
+		p_l = MIN(p_l, s);
+		s = AVG(c->yield_cycles, c->nyield);
+		y_h = MAX(y_h, s);
+		y_c += c->yield_cycles;
+		y_l = MIN(y_l, s);
+		s = AVG(c->nretry_ins, (c->nenq + c->nyield));
+		rins_h = MAX(rins_h, s);
+		rins_l = MIN(rins_l, s);
+		nretry_ins += c->nretry_ins;
+		s = AVG((c->nretry_del+c->nretry_del_lock), c->nsched);
+		rdel_h = MAX(rdel_h, s);	
+		rdel_l = MIN(rdel_l, s);
+		nretry_del += (c->nretry_del + c->nretry_del_lock);
+		nretry_del_lock += c->nretry_del_lock;
+		for (i = 0; i < num_groups; i++) {
+			printf("%d ", c->hit[i]);
+			hit += c->hit[i];
+		}
+		printf("\n");
+		nsched_null += c->nsched_null;
+		if(c->max_retry_del > max_retry_del)
+			max_retry_del = c->max_retry_del;
+		if(c->max_retry_del_lock > max_retry_del_lock)
+			max_retry_del_lock = c->max_retry_del_lock;
+		nnrand += c->nrand;
+	}
+	printf("tp %0.2fM/s (debug: %0.2f %0.2f)\n", AVG(nsched+nyield, TIME_TO_RUN)/1000000, p_l, p_h);
+	printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
+	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
+	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
+	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
+	printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
+	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
+	printf("  hit %ld\n", hit);
 	     
-    gh_stats(gs->gh, gs->grps, num_groups);
+	gh_stats(gs->gh, gs->grps, num_groups);
 }
 
 

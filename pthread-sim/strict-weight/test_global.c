@@ -216,14 +216,13 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 	printf("== test_%d_mheap_grp r %d ng %d np %d\n", nheap, rand, ngrp, nproc); 
 	int n = 100000;
 	int tl = 4000;
-	struct group **gs = malloc(sizeof(struct group *) * ngrp);
-	int *ws = malloc(sizeof(int) * ngrp); 
-	int *ticks = malloc(sizeof(int) * ngrp);
+	struct group **gs = calloc(ngrp, sizeof(struct group *));
+	int *ws = calloc(ngrp, sizeof(int));
+	int *ticks = calloc(ngrp, sizeof(int));
 	int tot_w = 0;
 	for (int i = 0; i < ngrp; i++) {
 		ws[i] = (i+1)*5;
 		tot_w += ws[i];
-		ticks[i] = 0;
 	}
 	struct core *c = c_new(0, ngrp);
 	struct global_heap *gh = mk_mheap(c, nheap, ngrp, nproc, tl, gs, ws);
@@ -283,14 +282,12 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 	int n = 100000;
 	// int n = 20;
 	int tl = 1000;
-	struct group **gs = malloc(sizeof(struct group *) *ngrp);
-	int *ticks = malloc(sizeof(int) * ngrp);
-	int *sleep = malloc(sizeof(int) * ngrp);
-	int *ws = malloc(sizeof(int) * ngrp); 
+	struct group **gs = calloc(ngrp, sizeof(struct group *));
+	int *ticks = calloc(ngrp, sizeof(int));
+	int *sleep = calloc(ngrp, sizeof(int));
+	int *ws = calloc(ngrp, sizeof(int));
 	int tot_ws = 0;
 	for(int i = 0; i < ngrp; i++) {
-		ticks[i] = 0;
-		sleep[i] = 0;
 		ws[i] = 10*(i+1);
 		tot_ws += ws[i];
 	}

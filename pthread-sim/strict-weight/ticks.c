@@ -5,9 +5,7 @@
 extern int num_cores;
 
 t_t *new_ticks() {
-	t_t *t = malloc(sizeof(t_t) * num_cores);
-	for(int i = 0; i < num_cores; i++)
-		t[i] = 0;
+	t_t *t = calloc(num_cores, sizeof(t_t));
 	return t;
 }
 

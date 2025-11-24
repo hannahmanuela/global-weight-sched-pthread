@@ -13,6 +13,8 @@
 #include "mheap.h"
 #include "util.h"
 
+#define W_DUMMY 0
+
 struct mheap *mh_new(int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap) * n);
@@ -21,7 +23,7 @@ struct mheap *mh_new(int n) {
 		mh->h[i]->id = i;
 		// insert a dummy element so that the heap always has one elemement
 		struct heap_elem* he = malloc(sizeof(struct heap_elem));
-		heap_elem_init(he, DUMMY, 0);
+		heap_elem_init(he, DUMMY, W_DUMMY);
 		heap_push(mh->h[i], he);
 	}
 	mh->nheap = n;
@@ -154,25 +156,23 @@ static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap 
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	vt_t vt_i = atomic_load_explicit(&h_i->heap[0]->vruntime, __ATOMIC_RELAXED);
-	vt_t vt_j = atomic_load_explicit(&h_j->heap[0]->vruntime, __ATOMIC_RELAXED);
-	if (vt_j == DUMMY) {
+	struct heap_elem *he_i = h_i->heap[0];
+	struct heap_elem *he_j = h_j->heap[0];
+	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
+	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
+	int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
+	if (w_j == W_DUMMY) {
 		ovt = DUMMY;
+	} else if (w_i == w_j) {
+		ovt = vt_j;
 	} else {
 		if (vt_i > vt_j) {
 			ovt = vt_i;
 			vt_i = vt_j;
 			h_i = h_j;
-		} else if (vt_i == vt_j) {
-			ovt = vt_i;
-			struct heap_elem *he_i = h_i->heap[0];
-			struct heap_elem *he_j = h_j->heap[0];
-			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
-			int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
-			if (w_j > w_i) {	
-				vt_i = vt_j;
-				h_i = h_j;
-			}
+		} else {
+			ovt = vt_j;
 		}
 	}
 	*vt = vt_i;
@@ -294,9 +294,8 @@ retry:
 	vt_t other_vt;
 	mh_rand_heap(cp->mh, c, h->id, &j);
 	struct heap *h1 = mh_select_affinity(cp->mh, c, h->id, j, &vt, &other_vt);
-	
 	if (h1 == h) {
-		mh_print_min(cp->mh);
+		// printf("%d(%d) %d(%d):", h->id, vt, j, other_vt); mh_print_min(cp->mh);
 		p = mh_remove_min(h);
 		assert(cp == p);
 		assert(cp->cid == p->cid);

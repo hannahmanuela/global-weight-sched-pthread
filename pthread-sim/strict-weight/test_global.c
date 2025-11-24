@@ -64,7 +64,7 @@ void test_grp_sleep_wakeup() {
 	struct group *gs[GRP1];
 	int ws[GRP1] = {1};
 
-	struct core *c = c_new(0);
+	struct core *c = c_new(0, GRP1);
 	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC2, tl, gs, ws);
 	struct process *p0;
 	struct process *p1;
@@ -118,7 +118,7 @@ void test_mheap_wakeup_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0);
+	struct core *c = c_new(0, GRP3);
 	struct global_heap *gh = mk_mheap(c, 1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -181,7 +181,7 @@ void test_mheap(int nheap, int nproc) {
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
 	int tl = 1000;
-	struct core *c = c_new(0);
+	struct core *c = c_new(0, GRP2);
 	struct global_heap *gh = mk_mheap(c, nheap, GRP2, nproc, tl, gs, ws);
 	struct process *p;
 
@@ -225,7 +225,7 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 		tot_w += ws[i];
 		ticks[i] = 0;
 	}
-	struct core *c = c_new(0);
+	struct core *c = c_new(0, ngrp);
 	struct global_heap *gh = mk_mheap(c, nheap, ngrp, nproc, tl, gs, ws);
 	long tot = 0;
 	for (int i = 0; i < n; i++) {
@@ -294,7 +294,7 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 		ws[i] = 10*(i+1);
 		tot_ws += ws[i];
 	}
-	struct core *c = c_new(0);
+	struct core *c = c_new(0, ngrp);
 	struct global_heap *gh = mk_mheap(c, nheap, ngrp, PROC1, tl, gs, ws);
 	mheap_sleeper(c, gh, n, sleep_id, ticks, sleep, gs, ngrp);
 	for (int i = 0; i < ngrp; i++) {
@@ -322,7 +322,7 @@ void test_worst(int nheap) {
 	int sum = 0;
 	int worst;
 	for(int t = 0; t < n; t++) {
-		struct core *c = c_new(0);
+		struct core *c = c_new(0, GRP1);
 		struct global_heap *gh = gh_new(tl, nheap);
 		struct group *g = grp_new(gh->mh, 0, 10);
 		struct heap *h = mh_choose_heap(gh->mh, c);

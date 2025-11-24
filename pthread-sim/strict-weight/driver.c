@@ -176,7 +176,7 @@ void main(int argc, char *argv[]) {
     gs = malloc(sizeof(struct global_state));
     gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
     for (int i = 0; i < num_cores; i++) {
-	    gs->cores[i] = c_new(i);
+	    gs->cores[i] = c_new(i, num_groups);
 	    if (do_log) c_log_init(gs->cores[i], "/tmp/vtlog");
     }
     gs->gh = gh_new(tick_length, nheap);
@@ -253,7 +253,11 @@ void main(int argc, char *argv[]) {
 	    rdel_l = MIN(rdel_l, s);
 	    nretry_del += (c->nretry_del + c->nretry_del_lock);
 	    nretry_del_lock += c->nretry_del_lock;
-	    hit += c->hit;
+	    for (i = 0; i < num_groups; i++) {
+		    printf("%d ", c->hit[i]);
+		    hit += c->hit[i];
+	    }
+	    printf("\n");
 	    nsched_null += c->nsched_null;
 	    if(c->max_retry_del > max_retry_del)
 		    max_retry_del = c->max_retry_del;

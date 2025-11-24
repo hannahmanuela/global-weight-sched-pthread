@@ -49,7 +49,7 @@ struct core {
 	long max_retry_del_lock;
 	long nrand;
 
-	long hit;
+	long *hit;
 
 	struct log_entry *log;
 	int log_nentry;
@@ -61,7 +61,7 @@ struct core {
 
 void c_print(struct core *c);
 int c_rand(struct core *c, int n);
-struct core *c_new(int i);
+struct core *c_new(int i, int n);
 void c_log_init(struct core *c, char *name);
 void c_log_append(struct core *c, struct process *p);
 void c_log_done(struct core *c);

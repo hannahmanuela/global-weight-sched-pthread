@@ -163,9 +163,13 @@ static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap 
 	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
 	int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
 	if (w_j == W_DUMMY) {
+		assert(vt_j == DUMMY);
 		ovt = DUMMY;
 	} else if (w_i == w_j) {
 		ovt = vt_j;
+		//} else if (w_i > w_j) {
+		// printf("%d(%d) %d(%d):", i, vt_i, j, vt_j); mh_print_min(mh);
+		//ovt = vt_j;
 	} else {
 		if (vt_i > vt_j) {
 			ovt = vt_i;
@@ -302,7 +306,7 @@ retry:
 		p->he.idx = -1;
 		p->other_hid = j;
 		p->other_vt = other_vt;
-		c->hit++;
+		c->hit[cp->group->gid]++;
 		c->nretry_del += (r + r_lock);
 		c->nretry_del_lock += r_lock;
 		if(r > c->max_retry_del)

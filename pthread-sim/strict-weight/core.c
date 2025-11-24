@@ -25,13 +25,13 @@ int c_rand(struct core *c, int n) {
 	return r;
 }
 
-struct core *c_new(int i) {
+struct core *c_new(int i, int n) {
 	struct core *c = (struct core *) malloc(sizeof(struct core));
 	bzero(c, sizeof(struct core));
 	c->cid = i;
 	// c->seed = getpid() + i;
 	c->seed = i;
-
+	c->hit = calloc(n, sizeof(int));
 	return c;
 }
 

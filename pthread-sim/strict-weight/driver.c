@@ -168,7 +168,7 @@ void main(int argc, char *argv[]) {
 	int nheap = 0;
 	int tick_length = 1000;
 
-	while ((opt = getopt(argc, argv, "adlg:w:")) != -1) {
+	while ((opt = getopt(argc, argv, "adlg:w:h:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;

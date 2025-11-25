@@ -60,7 +60,7 @@ struct core {
 
 #define LOG_NENTRY  1000000
 
-void c_print(struct core *c);
+void c_print(struct core *c, int ngrp);
 int c_rand(struct core *c, int n);
 struct core *c_new(int i, int n);
 void c_log_init(struct core *c, char *name);

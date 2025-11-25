@@ -53,7 +53,6 @@ int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
 
 void grp_stats(struct group *g, long tot);
 void grp_print(struct group *g);
-float grp_runtime(struct group *g);
 void grp_set_vruntime(struct process *p, vt_t min);
 vt_t grp_add_vruntime(struct process *p, vt_t min);
 

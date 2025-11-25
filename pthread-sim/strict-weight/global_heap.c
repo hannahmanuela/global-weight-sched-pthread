@@ -150,6 +150,6 @@ void gh_stats(struct global_heap *gh, struct group *grps[], int n) {
 	t_t idle = ticks_sum(ticks);
 	printf("= stats total ticks %ld us work %ld us idle %ld us\n", tot, work, idle);
 	for(int i = 0; i < n; i++) {
-		printf("  "); grp_stats(grps[i], tot); printf("\n");
+		grp_stats(grps[i], tot); printf("\n");
 	}
 }

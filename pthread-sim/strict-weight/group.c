@@ -68,16 +68,16 @@ vt_t grp_add_vruntime(struct process *p, vt_t vt) {
 	return atomic_fetch_add_explicit(&p->group->vruntime, vt, __ATOMIC_RELAXED);
 }
 
-float grp_runtime(struct group *g) {
+static float grp_runtime(struct group *g, long t) {
 	float run = 0.0;
 	for (struct process *p = g->procs; p != NULL; p = p->next) {
 		run += (float)(p->runtime);
 	}
-	printf("= grp runtime %ld:\n", run);
+	printf("  = %d: grp runtime %f fraction %0.2f:\n    ", g->gid, run, AVG(run, t));
 	for (struct process *p = g->procs; p != NULL; p = p->next) {
 		printf("[%d: %ld %0.2f] ", p->pid, p->runtime, AVG(p->runtime, run));
 	}
-	printf("\n=\n");
+	printf("\n  =");
 	return run;
 }
 
@@ -87,9 +87,6 @@ void grp_print(struct group *g) {
 
 void grp_stats(struct group *g, long sum) {
 	t_t t = ticks_sum(g->sleeptime);
-	float run = grp_runtime(g);
-	// printf("%d: runtime %0.2f us sleeptime %d us weight %d ticks %0.2f\n", g->gid,
-	// run, t, g->weight, AVG(run, (sum-t)));
-	printf("%d: fraction of ticks %0.2f", g->gid, AVG(run, (sum-t)));
+	grp_runtime(g, sum-t);
 }
 

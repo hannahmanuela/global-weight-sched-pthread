@@ -152,6 +152,17 @@ static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, struct cor
 	}
 }
 
+static void mh_upd_stat(struct process *p, struct core *c, int other, vt_t other_vt, int r, int r_lock) {
+	p->other_hid = other;
+	p->other_vt = other_vt;
+	c->nretry_del += (r + r_lock);
+	c->nretry_del_lock += r_lock;
+	if(r > c->max_retry_del)
+		c->max_retry_del = r;
+	if(r_lock > c->max_retry_del_lock)
+		c->max_retry_del_lock = r_lock;
+}
+
 static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
@@ -249,14 +260,7 @@ retry:
 	}
 	struct process *p = mh_del_min_process(c, h);
 	lock_release(&h->lk, c);
-	p->other_hid = (h->id == i) ? j : i;
-	p->other_vt = other_vt;
-	c->nretry_del += (r + r_lock);
-	c->nretry_del_lock += r_lock;
-	if(r > c->max_retry_del)
-		c->max_retry_del = r;
-	if(r_lock > c->max_retry_del_lock)
-		c->max_retry_del_lock = r_lock;
+	mh_upd_stat(p, c, (h->id == i) ? j  : i, other_vt, r, r_lock); 
 	return p;
 }
 
@@ -303,19 +307,12 @@ retry:
 	if (h1 == h) {
 		// printf("hit %d(%d) %d(%d):", h->id, vt, j, other_vt);
 		// mh_print_min(cp->mh);
+		c->hit[cp->group->gid]++;
 		p = mh_remove_min(h);
 		assert(cp == p);
 		assert(cp->cid == p->cid);
 		p->he.idx = -1;
-		p->other_hid = j;
-		p->other_vt = other_vt;
-		c->hit[cp->group->gid]++;
-		c->nretry_del += (r + r_lock);
-		c->nretry_del_lock += r_lock;
-		if(r > c->max_retry_del)
-			c->max_retry_del = r;
-		if(r_lock > c->max_retry_del_lock)
-			c->max_retry_del_lock = r_lock;
+		mh_upd_stat(p, c, j, other_vt, r, r_lock);
 		goto end;
 	}
 	int l = lock_try_acquire(&h1->lk, c);
@@ -332,14 +329,7 @@ retry:
 	c->miss[cp->group->gid]++;
 	p = mh_del_min_process(c, h1);
 	lock_release(&h1->lk, c);
-	p->other_hid = h->id;
-	p->other_vt = other_vt;
-	c->nretry_del += (r + r_lock);
-	c->nretry_del_lock += r_lock;
-	if(r > c->max_retry_del)
-		c->max_retry_del = r;
-	if(r_lock > c->max_retry_del_lock)
-		c->max_retry_del_lock = r_lock;
+	mh_upd_stat(p, c, j, other_vt, r, r_lock);
 end:
 	lock_release(&cp->lk, c);
 	lock_release(&h->lk, c);

@@ -256,8 +256,6 @@ void main(int argc, char *argv[]) {
 		struct core *c = gs->cores[i];
 		pthread_join(threads[c->cid], NULL);
 
-		// c_print(); printf("\n");
-
 		c_log_done(c);
 
 		float s = AVG(c->sched_cycles, c->nsched);
@@ -285,11 +283,9 @@ void main(int argc, char *argv[]) {
 		nretry_del_lock += c->nretry_del_lock;
 
 		for (int j = 0; j < num_groups; j++) {
-			printf("[gid %d: h %d m %d] ", j, c->hit[j], c->miss[j]);
 			hit += c->hit[j];
 			miss += c->miss[j];
 		}
-		printf("\n");
 
 		nsched_null += c->nsched_null;
 		if(c->max_retry_del > max_retry_del)
@@ -306,6 +302,10 @@ void main(int argc, char *argv[]) {
 	printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
 	printf("  hit %ld miss %d hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
+	for (int i = 0; i < num_cores; i++) {
+		struct core *c = gs->cores[i];
+		c_print(c, num_groups);
+	}
 	     
 	gh_stats(gs->gh, gs->grps, num_groups);
 }

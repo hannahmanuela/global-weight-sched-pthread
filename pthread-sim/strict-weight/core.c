@@ -11,13 +11,22 @@
 #include "group.h"
 #include "mheap.h"
 
-void c_print(struct core *c) {
-	printf("%d: us(cycles): sched %ld %0.2f enq %ld %0.2f deq %ld %0.2f yield %ld %0.2f",
+void c_print(struct core *c, int num_groups) {
+	printf("    c %d: ", c->cid);
+#if 0
+	printf(" us(cycles): sched %ld %0.2f enq %ld %0.2f deq %ld %0.2f yield %ld %0.2f",
 	       c->cid,
 	       c->nsched, AVG(c->sched_cycles, c->nsched),
 	       c->nenq, AVG(c->enq_cycles, c->nenq),
 	       c->ndeq, AVG(c->deq_cycles, c->ndeq),
 	       c->nyield, AVG(c->yield_cycles, c->nyield));
+#endif
+	for (int j = 0; j < num_groups; j++) {
+		printf("[gid %d: h %d m %d %0.2f] ", j, c->hit[j], c->miss[j],
+		       AVG(c->hit[j], (c->hit[j]+c->miss[j])));
+	}
+	printf("\n");
+
 }
 
 int c_rand(struct core *c, int n) {

@@ -32,6 +32,7 @@ struct core *c_new(int i, int n) {
 	// c->seed = getpid() + i;
 	c->seed = i;
 	c->hit = calloc(n, sizeof(int));
+	c->miss = calloc(n, sizeof(int));
 	return c;
 }
 

@@ -50,6 +50,7 @@ struct core {
 	long nrand;
 
 	int *hit;
+	int *miss;
 
 	struct log_entry *log;
 	int log_nentry;

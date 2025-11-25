@@ -326,6 +326,7 @@ retry:
 		lock_release(&h1->lk, c);
 		goto retry;
 	}	
+	c->miss[cp->group->gid]++;
 	p = mh_del_min_process(c, h1);
 	lock_release(&h1->lk, c);
 	p->other_hid = h->id;

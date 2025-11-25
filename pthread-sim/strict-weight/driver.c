@@ -246,6 +246,7 @@ void main(int argc, char *argv[]) {
 	long nsched = 0;
 	long nyield = 0;
 	long hit = 0;
+	long miss = 0;
 	long nsched_null = 0;
 	long max_retry_del = 0;
 	long max_retry_del_lock = 0;
@@ -284,8 +285,9 @@ void main(int argc, char *argv[]) {
 		nretry_del_lock += c->nretry_del_lock;
 
 		for (int j = 0; j < num_groups; j++) {
-			printf("gid %d: %d ", j, c->hit[j]);
+			printf("[gid %d: h %d m %d] ", j, c->hit[j], c->miss[j]);
 			hit += c->hit[j];
+			miss += c->miss[j];
 		}
 		printf("\n");
 
@@ -303,7 +305,7 @@ void main(int argc, char *argv[]) {
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
 	printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
-	printf("  hit %ld\n", hit);
+	printf("  hit %ld miss %d\n", hit, miss);
 	     
 	gh_stats(gs->gh, gs->grps, num_groups);
 }

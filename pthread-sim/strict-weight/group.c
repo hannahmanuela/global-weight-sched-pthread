@@ -56,8 +56,6 @@ void proc_print(struct process *p) {
 	printf("(pid %d(%d) vt %u w %d idx %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight, p->he.idx);
 }	
 
-
-
 void grp_set_vruntime(struct process *p, vt_t vt) {
 	if(debug)
 		printf("%d(%d): grp_set_vruntime: vt %u\n", p->pid, p->group->gid, vt);

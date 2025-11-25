@@ -226,7 +226,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d\n", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work);
+	printf("= num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d\n", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;

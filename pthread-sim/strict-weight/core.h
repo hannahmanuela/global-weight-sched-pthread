@@ -49,7 +49,7 @@ struct core {
 	long max_retry_del_lock;
 	long nrand;
 
-	long *hit;
+	int *hit;
 
 	struct log_entry *log;
 	int log_nentry;

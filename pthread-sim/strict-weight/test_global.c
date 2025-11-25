@@ -343,6 +343,42 @@ void test_worst(int nheap) {
 	printf("== test_worst: avg %d worst %d\n", sum/n, worst);
 }
 
+void test_running_lag() {
+
+	struct group *gs[GRP2];
+	int ws[GRP2] = {10, 5};
+
+	int tl = 1000;
+	int ngrp = GRP2;
+
+	int nheap = 1;
+	struct core *c = c_new(0);
+	struct global_heap *gh = gh_new(tl, nheap);
+	for (int i = 0; i < ngrp; i++) {
+		gs[i] = grp_new(gh->mh, i, ws[i]);
+	}
+
+	struct process *p1 = grp_new_process(gh->mh, 0, gs[0]);
+	struct process *p2 = grp_new_process(gh->mh, 1, gs[1]);
+
+	gh_enqueue(gh, c, p1);
+
+	// run a bunch
+	for (int i=0; i < 10; i++) {
+		struct process *p = schedule_retry(c, gh);
+		gh_yield(gh, c, p, gh->tick_length);
+	}
+	assert(p1->he.vruntime == 1000);
+
+	struct process *p = schedule_retry(c, gh);
+
+	// current problem: newly enqueued process sees an empty heap; assumes min is 0; sets its time accordingly
+	gh_enqueue(gh, c, p2);
+	printf("p2 vt: %llu\n", p2->he.vruntime);
+	assert(p2->he.vruntime == 1000); // or is it 1100?
+
+}
+
 void main(int argc, char *argv[]) {
 	srandom(getpid());
 	// debug = true;
@@ -360,5 +396,6 @@ void main(int argc, char *argv[]) {
 	test_mheap_sleep(1, 1, GRP2);
 	test_mheap_sleep(1, 2, 3);
 	test_worst(112);
+	test_running_lag();
 }
 

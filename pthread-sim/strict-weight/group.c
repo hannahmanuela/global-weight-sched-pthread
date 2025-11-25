@@ -73,6 +73,11 @@ float grp_runtime(struct group *g) {
 	for (struct process *p = g->procs; p != NULL; p = p->next) {
 		run += (float)(p->runtime);
 	}
+	printf("= grp runtime %ld:\n", run);
+	for (struct process *p = g->procs; p != NULL; p = p->next) {
+		printf("[%d: %ld %0.2f] ", p->pid, p->runtime, AVG(p->runtime, run));
+	}
+	printf("\n=\n");
 	return run;
 }
 

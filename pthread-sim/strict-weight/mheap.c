@@ -286,10 +286,12 @@ struct process *mh_min_affinity(struct core *c) {
 	lock_acquire(&h->lk, c);
 	lock_acquire(&cp->lk, c);
 	if (cp->cid != c->cid) {  // some other core is running cp or has run it
+		c->miss[cp->group->gid]++;
 		goto end;
 	}
 	assert(cp->he.idx >= 0);
 	if(cp->he.idx > 0) {
+		c->miss[cp->group->gid]++;
 		goto end;
 	}
 retry:
@@ -299,7 +301,8 @@ retry:
 	mh_rand_heap(cp->mh, c, h->id, &j);
 	struct heap *h1 = mh_select_affinity(cp->mh, c, h->id, j, &vt, &other_vt);
 	if (h1 == h) {
-		// printf("%d(%d) %d(%d):", h->id, vt, j, other_vt); mh_print_min(cp->mh);
+		// printf("hit %d(%d) %d(%d):", h->id, vt, j, other_vt);
+		// mh_print_min(cp->mh);
 		p = mh_remove_min(h);
 		assert(cp == p);
 		assert(cp->cid == p->cid);

@@ -167,14 +167,18 @@ void main(int argc, char *argv[]) {
 	int opt = 0;
 	int nheap = 0;
 	int tick_length = 1000;
+	int equal;
 
-	while ((opt = getopt(argc, argv, "adlg:w:h:")) != -1) {
+	while ((opt = getopt(argc, argv, "adelg:w:h:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;
 			break;
 		case 'd':
 			debug = true;
+			break;
+		case 'e':
+			equal = true;
 			break;
 		case 'l':
 			do_log = true;
@@ -210,8 +214,9 @@ void main(int argc, char *argv[]) {
 	gs->gh = gh_new(tick_length, nheap);
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
 	for (int i = 0; i < num_groups; i++) {
-		// struct group *g = grp_new(gs->mh, i, 10);
-		struct group *g = grp_new(gs->gh->mh, i, 10*(i+1));
+		struct group *g;
+		if (equal) g = grp_new(gs->gh->mh, i, 10);
+		else g = grp_new(gs->gh->mh, i, 10*(i+1));
 		gs->grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {
 			struct process *p = grp_new_process(gs->gh->mh, i*num_threads_p_group+j, g);

@@ -31,7 +31,7 @@
 int num_groups = 4;
 int num_cores;
 int time_work; // in usec
-bool do_log;
+char *logfile = NULL;
 bool do_ts_op;
 
 extern bool debug;
@@ -158,7 +158,7 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -a -d -l -g <ngrp> -w <time_to_work (us) -h nheap <num_cores> <num_threads>\n", s);
+	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -l logfile <num_cores> <num_threads>\n", s);
 	exit(1);
 
 }
@@ -170,16 +170,13 @@ void main(int argc, char *argv[]) {
 	int ratio = 1;
 	int base_weight = 10;
 
-	while ((opt = getopt(argc, argv, "adlg:w:h:r:")) != -1) {
+	while ((opt = getopt(argc, argv, "adg:w:h:r:l:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;
 			break;
 		case 'd':
 			debug = true;
-			break;
-		case 'l':
-			do_log = true;
 			break;
 		case 'g':
 			num_groups = atoi(optarg);
@@ -192,6 +189,9 @@ void main(int argc, char *argv[]) {
 			break;
 		case 'r':
 			ratio = atoi(optarg);
+			break;
+		case 'l':
+			logfile = optarg;
 			break;
 		}
 	}
@@ -210,7 +210,7 @@ void main(int argc, char *argv[]) {
 	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
 	for (int i = 0; i < num_cores; i++) {
 		gs->cores[i] = c_new(i, num_groups);
-		if (do_log) c_log_init(gs->cores[i], "/tmp/vtlog");
+		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
 	gs->gh = gh_new(tick_length, nheap);
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);

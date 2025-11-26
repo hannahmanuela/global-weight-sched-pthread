@@ -74,6 +74,7 @@ void c_log_append(struct core *c, struct process *p) {
 	c->log[i].cid = c->cid;
 	c->log[i].pid = p->pid;
 	c->log[i].gid = p->group->gid;
+	c->log[i].w = p->he.weight;
 	c->log[i].hid = p->h->id;
 	c->log[i].ohid = p->other_hid;
 	c->log[i].ovt = p->other_vt;

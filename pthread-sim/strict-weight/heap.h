@@ -20,6 +20,7 @@ struct heap {
 	int id;
 
 	int heap_size __calign__;
+	vt_t last_vt;
 }  __calign__;
 
 typedef void (*heap_iter_t)(struct heap_elem *);

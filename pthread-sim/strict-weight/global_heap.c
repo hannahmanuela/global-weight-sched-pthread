@@ -69,7 +69,7 @@ void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 		if(p->group->min_vt_deq > h_min) {
 			lag += (p->group->min_vt_deq-h_min);
 		}
-		vt_t vt = mh_min_vt(h) + lag;
+		vt_t vt = h_min + lag;
 		grp_set_vruntime(p, vt);
 	}
 

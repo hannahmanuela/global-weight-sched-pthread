@@ -143,6 +143,7 @@ void test_mheap_wakeup_lag() {
 	gh_enqueue(gh, c, p0);
 	assert(p0->he.vruntime == 200);
 
+#if 0
 	// experimenting
 	
 	p0 = schedule_retry(c, gh);
@@ -172,6 +173,7 @@ void test_mheap_wakeup_lag() {
 	printf("enq 2"); gh_print(gh, gs, GRP3);
 
 	// printf("yield 1"); print(gh, gs, GRP3);
+#endif
 }
 
 
@@ -340,11 +342,48 @@ void test_worst(int nheap) {
 	printf("== test_worst: avg %d worst %d\n", sum/n, worst);
 }
 
+void test_running_lag() {
+	printf("== test_running_lag start\n");
+
+	struct group *gs[GRP2];
+	int ws[GRP2] = {10, 5};
+
+	int tl = 1000;
+	int ngrp = GRP2;
+
+	int nheap = 1;
+	struct core *c = c_new(0, GRP2);
+	struct global_heap *gh = gh_new(tl, nheap);
+	for (int i = 0; i < ngrp; i++) {
+		gs[i] = grp_new(gh->mh, i, ws[i]);
+	}
+
+	struct process *p1 = grp_new_process(gh->mh, 0, gs[0]);
+	struct process *p2 = grp_new_process(gh->mh, 1, gs[1]);
+
+	gh_enqueue(gh, c, p1);
+
+	// run a bunch
+	for (int i=0; i < 10; i++) {
+		struct process *p = schedule_retry(c, gh);
+		gh_yield(gh, c, p, gh->tick_length);
+	}
+	assert(p1->he.vruntime == 1000);
+
+	struct process *p = schedule_retry(c, gh);
+	gh_enqueue(gh, c, p2);
+
+	// 1000 since p2 hasn't run yet; if it had run and dequeued,
+	// then dequeue would make it 1100.
+	assert(p2->he.vruntime == 1000);
+}
+
 void main(int argc, char *argv[]) {
 	srandom(getpid());
 	// debug = true;
 	test_grp_sleep_wakeup();
 	test_mheap_wakeup_lag();
+	test_running_lag();
 	test_mheap(1, PROC1);
 	test_mheap(1, PROC2);
 	test_mheap(2, PROC1);

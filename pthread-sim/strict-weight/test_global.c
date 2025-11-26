@@ -143,6 +143,7 @@ void test_mheap_wakeup_lag() {
 	gh_enqueue(gh, c, p0);
 	assert(p0->he.vruntime == 200);
 
+#if 0
 	// experimenting
 	
 	p0 = schedule_retry(c, gh);
@@ -172,6 +173,7 @@ void test_mheap_wakeup_lag() {
 	printf("enq 2"); gh_print(gh, gs, GRP3);
 
 	// printf("yield 1"); print(gh, gs, GRP3);
+#endif
 }
 
 
@@ -344,6 +346,7 @@ void test_worst(int nheap) {
 }
 
 void test_running_lag() {
+	printf("== test_running_lag start\n");
 
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 5};
@@ -371,12 +374,11 @@ void test_running_lag() {
 	assert(p1->he.vruntime == 1000);
 
 	struct process *p = schedule_retry(c, gh);
-
-	// current problem: newly enqueued process sees an empty heap; assumes min is 0; sets its time accordingly
 	gh_enqueue(gh, c, p2);
-	printf("p2 vt: %llu\n", p2->he.vruntime);
-	assert(p2->he.vruntime == 1000); // or is it 1100?
 
+	// 1000 since p2 hasn't run yet; if it had run and dequeued,
+	// then dequeue would make it 1100.
+	assert(p2->he.vruntime == 1000);
 }
 
 void main(int argc, char *argv[]) {
@@ -384,6 +386,7 @@ void main(int argc, char *argv[]) {
 	// debug = true;
 	test_grp_sleep_wakeup();
 	test_mheap_wakeup_lag();
+	test_running_lag();
 	test_mheap(1, PROC1);
 	test_mheap(1, PROC2);
 	test_mheap(2, PROC1);
@@ -396,6 +399,5 @@ void main(int argc, char *argv[]) {
 	test_mheap_sleep(1, 1, GRP2);
 	test_mheap_sleep(1, 2, 3);
 	test_worst(112);
-	test_running_lag();
 }
 

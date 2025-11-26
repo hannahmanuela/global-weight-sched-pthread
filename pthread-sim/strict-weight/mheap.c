@@ -51,7 +51,7 @@ vt_t mh_min_vt(struct heap *h) {
 	struct heap_elem *min = mh_min(h);
 	vt_t vt = atomic_load(&min->vruntime);
 	if (vt == DUMMY)
-		return 0;
+		return atomic_load_explicit(&h->last_vt, __ATOMIC_RELAXED);
 	return vt;
 }
 
@@ -75,7 +75,7 @@ void mh_print(struct mheap *mh) {
 	printf("= mh:\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
-		printf("  Heap %d size %d: \n", i, h->heap_size);
+		printf("  Heap %d size %d last_vt %d: \n", i, h->heap_size, h->last_vt);
 		heap_iter(mh->h[i], print_elem);
 		printf("\n");
 	}

@@ -21,6 +21,7 @@ struct heap *heap_new() {
 	struct heap *h = aligned_alloc(CACHE_LINE_SZ, (sizeof(struct heap)));
 	h->heap_size = 0;
 	h->heap_capacity = 0;
+	h->last_vt = 0;
 	lock_init(&h->lk);
 	heap_alloc(h);
 	assert(((long) h->heap) % CACHE_LINE_SZ == 0);
@@ -123,5 +124,6 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 		heap_sift_down(h, 0);
 		// h->min_vt = h->heap[0].vruntime;
 	}
+	h->last_vt = h->heap[last].vruntime;
 	return &(h->heap[last]);
 }

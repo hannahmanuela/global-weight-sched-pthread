@@ -110,11 +110,13 @@ retry:
 
 // caller must hold heap lock
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
+#if 0
 	if(h->heap_size + 1 >= h->heap_capacity) {
 		mh_print(p->mh);
 	}
-	heap_push(h, &p->he);
+#endif
 	p->h = h;
+	heap_push(h, &p->he);
 	lock_release(&h->lk, c);
 }
 
@@ -128,9 +130,9 @@ static struct process *mh_remove_min(struct heap *h) {
 // caller must hold heap lock
 static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	struct process *p = mh_remove_min(h);
-	lock_acquire(&p->lk, c);
-	p->cid = c->cid;
-	lock_release(&p->lk, c);
+	//lock_acquire(&p->lk, c);
+	// p->cid = c->cid;
+	//lock_release(&p->lk, c);
 	return p;
 }
 

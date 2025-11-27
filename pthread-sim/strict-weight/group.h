@@ -11,7 +11,7 @@
 #include "heap.h"
 
 struct process {
-	struct heap_elem he; // __calign__;
+	struct heap_elem he;
 	struct heap *h;
 
 	t_t runtime;  // __calign__;  // number of us the process ran
@@ -19,14 +19,13 @@ struct process {
 	struct mheap *mh;
 	struct group *group;
 
-	//struct spinlock lk __calign__;
-	int cid;                 // core that is running or ran last this process
-
 	int pid;
 	struct process *next;
 
 	int other_hid;
 	vt_t other_vt;
+
+	int cid __calign__;     // core that is running or ran last this process
 	
 } __calign__;
 

@@ -38,9 +38,7 @@ void mh_free(struct mheap *mh) {
 
 static struct heap_elem *mh_min(struct heap *h) {
 	struct heap_elem *he = heap_min(h);
-	if (he == NULL) {
-		assert(0);
-	}
+	assert(he != NULL);
 	return he;
 }
 
@@ -110,11 +108,6 @@ retry:
 
 // caller must hold heap lock
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
-#if 0
-	if(h->heap_size + 1 >= h->heap_capacity) {
-		mh_print(p->mh);
-	}
-#endif
 	p->h = h;
 	heap_push(h, &p->he);
 	lock_release(&h->lk, c);
@@ -130,9 +123,7 @@ static struct process *mh_remove_min(struct heap *h) {
 // caller must hold heap lock
 static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	struct process *p = mh_remove_min(h);
-	//lock_acquire(&p->lk, c);
-	// p->cid = c->cid;
-	//lock_release(&p->lk, c);
+	atomic_store_explicit(&p->cid, c->cid, __ATOMIC_RELAXED);
 	return p;
 }
 
@@ -289,8 +280,8 @@ struct process *mh_min_affinity(struct core *c) {
 	struct heap *h = cp->h;
 	struct process *p = NULL;
 	lock_acquire(&h->lk, c);
-	//lock_acquire(&cp->lk, c);
-	if (cp->cid != c->cid) {  // some other core is running cp or has run it
+	int cid = atomic_load_explicit(&cp->cid, __ATOMIC_RELAXED);
+	if (cid != c->cid) {  // some other core is running cp or has run it
 		c->miss[cp->group->gid]++;
 		goto end;
 	}
@@ -310,7 +301,6 @@ retry:
 		c->hit[cp->group->gid]++;
 		p = mh_remove_min(h);
 		assert(cp == p);
-		assert(cp->cid == p->cid);
 		mh_upd_stat(p, c, j, other_vt, r, r_lock);
 		goto end;
 	}
@@ -330,7 +320,6 @@ retry:
 	lock_release(&h1->lk, c);
 	mh_upd_stat(p, c, j, other_vt, r, r_lock);
 end:
-	//lock_release(&cp->lk, c);
 	lock_release(&h->lk, c);
 	return p;
 }

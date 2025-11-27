@@ -25,32 +25,32 @@ static void grp_add_process(struct process *p) {
 }
 
 struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
-    struct process *p = malloc(sizeof(struct process));
-    p->pid = id;
-    p->runtime = 0;
-    p->group = group;
-    p->next = NULL;
-    heap_elem_init(&p->he, 0, group->weight, p);
-    // lock_init(&p->lk);
-    p->mh = mh;
-    p->h = NULL;
-    grp_add_process(p);
-    return p;
+	struct process *p = aligned_alloc(CACHE_LINE_SZ, (sizeof(struct process)));
+	p->pid = id;
+	p->runtime = 0;
+	p->group = group;
+	p->next = NULL;
+	heap_elem_init(&p->he, 0, group->weight, p);
+	// lock_init(&p->lk);
+	p->mh = mh;
+	p->h = NULL;
+	grp_add_process(p);
+	return p;
 }
 
 struct group *grp_new(struct mheap *mh, int id, int weight) {
-    struct group *g = malloc(sizeof(struct group));
-    g->gid = id;
-    g->vruntime = 0;
-    g->weight = weight;
-    g->nthread = 0;
-    g->procs = NULL;
-    g->sleepstart = new_ticks();
-    ticks_gettime(g->sleepstart);
-    g->sleeptime = new_ticks();
-    g->time = new_ticks();
-    g->mh = mh;
-    return g;
+	struct group *g = malloc(sizeof(struct group));
+	g->gid = id;
+	g->vruntime = 0;
+	g->weight = weight;
+	g->nthread = 0;
+	g->procs = NULL;
+	g->sleepstart = new_ticks();
+	ticks_gettime(g->sleepstart);
+	g->sleeptime = new_ticks();
+	g->time = new_ticks();
+	g->mh = mh;
+	return g;
 }
 
 void proc_print(struct process *p) {

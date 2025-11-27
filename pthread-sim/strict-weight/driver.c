@@ -225,7 +225,7 @@ void main(int argc, char *argv[]) {
 		}
 	}
 
-	printf("==="); mh_print(gs->gh->mh);
+	// printf("==="); mh_print(gs->gh->mh);
 
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {

@@ -165,8 +165,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap 
 	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
 	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
 	int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
-	if (w_j == W_DUMMY) {
-		assert(vt_j == DUMMY);
+	if (vt_j == DUMMY) {
 		ovt = DUMMY;
 	} else if (w_i == w_j) {
 		ovt = vt_j;

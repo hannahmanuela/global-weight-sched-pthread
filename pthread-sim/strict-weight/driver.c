@@ -307,7 +307,8 @@ void main(int argc, char *argv[]) {
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
 	printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
-	printf("  hit %ld miss %d hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
+	if(do_affinity)
+		printf("  hit %ld miss %d hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = gs->cores[i];
 		c_print(c, num_groups);

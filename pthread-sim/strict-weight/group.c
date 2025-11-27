@@ -11,6 +11,7 @@
 #include "group.h"
 
 extern bool debug;
+extern bool do_affinity;
 
 static void grp_add_process(struct process *p) {
 	struct process *curr_head = p->group->procs;
@@ -71,11 +72,15 @@ static float grp_runtime(struct group *g, long t) {
 	for (struct process *p = g->procs; p != NULL; p = p->next) {
 		run += (float)(p->runtime);
 	}
-	printf("  = %d: w %d grp runtime %f fraction %0.2f:\n    ", g->gid, g->weight, run, AVG(run, t));
-	for (struct process *p = g->procs; p != NULL; p = p->next) {
-		printf("[%d: %ld %0.2f] ", p->pid, p->runtime, AVG(p->runtime, run));
+	if(do_affinity) {
+		printf("  = %d: w %d grp runtime %f fraction %0.2f:\n    ", g->gid, g->weight, run, AVG(run, t));
+		for (struct process *p = g->procs; p != NULL; p = p->next) {
+			printf("[%d: %ld %0.2f] ", p->pid, p->runtime, AVG(p->runtime, run));
+		}
+		printf("\n  =");
+	} else {
+		printf("  = %d: w %d grp runtime %f fraction %0.2f", g->gid, g->weight, run, AVG(run, t));
 	}
-	printf("\n  =");
 	return run;
 }
 

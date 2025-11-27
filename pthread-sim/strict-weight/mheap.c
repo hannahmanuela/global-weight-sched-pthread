@@ -273,16 +273,20 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 }
 	
 struct process *mh_min_affinity(struct core *c) {
-	long r = 0;
-	long r_lock = 0;
 	struct process *cp = c->process;
 	struct heap *h = cp->h;
-	struct process *p = NULL;
 	int cid = atomic_load_explicit(&cp->cid, __ATOMIC_RELAXED);
 	if (cid != c->cid) {  // some other core is running cp or has run it
 		c->miss[cp->group->gid]++;
-		goto end;
+		return NULL;
 	}
+	if(atomic_load_explicit(&h->heap[0].elem, __ATOMIC_RELAXED) != cp) {
+		c->miss[cp->group->gid]++;
+		return NULL;
+	}
+	struct process *p = NULL;
+	long r = 0;
+	long r_lock = 0;
 	lock_acquire(&h->lk, c);
 	if(h->heap[0].elem != cp) {
 		c->miss[cp->group->gid]++;

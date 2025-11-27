@@ -278,12 +278,12 @@ struct process *mh_min_affinity(struct core *c) {
 	struct process *cp = c->process;
 	struct heap *h = cp->h;
 	struct process *p = NULL;
-	lock_acquire(&h->lk, c);
 	int cid = atomic_load_explicit(&cp->cid, __ATOMIC_RELAXED);
 	if (cid != c->cid) {  // some other core is running cp or has run it
 		c->miss[cp->group->gid]++;
 		goto end;
 	}
+	lock_acquire(&h->lk, c);
 	if(h->heap[0].elem != cp) {
 		c->miss[cp->group->gid]++;
 		goto end;
@@ -300,6 +300,7 @@ retry:
 		c->hit[cp->group->gid]++;
 		p = mh_remove_min(h);
 		assert(cp == p);
+		assert(p->cid == cid);
 		mh_upd_stat(p, c, j, other_vt, r, r_lock);
 		goto end;
 	}

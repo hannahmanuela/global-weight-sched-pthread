@@ -62,8 +62,8 @@ static void print_elem(struct heap_elem *e) {
 		printf("[dummy vt %u w %d]", e->vruntime, e->weight);
 		return;
 	}
-	struct process *p = container_of(e, struct process, he);
-	printf("["); proc_print(p); printf("]");
+	struct process *p = (struct process *) e->elem;
+	printf("("); proc_print(p); printf(")");
 }
 
 void mh_print_min(struct mheap *mh) {

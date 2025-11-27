@@ -285,7 +285,7 @@ struct process *mh_min_affinity(struct core *c) {
 		c->miss[cp->group->gid]++;
 		goto end;
 	}
-	if(h->heap[0].elem != p) {
+	if(h->heap[0].elem != cp) {
 		c->miss[cp->group->gid]++;
 		goto end;
 	}

@@ -11,7 +11,7 @@ typedef short idx_t;
 struct heap_elem {
 	vt_t vruntime;
 	w_t weight;
-	idx_t idx;
+	void *elem;
 };
 
 typedef int (*cmp_elem_t)(struct heap_elem *, struct heap_elem*);

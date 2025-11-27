@@ -23,7 +23,7 @@ struct mheap *mh_new(int n) {
 		mh->h[i]->id = i;
 		// insert a dummy element so that the heap always has one elemement
 		struct heap_elem* he = malloc(sizeof(struct heap_elem));
-		heap_elem_init(he, DUMMY, W_DUMMY);
+		heap_elem_init(he, DUMMY, W_DUMMY, NULL);
 		heap_push(mh->h[i], he);
 	}
 	mh->nheap = n;
@@ -55,13 +55,13 @@ vt_t mh_min_vt(struct heap *h) {
 static vt_t heap_check(struct heap *h) {
 	vt_t min = mh_min_vt(h);
 	for (int i = 0; i < h->heap_size; i++) {
-		assert(min <= h->heap[i]->vruntime);
+		assert(min <= h->heap[i].vruntime);
 	}
 }
 
 static void print_elem(struct heap_elem *e) {
 	if(e->vruntime == DUMMY) {
-		printf("[dummy vt %u w %d idx %d]", e->vruntime, e->weight, e->idx);
+		printf("[dummy vt %u w %d]", e->vruntime, e->weight);
 		return;
 	}
 	struct process *p = container_of(e, struct process, he);
@@ -73,7 +73,7 @@ void mh_print_min(struct mheap *mh) {
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
 		printf("%d(%d): ", i, h->heap_size);
-		print_elem(h->heap[0]);
+		print_elem(&h->heap[0]);
 		printf("\n");
 	}
 	printf("=\n");
@@ -122,14 +122,13 @@ void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 static struct process *mh_remove_min(struct heap *h) {
 	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
-	return container_of(he, struct process, he);
+	return (struct process *) he->elem;
 }
 
 // caller must hold heap lock
 static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	struct process *p = mh_remove_min(h);
 	lock_acquire(&p->lk, c);
-	p->he.idx = -1;
 	p->cid = c->cid;
 	lock_release(&p->lk, c);
 	return p;
@@ -167,8 +166,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap 
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	struct heap_elem *he_i = h_i->heap[0];
-	struct heap_elem *he_j = h_j->heap[0];
+	struct heap_elem *he_i = &(h_i->heap[0]);
+	struct heap_elem *he_j = &(h_j->heap[0]);
 	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
 	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
 	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
@@ -199,8 +198,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, stru
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	vt_t vt_i = atomic_load_explicit(&h_i->heap[0]->vruntime, __ATOMIC_RELAXED);
-	vt_t vt_j = atomic_load_explicit(&h_j->heap[0]->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_i = atomic_load_explicit(&h_i->heap[0].vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&h_j->heap[0].vruntime, __ATOMIC_RELAXED);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
 		return NULL;
 	}
@@ -215,8 +214,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, stru
 			h_i = h_j;
 		} else if (vt_i == vt_j) {
 			ovt = vt_i;
-			struct heap_elem *he_i = h_i->heap[0];
-			struct heap_elem *he_j = h_j->heap[0];
+			struct heap_elem *he_i = &h_i->heap[0];
+			struct heap_elem *he_j = &h_j->heap[0];
 			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
 			int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
 			if (w_j > w_i) {	
@@ -251,7 +250,7 @@ retry:
 		r++;
 		goto retry;
 	}
-	vt_t vt0 = h->heap[0]->vruntime;
+	vt_t vt0 = h->heap[0].vruntime;
 	// vt_t vt0 = h->min_vt;
 	if (vt != vt0) {
 		r_lock++;
@@ -293,8 +292,7 @@ struct process *mh_min_affinity(struct core *c) {
 		c->miss[cp->group->gid]++;
 		goto end;
 	}
-	assert(cp->he.idx >= 0);
-	if(cp->he.idx > 0) {
+	if(h->heap[0].elem != p) {
 		c->miss[cp->group->gid]++;
 		goto end;
 	}
@@ -311,7 +309,6 @@ retry:
 		p = mh_remove_min(h);
 		assert(cp == p);
 		assert(cp->cid == p->cid);
-		p->he.idx = -1;
 		mh_upd_stat(p, c, j, other_vt, r, r_lock);
 		goto end;
 	}
@@ -320,7 +317,7 @@ retry:
 		r++;
 		goto retry;
 	}
-	vt_t vt0 = h1->heap[0]->vruntime;
+	vt_t vt0 = h1->heap[0].vruntime;
 	if (vt != vt0) {
 		r_lock++;
 		lock_release(&h1->lk, c);

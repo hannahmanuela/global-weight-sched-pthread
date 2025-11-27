@@ -29,7 +29,7 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     p->runtime = 0;
     p->group = group;
     p->next = NULL;
-    heap_elem_init(&p->he, 0, group->weight);
+    heap_elem_init(&p->he, 0, group->weight, p);
     lock_init(&p->lk);
     p->mh = mh;
     p->h = NULL;
@@ -53,7 +53,7 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 }
 
 void proc_print(struct process *p) {
-	printf("(pid %d(%d) vt %u w %d idx %d)", p->pid, p->group->gid,  p->he.vruntime, p->he.weight, p->he.idx);
+	printf("[pid %d(%d) vt %u w %d]", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
 }	
 
 void grp_set_vruntime(struct process *p, vt_t vt) {

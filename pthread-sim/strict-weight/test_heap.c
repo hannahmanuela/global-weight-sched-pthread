@@ -30,7 +30,7 @@ void heap_print(struct heap *heap) {
 static struct elem* make_elem(int id, int vt) {
 	struct elem *e = malloc(sizeof(struct elem));
 	e->id = id;
-	heap_elem_init(&e->he, vt, 0);
+	heap_elem_init(&e->he, vt, 0, e);
 	return e;
 }
 
@@ -58,7 +58,8 @@ int main() {
 	for (i = 0; i < N; i ++) {
 		he = heap_remove_min(heap);
 		assert(he->vruntime == i * N);
-		struct elem *e = container_of(he, struct elem, he);
+		struct elem *e = (struct elem *) he->elem;
+		assert(he->vruntime == e->he.vruntime);
 		e->he.vruntime += N*N;
 	}
 
@@ -73,7 +74,8 @@ int main() {
 	for (i = 0; i < N; i ++) {
 		he = heap_remove_min(heap);
 		assert(he->vruntime == (i * N) + N*N);
-		struct elem *e = container_of(he, struct elem, he);
+		struct elem *e = (struct elem *) he->elem;
+		assert(he->vruntime == e->he.vruntime);		
 		e->he.vruntime += N*N;
 	}
 

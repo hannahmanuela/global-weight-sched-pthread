@@ -31,7 +31,7 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
     p->group = group;
     p->next = NULL;
     heap_elem_init(&p->he, 0, group->weight, p);
-    lock_init(&p->lk);
+    // lock_init(&p->lk);
     p->mh = mh;
     p->h = NULL;
     grp_add_process(p);

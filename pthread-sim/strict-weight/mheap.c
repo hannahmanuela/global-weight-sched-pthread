@@ -289,7 +289,7 @@ struct process *mh_min_affinity(struct core *c) {
 	struct heap *h = cp->h;
 	struct process *p = NULL;
 	lock_acquire(&h->lk, c);
-	lock_acquire(&cp->lk, c);
+	//lock_acquire(&cp->lk, c);
 	if (cp->cid != c->cid) {  // some other core is running cp or has run it
 		c->miss[cp->group->gid]++;
 		goto end;
@@ -330,7 +330,7 @@ retry:
 	lock_release(&h1->lk, c);
 	mh_upd_stat(p, c, j, other_vt, r, r_lock);
 end:
-	lock_release(&cp->lk, c);
+	//lock_release(&cp->lk, c);
 	lock_release(&h->lk, c);
 	return p;
 }

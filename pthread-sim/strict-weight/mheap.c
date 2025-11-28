@@ -285,13 +285,13 @@ struct process *mh_min_affinity(struct core *c) {
 		return NULL;
 	}
 	struct process *p = NULL;
-	long r = 0;
-	long r_lock = 0;
 	lock_acquire(&h->lk, c);
 	if(h->heap[0].elem != cp) {
 		c->miss[cp->group->gid]++;
 		goto end;
 	}
+	long r = 0;
+	long r_lock = 0;
 retry:
 	int j;
 	vt_t vt;

@@ -72,7 +72,7 @@ static float grp_runtime(struct group *g, long t) {
 	for (struct process *p = g->procs; p != NULL; p = p->next) {
 		run += (float)(p->runtime);
 	}
-	if(do_affinity) {
+	if(debug) {
 		printf("  = %d: w %d grp runtime %f fraction %0.2f:\n    ", g->gid, g->weight, run, AVG(run, t));
 		for (struct process *p = g->procs; p != NULL; p = p->next) {
 			printf("[%d: %ld %0.2f] ", p->pid, p->runtime, AVG(p->runtime, run));

@@ -15,6 +15,8 @@
 
 #define W_DUMMY 0
 
+extern bool do_affinity;
+
 struct mheap *mh_new(int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap) * n);
@@ -123,7 +125,8 @@ static struct process *mh_remove_min(struct heap *h) {
 // caller must hold heap lock
 static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	struct process *p = mh_remove_min(h);
-	atomic_store_explicit(&p->cid, c->cid, __ATOMIC_RELAXED);
+	if(do_affinity)
+		atomic_store_explicit(&p->cid, c->cid, __ATOMIC_RELAXED);
 	return p;
 }
 

@@ -23,11 +23,7 @@
 #include "global_heap.h"
 #include "util.h"
 
-#define TRACE
-
-// #define TIME_TO_RUN 20  // sec
-#define TIME_TO_RUN 2  // sec
-
+int time_to_run = 2;  // sec
 int num_groups = 4;
 int num_cores;
 int time_work; // in usec
@@ -147,7 +143,7 @@ void *run_core(void* core) {
 
 	int cont = 1;
 	double start = now();
-	for (int i = 0; now() - start < TIME_TO_RUN; i++) {
+	for (int i = 0; now() - start < time_to_run; i++) {
 		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 		if(time_work > 0) 
 			usleep(time_work);
@@ -158,7 +154,7 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -l logfile <num_cores> <num_threads>\n", s);
+	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <num_cores> <num_threads>\n", s);
 	exit(1);
 
 }
@@ -170,7 +166,7 @@ void main(int argc, char *argv[]) {
 	int ratio = 1;
 	int base_weight = 10;
 
-	while ((opt = getopt(argc, argv, "adg:w:h:r:l:")) != -1) {
+	while ((opt = getopt(argc, argv, "adg:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;
@@ -192,6 +188,9 @@ void main(int argc, char *argv[]) {
 			break;
 		case 'l':
 			logfile = optarg;
+			break;
+		case 't':
+			time_to_run = atoi(optarg);
 			break;
 		}
 	}
@@ -232,7 +231,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d\n", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity);
+	printf("= num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d runtime %ds weight ratio %d\n", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, time_to_run, ratio);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;
@@ -300,7 +299,8 @@ void main(int argc, char *argv[]) {
 			max_retry_del_lock = c->max_retry_del_lock;
 		nnrand += c->nrand;
 	}
-	printf("tp %0.2fM/s (debug: %0.2f %0.2f)\n", AVG(nsched+nyield, TIME_TO_RUN)/1000000, p_l, p_h);
+	printf("tp %0.2fM/s\n", AVG(nsched+nyield, time_to_run)/1000000);
+	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", AVG(nsched+nyield, time_to_run)/1000000, p_l, p_h);
 	printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);

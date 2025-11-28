@@ -286,7 +286,7 @@ struct process *mh_min_affinity(struct core *c) {
 	}
 	struct process *p = NULL;
 	lock_acquire(&h->lk, c);
-	if(h->heap[0].elem != cp) {
+	if((h->heap[0].elem != cp) || (cp->cid != c->cid)) {
 		c->miss[cp->group->gid]++;
 		goto end;
 	}

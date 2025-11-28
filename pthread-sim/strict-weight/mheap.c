@@ -155,37 +155,6 @@ static void mh_upd_stat(struct process *p, struct core *c, int other, vt_t other
 		c->max_retry_del_lock = r_lock;
 }
 
-static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
-	vt_t ovt;
-	struct heap *h_i = mh->h[i];
-	struct heap *h_j = mh->h[j];
-	struct heap_elem *he_i = &(h_i->heap[0]);
-	struct heap_elem *he_j = &(h_j->heap[0]);
-	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
-	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
-	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
-	int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
-	if (vt_j == DUMMY) {
-		ovt = DUMMY;
-	} else if (w_i == w_j) {
-		ovt = vt_j;
-		//} else if (w_i > w_j) {
-		// printf("%d(%d) %d(%d):", i, vt_i, j, vt_j); mh_print_min(mh);
-		//ovt = vt_j;
-	} else {
-		if (vt_i > vt_j) {
-			ovt = vt_i;
-			vt_i = vt_j;
-			h_i = h_j;
-		} else {
-			ovt = vt_j;
-		}
-	}
-	*vt = vt_i;
-	*other_vt = ovt;
-	return h_i;
-}
-
 static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
@@ -271,7 +240,42 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 	}
 	return mh_sample_min_proc(mh, c);
 }
-	
+
+
+//
+// schedule with affinity: remember last process run on a core; if the core
+// sees it later at the front of the heap, it selects it, if another random queue
+// has a process of the same weight at the front (or no process at all).
+//
+
+static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
+	vt_t ovt;
+	struct heap *h_i = mh->h[i];
+	struct heap *h_j = mh->h[j];
+	struct heap_elem *he_i = &(h_i->heap[0]);
+	struct heap_elem *he_j = &(h_j->heap[0]);
+	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
+	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
+	int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
+	if (vt_j == DUMMY) {
+		ovt = DUMMY;
+	} else if (w_i == w_j) {
+		ovt = vt_j;
+	} else {
+		if (vt_i > vt_j) {
+			ovt = vt_i;
+			vt_i = vt_j;
+			h_i = h_j;
+		} else {
+			ovt = vt_j;
+		}
+	}
+	*vt = vt_i;
+	*other_vt = ovt;
+	return h_i;
+}
+
 struct process *mh_min_affinity(struct core *c) {
 	struct process *cp = c->process;
 	struct heap *h = cp->h;

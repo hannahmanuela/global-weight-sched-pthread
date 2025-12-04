@@ -110,6 +110,37 @@ void test_grp_sleep_wakeup() {
 	printf("-- test_sleep_wakeup ok\n");
 }
 
+void test_grp_fair_lag() {
+	printf("== test_grp_fair_lag start\n");
+
+	struct group *gs[GRP1];
+	int ws[GRP1] = {10};
+
+	int tl = 1000;
+
+	int nheap = 1;
+	struct core *c = c_new(0, GRP1);
+	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC3, tl, gs, ws);
+
+	// run the groups to get off vt 0
+	for (int i = 0; i < GRP1; i++) {
+		struct process *p = schedule_retry(c, gh);
+		assert(p->he.vruntime == 0);
+		gh_yield(gh, c, p, gh->tick_length);
+	}
+
+        gh_print(gh, gs, GRP1);
+
+	struct process *p0 = schedule_retry(c, gh);
+	struct process *p1 = schedule_retry(c, gh);
+
+	gh_yield(gh, c, p0, tl/10);
+
+	gh_yield(gh, c, p1, tl/10);
+
+        gh_print(gh, gs, GRP1);
+	assert(p0->he.vruntime > 300);
+}
 
 void test_grp_fair_sleep_lag() {
 	printf("== test_grp_fair_sleep_lag start\n");
@@ -420,10 +451,12 @@ void test_running_lag() {
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
+	test_grp_fair_lag();
 	test_grp_fair_sleep_lag();
 	exit(1);
 	// debug = true;
 	test_grp_sleep_wakeup();
+	test_grp_fair_lag();
 	test_grp_fair_sleep_lag();
 	test_mheap_wakeup_lag();
 	test_running_lag();

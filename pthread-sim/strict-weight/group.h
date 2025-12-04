@@ -31,6 +31,7 @@ struct process {
 
 struct group {
 	vt_t vruntime  __calign__;
+	vt_t lag;
 
 	vt_t min_vt_deq __calign__;
 	int nthread; // number of threads in the group
@@ -54,6 +55,8 @@ void grp_stats(struct group *g, long tot);
 void grp_print(struct group *g);
 void grp_set_vruntime(struct process *p, vt_t min);
 vt_t grp_add_vruntime(struct process *p, vt_t min);
+vt_t grp_add_lag(struct process *p, vt_t min);
+vt_t grp_load_lag(struct process *p);
 
 #endif
 

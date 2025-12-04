@@ -48,7 +48,15 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 
 static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
 	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
-	vt_t my_vt = grp_add_vruntime(p, wvt);
+	// XXX make atomic
+	vt_t lag = grp_load_lag(p);
+	if(lag < -wvt) {
+		grp_add_lag(p, wvt);
+		lag = -wvt;
+	} else if (lag < 0) {
+		grp_add_lag(p, -lag);
+	}
+	vt_t my_vt = grp_add_vruntime(p, wvt+lag) + lag;
 	assert(my_vt >= p->he.vruntime);  // overflow?
 	p->he.vruntime = my_vt;
 	mh_add_process(c, p, h);
@@ -83,18 +91,18 @@ void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 
 // proc may have run for less than its allocated time; in that
 // case adjust the proc's group vruntime.
-static void grp_adjust_vruntime(struct global_heap *gh, struct process *p, t_t time_passed) {
+static void upd_lag(struct global_heap *gh, struct process *p, t_t time_passed) {
 	p->runtime += time_passed;
 	vt_t vt = calc_delta(time_passed, p->he.weight);
 	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
 	if (wvt > vt) {
-		grp_add_vruntime(p, -(wvt-vt));
+		grp_add_lag(p, -(wvt-vt));
 	}
 }
 
 // Yield and enqueue
 void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
-	grp_adjust_vruntime(gh, p, time_passed);
+	upd_lag(gh, p, time_passed);
 
 	struct heap *h = mh_choose_heap(p->mh, c);
 
@@ -117,7 +125,7 @@ void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t t
 		mh_print(p->group->mh);
 	}
 
-	grp_adjust_vruntime(gh, p, time_passed);
+	upd_lag(gh, p, time_passed);
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {

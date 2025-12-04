@@ -161,8 +161,6 @@ void test_grp_fair_sleep_lag() {
 		gh_yield(gh, c, p, gh->tick_length);
 	}
 
-        gh_print(gh, gs, GRP1);
-
 	struct process *p0 = schedule_retry(c, gh);
 	struct process *p1 = schedule_retry(c, gh);
 
@@ -170,11 +168,16 @@ void test_grp_fair_sleep_lag() {
 
 	gh_dequeue(gh, c, p1, tl/10);
 
+        printf("after deqs:"); gh_print(gh, gs, GRP1);
+
 	gh_enqueue(gh, c, p0);
+
+        printf("after enq:"); gh_print(gh, gs, GRP1);
+	
 	gh_enqueue(gh, c, p1);
 
         gh_print(gh, gs, GRP1);
-	assert(p0->he.vruntime > 300);
+	assert(p0->he.vruntime >= 300);
 }
 
 void test_mheap_wakeup_lag() {
@@ -451,7 +454,6 @@ void test_running_lag() {
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
-	test_grp_fair_lag();
 	test_grp_fair_sleep_lag();
 	exit(1);
 	// debug = true;

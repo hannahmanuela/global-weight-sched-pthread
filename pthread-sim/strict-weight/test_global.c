@@ -15,8 +15,9 @@
 #define GRP2 2
 #define GRP3 3
 #define GRP10 10
-#define PROC2 2
 #define PROC1 1
+#define PROC2 2
+#define PROC3 3
 #define PROC5 5
 
 int num_cores;
@@ -109,6 +110,42 @@ void test_grp_sleep_wakeup() {
 	printf("-- test_sleep_wakeup ok\n");
 }
 
+
+void test_grp_fair_sleep_lag() {
+	printf("== test_grp_fair_sleep_lag start\n");
+
+	struct group *gs[GRP1];
+	int ws[GRP1] = {10};
+
+	int tl = 1000;
+
+	int nheap = 1;
+	struct core *c = c_new(0, GRP1);
+	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC3, tl, gs, ws);
+
+	// run the groups to get off vt 0
+	for (int i = 0; i < GRP1; i++) {
+		struct process *p = schedule_retry(c, gh);
+		assert(p->he.vruntime == 0);
+		gh_yield(gh, c, p, gh->tick_length);
+	}
+
+        gh_print(gh, gs, GRP1);
+
+	struct process *p0 = schedule_retry(c, gh);
+	struct process *p1 = schedule_retry(c, gh);
+
+	gh_dequeue(gh, c, p0, tl/10);
+
+	gh_dequeue(gh, c, p1, tl/10);
+
+	gh_enqueue(gh, c, p0);
+	gh_enqueue(gh, c, p1);
+
+        gh_print(gh, gs, GRP1);
+	assert(p0->he.vruntime > 300);
+}
+
 void test_mheap_wakeup_lag() {
 	printf("== test_wakeup_lag start\n");
 
@@ -142,38 +179,41 @@ void test_mheap_wakeup_lag() {
 
 	gh_enqueue(gh, c, p0);
 	assert(p0->he.vruntime == 200);
+}
 
-#if 0
-	// experimenting
-	
-	p0 = schedule_retry(c, gh);
+void test_mheap_fair_lag() {
+	printf("== test_fair_lag start\n");
+
+	struct group *gs[GRP3];
+	int ws[GRP3] = {10, 5, 1};
+
+	int tl = 1000;
+
+	int nheap = 1;
+	struct core *c = c_new(0, GRP3);
+	struct global_heap *gh = mk_mheap(c, 1, GRP3, PROC1, tl, gs, ws);
+
+	// run the groups to get off vt 0
+	for (int i = 0; i < GRP3; i++) {
+		struct process *p = schedule_retry(c, gh);
+		assert(p->he.vruntime == 0);
+		gh_yield(gh, c, p, gh->tick_length);
+	}
+
+	struct process *p0 = schedule_retry(c, gh);
 	assert(p0->pid == 0);
 
-	p1 = schedule_retry(c, gh);
+	struct process *p1 = schedule_retry(c, gh);
 	assert(p1->pid == 1);
 
-	struct process *p2 = schedule_retry(c, gh);
-	assert(p2->pid == 2);
-
-	printf("all running"); gh_print(gh, gs, GRP3);
-
 	gh_dequeue(gh, c, p0, tl);
-	printf("deq 0"); gh_print(gh, gs, GRP3);
 	gh_dequeue(gh, c, p1, tl);
-	gh_dequeue(gh, c, p2, tl);
-
-	printf("deq all"); gh_print(gh, gs, GRP3);
 
 	gh_enqueue(gh, c, p1);
+	assert(p1->he.vruntime == 400);
 
-	printf("enq 1"); gh_print(gh, gs, GRP3);
-
-	gh_enqueue(gh, c, p2);
-
-	printf("enq 2"); gh_print(gh, gs, GRP3);
-
-	// printf("yield 1"); print(gh, gs, GRP3);
-#endif
+	gh_enqueue(gh, c, p0);
+	assert(p0->he.vruntime == 200);
 }
 
 
@@ -380,8 +420,11 @@ void test_running_lag() {
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
+	test_grp_fair_sleep_lag();
+	exit(1);
 	// debug = true;
 	test_grp_sleep_wakeup();
+	test_grp_fair_sleep_lag();
 	test_mheap_wakeup_lag();
 	test_running_lag();
 	test_mheap(1, PROC1);

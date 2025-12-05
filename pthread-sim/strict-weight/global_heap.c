@@ -46,17 +46,34 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 	return min_proc;
 }
 
+static vt_t sub_lag(struct core *c, struct process *p, vt_t wvt, vt_t *lag) {
+	vt_t vt = wvt;
+	*lag = 0;
+	while(1) {
+		vt_t v = atomic_load(&p->group->lag);
+		*lag = v;
+		assert(v <= 0);
+		if(v == 0)
+			break;
+		if(v < 0) {
+			if(v < -wvt) {
+				*lag = -wvt;
+			}
+			vt = wvt + *lag;
+			if (__atomic_compare_exchange_n(&p->group->lag, &v, v-*lag, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+				break;
+			}
+			atomic_fetch_add_explicit(&c->lag_sub_retry, 1, __ATOMIC_RELAXED);
+		}
+	}
+	return vt;
+}
+
 static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
 	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
-	// XXX make atomic
-	vt_t lag = grp_load_lag(p);
-	if(lag < -wvt) {
-		grp_add_lag(p, wvt);
-		lag = -wvt;
-	} else if (lag < 0) {
-		grp_add_lag(p, -lag);
-	}
-	vt_t my_vt = grp_add_vruntime(p, wvt+lag) + lag;
+	vt_t lag;
+	vt_t vt = sub_lag(c, p, wvt, &lag);
+	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
 	assert(my_vt >= p->he.vruntime);  // overflow?
 	p->he.vruntime = my_vt;
 	mh_add_process(c, p, h);

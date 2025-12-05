@@ -50,6 +50,8 @@ struct core {
 	long max_retry_del_lock;
 	long nrand;
 
+	long lag_sub_retry;
+
 	int *hit;
 	int *miss;
 
@@ -63,7 +65,7 @@ struct core {
 
 void c_print(struct core *c, int ngrp);
 int c_rand(struct core *c, int n);
-struct core *c_new(int i, int n);
+struct core *c_new(int i, int n, int seed);
 void c_log_init(struct core *c, char *name);
 void c_log_append(struct core *c, struct process *p);
 void c_log_done(struct core *c);

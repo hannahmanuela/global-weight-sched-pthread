@@ -65,7 +65,7 @@ void test_grp_sleep_wakeup() {
 	struct group *gs[GRP1];
 	int ws[GRP1] = {1};
 
-	struct core *c = c_new(0, GRP1);
+	struct core *c = c_new(0, GRP1, 0);
 	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC2, tl, gs, ws);
 	struct process *p0;
 	struct process *p1;
@@ -119,7 +119,7 @@ void test_grp_fair_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP1);
+	struct core *c = c_new(0, GRP1, 0);
 	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -151,7 +151,7 @@ void test_grp_fair_sleep_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP1);
+	struct core *c = c_new(0, GRP1, 0);
 	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -186,7 +186,7 @@ void test_mheap_wakeup_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP3);
+	struct core *c = c_new(0, GRP3, 0);
 	struct global_heap *gh = mk_mheap(c, 1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -221,7 +221,7 @@ void test_mheap_fair_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP3);
+	struct core *c = c_new(0, GRP3, 0);
 	struct global_heap *gh = mk_mheap(c, 1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -289,7 +289,7 @@ void test_mheap(int nheap, int nproc) {
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
 	int tl = 1000;
-	struct core *c = c_new(0, GRP2);
+	struct core *c = c_new(0, GRP2, 0);
 	struct global_heap *gh = mk_mheap(c, nheap, GRP2, nproc, tl, gs, ws);
 	struct process *p;
 
@@ -332,7 +332,7 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 		ws[i] = (i+1)*5;
 		tot_w += ws[i];
 	}
-	struct core *c = c_new(0, ngrp);
+	struct core *c = c_new(0, ngrp, 0);
 	struct global_heap *gh = mk_mheap(c, nheap, ngrp, nproc, tl, gs, ws);
 	long tot = 0;
 	for (int i = 0; i < n; i++) {
@@ -399,7 +399,7 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 		ws[i] = 10*(i+1);
 		tot_ws += ws[i];
 	}
-	struct core *c = c_new(0, ngrp);
+	struct core *c = c_new(0, ngrp, 0);
 	struct global_heap *gh = mk_mheap(c, nheap, ngrp, PROC1, tl, gs, ws);
 	mheap_sleeper(c, gh, n, sleep_id, ticks, sleep, gs, ngrp);
 	for (int i = 0; i < ngrp; i++) {
@@ -423,16 +423,18 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 
 void test_worst(int nheap) {
 	int n = 10000;
+	//int n = 1;
 	int tl = 1000;
-	int sum = 0;
-	int worst;
+	int worst = 0;
+	long sum = 0;
 	for(int t = 0; t < n; t++) {
-		struct core *c = c_new(0, GRP1);
+		struct core *c = c_new(0, GRP1, t);
 		struct global_heap *gh = gh_new(tl, nheap);
-		struct group *g = grp_new(gh->mh, 0, 10);
+		struct group *gs[GRP1];
+		gs[0] = grp_new(gh->mh, 0, 10);
 		struct heap *h = mh_choose_heap(gh->mh, c);
 
-		struct process *p = grp_new_process(gh->mh, 1, g);
+		struct process *p = grp_new_process(gh->mh, 1, gs[0]);
 		gh_enqueue(gh, c, p);
 
 		for (int i = 0; ; i++) {
@@ -448,47 +450,12 @@ void test_worst(int nheap) {
 	printf("== test_worst: avg %d worst %d\n", sum/n, worst);
 }
 
-void test_running_lag() {
-	printf("== test_running_lag start\n");
-
-	struct group *gs[GRP2];
-	int ws[GRP2] = {10, 5};
-
-	int tl = 1000;
-	int ngrp = GRP2;
-
-	int nheap = 1;
-	struct core *c = c_new(0, GRP2);
-	struct global_heap *gh = gh_new(tl, nheap);
-	for (int i = 0; i < ngrp; i++) {
-		gs[i] = grp_new(gh->mh, i, ws[i]);
-	}
-
-	struct process *p1 = grp_new_process(gh->mh, 0, gs[0]);
-	struct process *p2 = grp_new_process(gh->mh, 1, gs[1]);
-
-	gh_enqueue(gh, c, p1);
-
-	// run a bunch
-	for (int i=0; i < 10; i++) {
-		struct process *p = schedule_retry(c, gh);
-		gh_yield(gh, c, p, gh->tick_length);
-	}
-	assert(p1->he.vruntime == 1000);
-
-	struct process *p = schedule_retry(c, gh);
-	gh_enqueue(gh, c, p2);
-
-	// 1000 since p2 hasn't run yet; if it had run and dequeued,
-	// then dequeue would make it 1100.
-	assert(p2->he.vruntime == 1000);
-}
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
-	test_grp_fair_sleep_lag();
+	//debug = true;
+	test_worst(112);
 	exit(1);
-	// debug = true;
 	test_grp_sleep_wakeup();
 	test_grp_fair_lag();
 	test_grp_fair_sleep_lag();

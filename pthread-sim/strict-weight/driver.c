@@ -208,7 +208,7 @@ void main(int argc, char *argv[]) {
 	gs = malloc(sizeof(struct global_state));
 	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
 	for (int i = 0; i < num_cores; i++) {
-		gs->cores[i] = c_new(i, num_groups);
+		gs->cores[i] = c_new(i, num_groups, i);
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
 	gs->gh = gh_new(tick_length, nheap);

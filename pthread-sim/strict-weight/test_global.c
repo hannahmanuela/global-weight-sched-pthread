@@ -427,6 +427,10 @@ void test_worst(int nheap) {
 	int tl = 1000;
 	int worst = 0;
 	long sum = 0;
+
+	#define NBIN 20
+	static int bin[NBIN];
+
 	for(int t = 0; t < n; t++) {
 		struct core *c = c_new(0, GRP1, t);
 		struct global_heap *gh = gh_new(tl, nheap);
@@ -440,6 +444,7 @@ void test_worst(int nheap) {
 		for (int i = 0; ; i++) {
 			if ((p = gh_schedule(gh, c)) != NULL) {
 				sum += i;
+				bin[i]++;
 				if(i > worst)
 					worst = i;
 				break;
@@ -447,15 +452,26 @@ void test_worst(int nheap) {
 		}
 		cleanup(gh->mh);
 	}
-	printf("== test_worst: avg %d worst %d\n", sum/n, worst);
+	int median;
+	int t = 0;
+	for (int i = 0; i < NBIN; i++) {
+		//printf("%d: %d\n", i, bin[i]);
+		t += bin[i];
+		if(t >= n / 2) {
+			median = i;
+			break;
+		}
+	}
+	printf("== test_worst: avg %d med %d worst %d\n", sum/n, median, worst);
 }
 
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
+	test_worst(4);
+	exit(1);
 	//debug = true;
 	test_worst(112);
-	exit(1);
 	test_grp_sleep_wakeup();
 	test_grp_fair_lag();
 	test_grp_fair_sleep_lag();

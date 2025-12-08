@@ -19,6 +19,9 @@ struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int nc
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
 	gh->tick_length = tick_length;
 	gh->mh = mh_new(nheap);
+	gh->cs = cs;
+	gh->ncore = ncore;
+	
 	return gh;
 }
 
@@ -42,7 +45,7 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 	if(c->fd > 0) {
 		c_log_append(c, min_proc);
 	}
-
+	c->process = min_proc;
 	return min_proc;
 }
 
@@ -173,6 +176,11 @@ void gh_print(struct global_heap *gh, struct group *grps[], int n) {
 	printf("= groups %d:\n", n);
 	for(int i = 0; i < n; i++) {
 		printf("  "); grp_print(grps[i]); printf("\n");
+	}
+	printf("=\n");
+	printf("= cores %d:\n", gh->ncore);
+	for(int i = 0; i < gh->ncore; i++) {
+		printf("  %d: ", i); core_print(gh->cs[i]); printf("\n");
 	}
 	printf("=\n");
 }

@@ -2,6 +2,8 @@
 #include "group.h"
 
 struct global_heap {
+	struct core **cs;
+	int ncore;
 	int tick_length;
 	struct mheap *mh;
 };

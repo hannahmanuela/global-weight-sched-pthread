@@ -13,6 +13,15 @@
 
 extern bool do_affinity;
 
+void core_print(struct core *c) {
+	struct process *p = c->process;
+	if (p == NULL) {
+		printf("  pid %d ", -1);
+	} else {
+		printf("  [pid %d vt %d w %d]", p->pid, p->he.vruntime, p->he.weight);
+	}
+}
+
 void c_print(struct core *c, int num_groups) {
 #if 0
 	printf("    c %d: ", c->cid);

@@ -20,6 +20,7 @@
 #define PROC3 3
 #define PROC5 5
 #define NCORE1 1
+#define NCORE2 2 
 
 int num_cores;
 extern bool debug;
@@ -71,8 +72,6 @@ void test_grp_sleep_wakeup() {
 	struct process *p0;
 	struct process *p1;
 
-	gh_print(gh, gs, GRP1);
-		
 	assert(gs[0]->vruntime == 2 * tl);
 
 	p0 = schedule_retry(c[0], gh);
@@ -287,7 +286,7 @@ void test_running_lag() {
 }
 
 void test_kick() {
-	printf("== test_running_lag start\n");
+	printf("== test_kick\n");
 
 	int nproc = 2;
 	int nheap = 1;
@@ -295,8 +294,8 @@ void test_kick() {
 	struct group *gs[GRP2];
 	int ws[GRP2] = {1, 100};
 	// allocate many cores
-	struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
-	struct global_heap *gh = mk_mheap(c, NCORE1, nheap, GRP2, nproc, tl, gs, ws);
+	struct core *c[NCORE2] = { c_new(0, GRP2, 0),  c_new(1, GRP2, 1) };
+	struct global_heap *gh = mk_mheap(c, NCORE2, nheap, GRP2, nproc, tl, gs, ws);
 	struct process *p;
 
 	// run the two groups to get off vt 0
@@ -304,6 +303,11 @@ void test_kick() {
 		p = schedule_retry(c[0], gh);
 		gh_yield(gh, c[0], p, gh->tick_length);
 	}
+
+	struct process *p1 = schedule_retry(c[0], gh);
+	struct process *p2 = schedule_retry(c[0], gh);
+	struct process *p3 = schedule_retry(c[1], gh);
+
 	gh_print(gh, gs, GRP2);
 
 	// run processes on the different cores
@@ -497,8 +501,8 @@ void test_worst(int nheap) {
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
-	// test_kick();
-	// exit(1);
+        test_kick();
+	exit(1);
 	//debug = true;
 	test_grp_sleep_wakeup();
 	test_grp_fair_lag();

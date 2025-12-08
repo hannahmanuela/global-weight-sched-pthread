@@ -95,7 +95,7 @@ static bool gh_kick(struct global_heap *gh, struct core *c, struct process *p) {
 			continue;
 		}
 		if(p1->he.weight < p->he.weight) {
-			printf("kick c %d\n", i);
+			printf("kick c %d to replace pid %d with pid %d\n", i, p1->pid, p->pid);
 			break;
 		}
 	}

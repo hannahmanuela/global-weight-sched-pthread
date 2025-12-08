@@ -305,18 +305,18 @@ void test_kick() {
 	}
 
 	struct process *p1 = schedule_retry(c[0], gh);
+	gh_dequeue(gh, c[0], p1, gh->tick_length/2);
+
 	struct process *p2 = schedule_retry(c[0], gh);
 	struct process *p3 = schedule_retry(c[1], gh);
 
-	p1->h = NULL;
-	gh_enqueue(gh, c[0], p1);
-
 	gh_print(gh, gs, GRP2);
 
-	// run processes on the different cores
+	gh_enqueue(gh, c[0], p1);
 
 	// measure kick
 	// check the process running on that core
+
 }
 
 void test_mheap(int nheap, int nproc) {

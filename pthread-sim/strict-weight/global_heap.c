@@ -89,6 +89,16 @@ static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *
 static bool gh_kick(struct global_heap *gh, struct core *c, struct process *p) {
 	// vt_t vt = proc_vt(gh, c, p);
 	// printf("gh_kick: %d\n", vt);
+	for (int i = 0; i < gh->ncore; i++) {
+		struct process *p1 = gh->cs[i]->process;
+		if(p1 == NULL) {
+			continue;
+		}
+		if(p1->he.weight < p->he.weight) {
+			printf("kick c %d\n", i);
+			break;
+		}
+	}
 	return false;
 }
 

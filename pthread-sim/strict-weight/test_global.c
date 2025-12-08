@@ -308,6 +308,9 @@ void test_kick() {
 	struct process *p2 = schedule_retry(c[0], gh);
 	struct process *p3 = schedule_retry(c[1], gh);
 
+	p1->h = NULL;
+	gh_enqueue(gh, c[0], p1);
+
 	gh_print(gh, gs, GRP2);
 
 	// run processes on the different cores

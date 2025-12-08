@@ -19,6 +19,7 @@
 #define PROC2 2
 #define PROC3 3
 #define PROC5 5
+#define NCORE1 1
 
 int num_cores;
 extern bool debug;
@@ -42,13 +43,13 @@ static struct process *schedule_retry(struct core *c, struct global_heap *gh) {
 	assert(0);
 }
 
-static struct global_heap *mk_mheap(struct core *c, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
-	struct global_heap *gh = gh_new(tl, nheap);
+static struct global_heap *mk_mheap(struct core *cs[], int ncore, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
+	struct global_heap *gh = gh_new(tl, nheap, cs, ncore);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(gh->mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
 			struct process *p = grp_new_process(gh->mh, i * nproc + j, gs[i]);
-			gh_enqueue(gh, c, p);
+			gh_enqueue(gh, cs[0], p);
 		}
 	}
 	return gh;
@@ -65,43 +66,45 @@ void test_grp_sleep_wakeup() {
 	struct group *gs[GRP1];
 	int ws[GRP1] = {1};
 
-	struct core *c = c_new(0, GRP1, 0);
-	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC2, tl, gs, ws);
+	struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, 1, GRP1, PROC2, tl, gs, ws);
 	struct process *p0;
 	struct process *p1;
+
+	gh_print(gh, gs, GRP1);
 		
 	assert(gs[0]->vruntime == 2 * tl);
 
-	p0 = schedule_retry(c, gh);
-	p1 = schedule_retry(c, gh);
-	gh_dequeue(gh, c, p1, tl);
+	p0 = schedule_retry(c[0], gh);
+	p1 = schedule_retry(c[0], gh);
+	gh_dequeue(gh, c[0], p1, tl);
 
-	gh_yield(gh, c, p0, tl);
+	gh_yield(gh, c[0], p0, tl);
 	assert(gs[0]->vruntime == 3 * tl);
 
-	p0 = schedule_retry(c, gh);
-	gh_dequeue(gh, c, p0, tl);
+	p0 = schedule_retry(c[0], gh);
+	gh_dequeue(gh, c[0], p0, tl);
 
-	assert(gh_schedule(gh, c) == NULL);
+	assert(gh_schedule(gh, c[0]) == NULL);
 	assert(gh->mh->h[0]->heap_size == 1);
 
-	gh_enqueue(gh, c, p0);
+	gh_enqueue(gh, c[0], p0);
 
 	assert(gs[0]->vruntime == 4*tl);
 
 	assert(gh->mh->h[0]->heap_size == 2);
-	p0 = schedule_retry(c, gh);
-	gh_enqueue(gh, c, p1);
+	p0 = schedule_retry(c[0], gh);
+	gh_enqueue(gh, c[0], p1);
 
 	assert(gs[0]->vruntime == 5 * tl);
 
-	gh_yield(gh, c, p0, tl);
+	gh_yield(gh, c[0], p0, tl);
 
 	assert(gs[0]->vruntime == 6 * tl);
 
-	p1 = schedule_retry(c, gh);
+	p1 = schedule_retry(c[0], gh);
 
-	gh_yield(gh, c, p1, tl/2);
+	gh_yield(gh, c[0], p1, tl/2);
 
 	assert(gs[0]->vruntime == 6 * tl + tl/2);
 
@@ -119,24 +122,24 @@ void test_grp_fair_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP1, 0);
-	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC3, tl, gs, ws);
+	struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, 1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
 	for (int i = 0; i < GRP1; i++) {
-		struct process *p = schedule_retry(c, gh);
+		struct process *p = schedule_retry(c[0], gh);
 		assert(p->he.vruntime == 0);
-		gh_yield(gh, c, p, gh->tick_length);
+		gh_yield(gh, c[0], p, gh->tick_length);
 	}
 
         gh_print(gh, gs, GRP1);
 
-	struct process *p0 = schedule_retry(c, gh);
-	struct process *p1 = schedule_retry(c, gh);
+	struct process *p0 = schedule_retry(c[0], gh);
+	struct process *p1 = schedule_retry(c[0], gh);
 
-	gh_yield(gh, c, p0, tl/10);
+	gh_yield(gh, c[0], p0, tl/10);
 
-	gh_yield(gh, c, p1, tl/10);
+	gh_yield(gh, c[0], p1, tl/10);
 
         gh_print(gh, gs, GRP1);
 	assert(p0->he.vruntime > 300);
@@ -151,25 +154,25 @@ void test_grp_fair_sleep_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP1, 0);
-	struct global_heap *gh = mk_mheap(c, 1, GRP1, PROC3, tl, gs, ws);
+	struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, 1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
 	for (int i = 0; i < GRP1; i++) {
-		struct process *p = schedule_retry(c, gh);
+		struct process *p = schedule_retry(c[0], gh);
 		assert(p->he.vruntime == 0);
-		gh_yield(gh, c, p, gh->tick_length);
+		gh_yield(gh, c[0], p, gh->tick_length);
 	}
 
-	struct process *p0 = schedule_retry(c, gh);
-	struct process *p1 = schedule_retry(c, gh);
+	struct process *p0 = schedule_retry(c[0], gh);
+	struct process *p1 = schedule_retry(c[0], gh);
 
-	gh_dequeue(gh, c, p0, tl/10);
-	gh_dequeue(gh, c, p1, tl/10);
+	gh_dequeue(gh, c[0], p0, tl/10);
+	gh_dequeue(gh, c[0], p1, tl/10);
 
 
-	gh_enqueue(gh, c, p0);
-	gh_enqueue(gh, c, p1);
+	gh_enqueue(gh, c[0], p0);
+	gh_enqueue(gh, c[0], p1);
 
         // gh_print(gh, gs, GRP1);
 
@@ -186,29 +189,29 @@ void test_mheap_wakeup_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP3, 0);
-	struct global_heap *gh = mk_mheap(c, 1, GRP3, PROC1, tl, gs, ws);
+	struct core *c[NCORE1] = {c_new(0, GRP3, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, 1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
 	for (int i = 0; i < GRP3; i++) {
-		struct process *p = schedule_retry(c, gh);
+		struct process *p = schedule_retry(c[0], gh);
 		assert(p->he.vruntime == 0);
-		gh_yield(gh, c, p, gh->tick_length);
+		gh_yield(gh, c[0], p, gh->tick_length);
 	}
 
-	struct process *p0 = schedule_retry(c, gh);
+	struct process *p0 = schedule_retry(c[0], gh);
 	assert(p0->pid == 0);
 
-	struct process *p1 = schedule_retry(c, gh);
+	struct process *p1 = schedule_retry(c[0], gh);
 	assert(p1->pid == 1);
 
-	gh_dequeue(gh, c, p0, tl);
-	gh_dequeue(gh, c, p1, tl);
+	gh_dequeue(gh, c[0], p0, tl);
+	gh_dequeue(gh, c[0], p1, tl);
 
-	gh_enqueue(gh, c, p1);
+	gh_enqueue(gh, c[0], p1);
 	assert(p1->he.vruntime == 400);
 
-	gh_enqueue(gh, c, p0);
+	gh_enqueue(gh, c[0], p0);
 	assert(p0->he.vruntime == 200);
 }
 
@@ -221,29 +224,29 @@ void test_mheap_fair_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP3, 0);
-	struct global_heap *gh = mk_mheap(c, 1, GRP3, PROC1, tl, gs, ws);
+	struct core *c[NCORE1] = {c_new(0, GRP3, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, 1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
 	for (int i = 0; i < GRP3; i++) {
-		struct process *p = schedule_retry(c, gh);
+		struct process *p = schedule_retry(c[0], gh);
 		assert(p->he.vruntime == 0);
-		gh_yield(gh, c, p, gh->tick_length);
+		gh_yield(gh, c[0], p, gh->tick_length);
 	}
 
-	struct process *p0 = schedule_retry(c, gh);
+	struct process *p0 = schedule_retry(c[0], gh);
 	assert(p0->pid == 0);
 
-	struct process *p1 = schedule_retry(c, gh);
+	struct process *p1 = schedule_retry(c[0], gh);
 	assert(p1->pid == 1);
 
-	gh_dequeue(gh, c, p0, tl);
-	gh_dequeue(gh, c, p1, tl);
+	gh_dequeue(gh, c[0], p0, tl);
+	gh_dequeue(gh, c[0], p1, tl);
 
-	gh_enqueue(gh, c, p1);
+	gh_enqueue(gh, c[0], p1);
 	assert(p1->he.vruntime == 400);
 
-	gh_enqueue(gh, c, p0);
+	gh_enqueue(gh, c[0], p0);
 	assert(p0->he.vruntime == 200);
 }
 
@@ -257,8 +260,8 @@ void test_running_lag() {
 	int ngrp = GRP2;
 
 	int nheap = 1;
-	struct core *c = c_new(0, GRP2, 0);
-	struct global_heap *gh = gh_new(tl, nheap);
+	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
+	struct global_heap *gh = gh_new(tl, nheap, c, num_cores);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(gh->mh, i, ws[i]);
 	}
@@ -266,21 +269,47 @@ void test_running_lag() {
 	struct process *p1 = grp_new_process(gh->mh, 0, gs[0]);
 	struct process *p2 = grp_new_process(gh->mh, 1, gs[1]);
 
-	gh_enqueue(gh, c, p1);
+	gh_enqueue(gh, c[0], p1);
 
 	// run a bunch
 	for (int i=0; i < 10; i++) {
-		struct process *p = schedule_retry(c, gh);
-		gh_yield(gh, c, p, gh->tick_length);
+		struct process *p = schedule_retry(c[0], gh);
+		gh_yield(gh, c[0], p, gh->tick_length);
 	}
 	assert(p1->he.vruntime == 1000);
 
-	struct process *p = schedule_retry(c, gh);
-	gh_enqueue(gh, c, p2);
+	struct process *p = schedule_retry(c[0], gh);
+	gh_enqueue(gh, c[0], p2);
 
 	// 1000 since p2 hasn't run yet; if it had run and dequeued,
 	// then dequeue would make it 1100.
 	assert(p2->he.vruntime == 1000);
+}
+
+void test_kick() {
+	printf("== test_running_lag start\n");
+
+	int nproc = 2;
+	int nheap = 1;
+	int tl = 1000;
+	struct group *gs[GRP2];
+	int ws[GRP2] = {1, 100};
+	// allocate many cores
+	struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, nheap, GRP2, nproc, tl, gs, ws);
+	struct process *p;
+
+	// run the two groups to get off vt 0
+	for (int i = 0; i < GRP2; i++) {
+		p = schedule_retry(c[0], gh);
+		gh_yield(gh, c[0], p, gh->tick_length);
+	}
+	gh_print(gh, gs, GRP2);
+
+	// run processes on the different cores
+
+	// measure kick
+	// check the process running on that core
 }
 
 void test_mheap(int nheap, int nproc) {
@@ -289,29 +318,29 @@ void test_mheap(int nheap, int nproc) {
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
 	int tl = 1000;
-	struct core *c = c_new(0, GRP2, 0);
-	struct global_heap *gh = mk_mheap(c, nheap, GRP2, nproc, tl, gs, ws);
+	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, nheap, GRP2, nproc, tl, gs, ws);
 	struct process *p;
 
 	// run the two groups to get off vt 0
 	for (int i = 0; i < GRP2; i++) {
-		p = schedule_retry(c, gh);
+		p = schedule_retry(c[0], gh);
 		assert(p->he.vruntime == 0);
-		gh_yield(gh, c, p, gh->tick_length);
+		gh_yield(gh, c[0], p, gh->tick_length);
 	}
 
-	p = schedule_retry(c, gh);
+	p = schedule_retry(c[0], gh);
 	assert(p->group->gid == GRP2-1);
 	assert(p->he.vruntime == 50);
-	gh_yield(gh, c, p, gh->tick_length);
-	p = schedule_retry(c, gh);
+	gh_yield(gh, c[0], p, gh->tick_length);
+	p = schedule_retry(c[0], gh);
 	assert(p->group->gid == GRP2-1);
 	assert(p->he.vruntime == 100);
-	gh_yield(gh, c, p, gh->tick_length);
-	p = schedule_retry(c, gh);
+	gh_yield(gh, c[0], p, gh->tick_length);
+	p = schedule_retry(c[0], gh);
 	assert(p->group->gid == 0);
 	assert(p->he.vruntime == 100);
-	gh_yield(gh, c, p, gh->tick_length);
+	gh_yield(gh, c[0], p, gh->tick_length);
 
 	// stats(gs, GRP2);
 
@@ -332,16 +361,16 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 		ws[i] = (i+1)*5;
 		tot_w += ws[i];
 	}
-	struct core *c = c_new(0, ngrp, 0);
-	struct global_heap *gh = mk_mheap(c, nheap, ngrp, nproc, tl, gs, ws);
+	struct core *c[NCORE1] = {c_new(0, ngrp, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, nheap, ngrp, nproc, tl, gs, ws);
 	long tot = 0;
 	for (int i = 0; i < n; i++) {
-		struct process *p = schedule_retry(c, gh);
+		struct process *p = schedule_retry(c[0], gh);
 		int tl = gh->tick_length;
 		if(rand) {
 			tl = random() % gh->tick_length;
 		}
-		gh_yield(gh, c, p, tl);
+		gh_yield(gh, c[0], p, tl);
 		ticks[p->group->gid] += tl;
 		tot += tl;
 	}	
@@ -399,9 +428,9 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 		ws[i] = 10*(i+1);
 		tot_ws += ws[i];
 	}
-	struct core *c = c_new(0, ngrp, 0);
-	struct global_heap *gh = mk_mheap(c, nheap, ngrp, PROC1, tl, gs, ws);
-	mheap_sleeper(c, gh, n, sleep_id, ticks, sleep, gs, ngrp);
+	struct core *c[NCORE1] = {c_new(0, ngrp, 0)};
+	struct global_heap *gh = mk_mheap(c, NCORE1, nheap, ngrp, PROC1, tl, gs, ws);
+	mheap_sleeper(c[0], gh, n, sleep_id, ticks, sleep, gs, ngrp);
 	for (int i = 0; i < ngrp; i++) {
 		if (i == sleep_id) {
 			float f = AVG(ticks[sleep_id],(n-sleep[sleep_id]));
@@ -432,17 +461,17 @@ void test_worst(int nheap) {
 	static int bin[NBIN];
 
 	for(int t = 0; t < n; t++) {
-		struct core *c = c_new(0, GRP1, t);
-		struct global_heap *gh = gh_new(tl, nheap);
+		struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+		struct global_heap *gh = gh_new(tl, nheap, c, NCORE1);
 		struct group *gs[GRP1];
 		gs[0] = grp_new(gh->mh, 0, 10);
-		struct heap *h = mh_choose_heap(gh->mh, c);
+		struct heap *h = mh_choose_heap(gh->mh, c[0]);
 
 		struct process *p = grp_new_process(gh->mh, 1, gs[0]);
-		gh_enqueue(gh, c, p);
+		gh_enqueue(gh, c[0], p);
 
 		for (int i = 0; ; i++) {
-			if ((p = gh_schedule(gh, c)) != NULL) {
+			if ((p = gh_schedule(gh, c[0])) != NULL) {
 				sum += i;
 				bin[i]++;
 				if(i > worst)
@@ -468,10 +497,9 @@ void test_worst(int nheap) {
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
-	test_worst(4);
-	exit(1);
+	// test_kick();
+	// exit(1);
 	//debug = true;
-	test_worst(112);
 	test_grp_sleep_wakeup();
 	test_grp_fair_lag();
 	test_grp_fair_sleep_lag();

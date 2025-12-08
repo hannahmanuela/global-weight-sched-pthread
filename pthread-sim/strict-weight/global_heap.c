@@ -15,10 +15,10 @@
 bool debug = false;
 bool do_affinity = false;
 
-struct global_heap *gh_new(int tick_length, int n) {
+struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int ncore) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
 	gh->tick_length = tick_length;
-	gh->mh = mh_new(n);
+	gh->mh = mh_new(nheap);
 	return gh;
 }
 
@@ -69,14 +69,24 @@ static vt_t sub_lag(struct core *c, struct process *p, vt_t wvt, vt_t *lag) {
 	return vt;
 }
 
-static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
+static vt_t proc_vt(struct global_heap *gh, struct core *c, struct process *p) {
 	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
 	vt_t lag;
 	vt_t vt = sub_lag(c, p, wvt, &lag);
 	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
 	assert(my_vt >= p->he.vruntime);  // overflow?
-	p->he.vruntime = my_vt;
+	return my_vt;
+}	
+
+static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
+	p->he.vruntime = proc_vt(gh, c, p);
 	mh_add_process(c, p, h);
+}
+
+static bool gh_kick(struct global_heap *gh, struct core *c, struct process *p) {
+	// vt_t vt = proc_vt(gh, c, p);
+	// printf("gh_kick: %d\n", vt);
+	return false;
 }
 
 // Add p to group and make p runnable
@@ -98,11 +108,13 @@ void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 		grp_set_vruntime(p, vt);
 	}
 
-	enq_proc_vt(gh, c, p, h);
+	if(!gh_kick(gh, c, p)) {
+		enq_proc_vt(gh, c, p, h);
 
-	if(debug) {
-		printf("%d(%d): enqueue nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
-		mh_print(p->group->mh);
+		if(debug) {
+			printf("%d(%d): enqueue nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
+			mh_print(p->group->mh);
+		}
 	}
 }
 

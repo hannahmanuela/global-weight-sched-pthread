@@ -68,7 +68,7 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		gh_schedule(gh, mycore);
+		mycore->process = gh_schedule(gh, mycore);
 		break;
 	case YIELD:
 		mycore->total += gh->tick_length;

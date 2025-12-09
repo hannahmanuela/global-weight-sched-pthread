@@ -69,7 +69,7 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		mycore->process = gh_schedule(gh, mycore);
+		gh_schedule(gh, mycore);
 		break;
 	case YIELD:
 		mycore->total += gh->tick_length;
@@ -235,7 +235,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d runtime %ds weight ratio %d\n", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, time_to_run, ratio);
+	printf("= num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d runtime %ds weight ratio %d\n", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, time_to_run, ratio);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;

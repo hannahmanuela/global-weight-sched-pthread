@@ -81,6 +81,7 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 		min_proc = mh_min_proc(gh->mh, c);
 	}
 	if (min_proc == NULL) {
+		c->process = NULL;
 		return NULL;
 	}
 
@@ -91,9 +92,10 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 	if(c->fd > 0) {
 		c_log_append(c, min_proc);
 	}
-	c->process = min_proc;
-	if(do_preempt)
+	if(do_preempt) {
 		set_preempt(gh, c, min_proc);
+	}
+	c->process = min_proc;
 	return min_proc;
 }
 

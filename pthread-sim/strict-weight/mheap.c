@@ -94,13 +94,13 @@ struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct heap *h = mh->h[0];
-		lock_acquire(&h->lk, c);		
+		lock_acquire(&h->lk);
 		return h;
 	}
 retry:
 	int i = c_rand(c, mh->nheap);
 	struct heap *h = mh->h[i];
-	if(lock_try_acquire(&h->lk, c) != 0) {
+	if(lock_try_acquire(&h->lk) != 0) {
 		r++;
 		goto retry;
 	}
@@ -112,7 +112,7 @@ retry:
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 	p->h = h;
 	heap_push(h, &p->he);
-	lock_release(&h->lk, c);
+	lock_release(&h->lk);
 }
 
 // caller must hold heap lock
@@ -209,7 +209,7 @@ retry:
 		return NULL;
 	}
 
-	int l = lock_try_acquire(&h->lk, c);
+	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		r++;
 		goto retry;
@@ -218,11 +218,11 @@ retry:
 	// vt_t vt0 = h->min_vt;
 	if (vt != vt0) {
 		r_lock++;
-		lock_release(&h->lk, c);
+		lock_release(&h->lk);
 		goto retry;
 	}
 	struct process *p = mh_del_min_process(c, h);
-	lock_release(&h->lk, c);
+	lock_release(&h->lk);
 	mh_upd_stat(p, c, (h->id == i) ? j  : i, other_vt, r, r_lock); 
 	return p;
 }
@@ -230,15 +230,15 @@ retry:
 struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 	if (mh->nheap == 1) {
 		struct heap *h = mh->h[0];
-		lock_acquire(&h->lk, c);
+		lock_acquire(&h->lk);
 		struct heap_elem *he = mh_min(h);
 		if(he->vruntime == DUMMY) {
-			lock_release(&h->lk, c);
+			lock_release(&h->lk);
 			return NULL;
 		}	
 		struct process *p = mh_del_min_process(c, h);
 		assert(p->h == h);
-		lock_release(&h->lk, c);
+		lock_release(&h->lk);
 		return p;
 	}
 	return mh_sample_min_proc(mh, c);
@@ -292,7 +292,7 @@ struct process *mh_min_affinity(struct core *c) {
 		return NULL;
 	}
 	struct process *p = NULL;
-	lock_acquire(&h->lk, c);
+	lock_acquire(&h->lk);
 	if((h->heap[0].elem != cp) || (cp->cid != c->cid)) {
 		c->miss[cp->group->gid]++;
 		goto end;
@@ -315,7 +315,7 @@ retry:
 		mh_upd_stat(p, c, j, other_vt, r, r_lock);
 		goto end;
 	}
-	int l = lock_try_acquire(&h1->lk, c);
+	int l = lock_try_acquire(&h1->lk);
 	if (l != 0) {
 		r++;
 		goto retry;
@@ -323,14 +323,14 @@ retry:
 	vt_t vt0 = h1->heap[0].vruntime;
 	if (vt != vt0) {
 		r_lock++;
-		lock_release(&h1->lk, c);
+		lock_release(&h1->lk);
 		goto retry;
 	}	
 	c->miss[cp->group->gid]++;
 	p = mh_del_min_process(c, h1);
-	lock_release(&h1->lk, c);
+	lock_release(&h1->lk);
 	mh_upd_stat(p, c, j, other_vt, r, r_lock);
 end:
-	lock_release(&h->lk, c);
+	lock_release(&h->lk);
 	return p;
 }

@@ -11,6 +11,7 @@ typedef unsigned short cid_t;
 
 // XXX handle vt_t wrap around
 #define DUMMY (INT_MAX)   // if vt_t is DUMMY, then dummy heap_elem
+#define MAXWEIGHT (SHRT_MAX)  
 
 // [16-bit ncore, 16-bit weight, 16-bit vt, 16-bit cid]
 #define NCORE(preempt) ((ncore_t) ((preempt) >> 48))

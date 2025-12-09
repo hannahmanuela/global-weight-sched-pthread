@@ -6,6 +6,8 @@ struct global_heap {
 	int ncore;
 	int tick_length;
 	struct mheap *mh;
+
+	preempt_t preempt __calign__;
 };
 
 struct global_heap *gh_new(int tick_length, int n, struct core *cs[], int ncore);

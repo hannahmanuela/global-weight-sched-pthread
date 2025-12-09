@@ -295,8 +295,8 @@ void test_running_lag() {
 	assert(p2->he.vruntime == 1000);
 }
 
-void test_kick() {
-	printf("== test_kick\n");
+void test_preempt() {
+	printf("== test_preempt\n");
 
 	int nproc = 2;
 	int nheap = 1;
@@ -514,8 +514,9 @@ void test_worst(int nheap) {
 
 void main(int argc, char *argv[]) {
 	srandom(getpid());
-        test_kick();
-	exit(1);
+	test_preempt_t();
+        test_preempt();
+	//exit(1);
 	//debug = true;
 	test_grp_sleep_wakeup();
 	test_grp_fair_lag();

@@ -49,6 +49,7 @@ int c_rand(struct core *c, int n) {
 struct core *c_new(int i, int n, int seed) {
 	struct core *c = (struct core *) malloc(sizeof(struct core));
 	bzero(c, sizeof(struct core));
+	lock_init(&c->lk);
 	c->cid = i;
 	c->seed = seed;
 	c->hit = calloc(n, sizeof(int));

@@ -21,8 +21,50 @@ struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int nc
 	gh->mh = mh_new(nheap);
 	gh->cs = cs;
 	gh->ncore = ncore;
-	
+	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);
 	return gh;
+}
+
+static void set_preempt(struct global_heap *gh, struct core *c, struct process *p) {
+	while(1) {
+		preempt_t pre = atomic_load(&gh->preempt);
+		if(WEIGHT(pre) < p->he.weight)
+			return;
+		int n = NCORE(pre);
+		w_t w = WEIGHT(pre);
+		cid_t cid = CORE(pre);
+		preempt_t npre;
+		if(w == p->he.weight) n++;
+		else {
+			w = p->he.weight;
+			n = 1;
+		}
+		npre = PREEMPT(n, w, c->cid);
+		//printf("set_preempt: %d %lx (%d, %d, %d)\n", cid, npre, n, w, c->cid);
+		if (__atomic_compare_exchange_n(&gh->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+			break;
+		}
+		c->npreempt_retry++;
+	}
+}
+
+static void reset_preempt(struct global_heap *gh, struct core *c, w_t w) {
+	while(1) {
+		preempt_t pre = atomic_load(&gh->preempt);
+		if(WEIGHT(pre) != w)
+			return;
+		int n = NCORE(pre);
+		w_t w = WEIGHT(pre);
+		cid_t cid = CORE(pre);
+		if(c->cid == cid) cid = -1;
+		if(n == 1) w = MAXWEIGHT;
+		preempt_t npre = PREEMPT(n-1, w, cid);
+		//printf("reset_preempt: %d %lx (%d, %d, %d)\n", c->cid, npre, n-1, w, cid);
+		if (__atomic_compare_exchange_n(&gh->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+			break;
+		}
+		c->npreempt_retry;		
+	}
 }
 
 // Select next process to run
@@ -46,6 +88,7 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 		c_log_append(c, min_proc);
 	}
 	c->process = min_proc;
+	set_preempt(gh, c, min_proc);
 	return min_proc;
 }
 
@@ -86,9 +129,24 @@ static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *
 	mh_add_process(c, p, h);
 }
 
-static bool gh_kick(struct global_heap *gh, struct core *c, struct process *p) {
+static bool gh_preempt(struct global_heap *gh, struct core *c, struct process *p) {
+	preempt_t pre = atomic_load(&gh->preempt);
+	w_t w = WEIGHT(pre);
+	if(p->he.weight > w) {
+		cid_t cid = CORE(pre);
+		struct core *c1 = gh->cs[cid];
+		lock_acquire(&c1->lk);
+		struct process *p1 = c1->process;
+		if(p1->he.weight == w) {
+			printf("preempt c %d to replace pid %d with pid %d(%d)\n", cid, p1->pid, p->pid, p->he.weight);
+		}
+		lock_release(&c1->lk);
+	}
+	return false;
+}
+
+static bool gh_preempt_slow(struct global_heap *gh, struct core *c, struct process *p) {
 	// vt_t vt = proc_vt(gh, c, p);
-	// printf("gh_kick: %d\n", vt);
 	for (int i = 0; i < gh->ncore; i++) {
 		struct process *p1 = gh->cs[i]->process;
 		if(p1 == NULL) {
@@ -121,7 +179,7 @@ void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 		grp_set_vruntime(p, vt);
 	}
 
-	if(!gh_kick(gh, c, p)) {
+	if(!gh_preempt(gh, c, p)) {
 		enq_proc_vt(gh, c, p, h);
 
 		if(debug) {
@@ -144,6 +202,8 @@ static void upd_lag(struct global_heap *gh, struct process *p, t_t time_passed) 
 
 // Yield and enqueue
 void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+	reset_preempt(gh, c, p->he.weight);
+
 	upd_lag(gh, p, time_passed);
 
 	struct heap *h = mh_choose_heap(p->mh, c);
@@ -159,8 +219,10 @@ void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t tim
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
 void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+	reset_preempt(gh, c, p->he.weight);
+
 	struct heap *h = p->h;
-	lock_acquire(&h->lk, c);
+	lock_acquire(&h->lk);
 
 	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
@@ -178,7 +240,7 @@ void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t t
 
 	p->h = NULL;
 
-	lock_release(&h->lk, c);
+	lock_release(&h->lk);
 }
 
 void gh_print(struct global_heap *gh, struct group *grps[], int n) {

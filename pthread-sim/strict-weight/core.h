@@ -6,6 +6,7 @@
 
 #include "vt.h"
 #include "util.h"
+#include "lock.h"
 
 struct log_entry {
 	long ts;
@@ -20,13 +21,16 @@ struct log_entry {
 };
 
 struct core {
+	struct spinlock lk __calign__;
+	
 	int cid;
 	unsigned int seed;
+	struct process *process;
+	struct process *pool;
+
 	t_t work;
 	t_t idle;
 	t_t total;
-	struct process *process;
-	struct process *pool;
 
 	long sched_cycles;
 	long nsched;
@@ -51,6 +55,8 @@ struct core {
 	long nrand;
 
 	long lag_sub_retry;
+
+	long npreempt_retry;
 
 	int *hit;
 	int *miss;

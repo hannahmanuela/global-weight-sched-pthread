@@ -60,6 +60,16 @@ static void cleanup(struct mheap *mh) {
 	mh_free(mh);
 }
 
+
+void test_preempt_t() {
+	preempt_t pre;
+
+	pre = PREEMPT(10, 1, 2);
+	assert(NCORE(pre) == 10);
+	assert(WEIGHT(pre) == 1);
+	assert(CORE(pre) == 2);
+}
+
 void test_grp_sleep_wakeup() {
 	printf("== test_sleep_wakeup start\n");
 

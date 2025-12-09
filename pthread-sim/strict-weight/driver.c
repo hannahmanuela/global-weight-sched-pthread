@@ -32,6 +32,7 @@ bool do_ts_op;
 
 extern bool debug;
 extern bool do_affinity;
+extern bool do_preempt;
 
 struct global_state {
 	struct global_heap *gh;
@@ -166,13 +167,16 @@ void main(int argc, char *argv[]) {
 	int ratio = 1;
 	int base_weight = 10;
 
-	while ((opt = getopt(argc, argv, "adg:w:h:r:l:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "adpg:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;
 			break;
 		case 'd':
 			debug = true;
+			break;
+		case 'p':
+			do_preempt = true;
 			break;
 		case 'g':
 			num_groups = atoi(optarg);

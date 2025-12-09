@@ -14,6 +14,7 @@
 
 bool debug = false;
 bool do_affinity = false;
+bool do_preempt = false;
 
 struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int ncore) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
@@ -88,7 +89,8 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 		c_log_append(c, min_proc);
 	}
 	c->process = min_proc;
-	set_preempt(gh, c, min_proc);
+	if(do_preempt)
+		set_preempt(gh, c, min_proc);
 	return min_proc;
 }
 
@@ -130,6 +132,8 @@ static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *
 }
 
 static bool gh_preempt(struct global_heap *gh, struct core *c, struct process *p) {
+	if(!do_preempt)
+		return false;
 	preempt_t pre = atomic_load(&gh->preempt);
 	w_t w = WEIGHT(pre);
 	if(p->he.weight > w) {
@@ -202,7 +206,8 @@ static void upd_lag(struct global_heap *gh, struct process *p, t_t time_passed) 
 
 // Yield and enqueue
 void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
-	reset_preempt(gh, c, p->he.weight);
+	if(do_preempt)
+		reset_preempt(gh, c, p->he.weight);
 
 	upd_lag(gh, p, time_passed);
 
@@ -219,7 +224,8 @@ void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t tim
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
 void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
-	reset_preempt(gh, c, p->he.weight);
+	if(do_preempt)
+		reset_preempt(gh, c, p->he.weight);
 
 	struct heap *h = p->h;
 	lock_acquire(&h->lk);

@@ -31,6 +31,9 @@ static void set_preempt(struct global_heap *gh, struct core *c, struct process *
 		preempt_t pre = atomic_load(&gh->preempt);
 		if(WEIGHT(pre) < p->he.weight)
 			return;
+
+		c->npreempt_set++;
+		
 		int n = NCORE(pre);
 		w_t w = WEIGHT(pre);
 		cid_t cid = CORE(pre);

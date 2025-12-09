@@ -261,6 +261,8 @@ void main(int argc, char *argv[]) {
 	long max_retry_del_lock = 0;
 	long nnrand = 0;
 	long lag_sub_retry = 0;
+	long npreempt_retry = 0;
+	long npreempt_set = 0;
 
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = gs->cores[i];
@@ -292,6 +294,8 @@ void main(int argc, char *argv[]) {
 		nretry_del += (c->nretry_del + c->nretry_del_lock);
 		nretry_del_lock += c->nretry_del_lock;
 		lag_sub_retry += c->lag_sub_retry;
+		npreempt_retry += c->npreempt_retry;
+		npreempt_set += c->npreempt_set;
 
 		for (int j = 0; j < num_groups; j++) {
 			hit += c->hit[j];
@@ -313,6 +317,7 @@ void main(int argc, char *argv[]) {
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
 	printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
 	printf("  retry lag sub %d\n", lag_sub_retry);
+	printf("  preempt set %d retry %d\n", npreempt_set, npreempt_retry);
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
 	if(do_affinity)
 		printf("  hit %ld miss %d hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));

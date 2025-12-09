@@ -56,6 +56,7 @@ struct core {
 
 	long lag_sub_retry;
 
+	long npreempt_set;
 	long npreempt_retry;
 
 	int *hit;

@@ -138,7 +138,7 @@ void *run_core(void* core) {
 	// pin to an actual core
 	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);
-	CPU_SET(mycore->cid, &cpuset);
+	CPU_SET(2+2*mycore->cid, &cpuset);
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) < 0)
 		error("couldn't set affininity\n");
 

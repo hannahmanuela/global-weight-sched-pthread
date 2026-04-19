@@ -5,6 +5,7 @@
 # Unignore all with extensions
 !*.c
 !*.h
+!*.pl
 !*.md
 !*.cpp
 !*.sh
@@ -14,4 +15,4 @@
 !Makefile
 
 # Ignore virtual environment in pthread-sim
-pthread-sim/.venv/
+pthread-sim/**/.venv/

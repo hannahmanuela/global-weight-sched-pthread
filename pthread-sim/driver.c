@@ -21,6 +21,7 @@
 #include "heap.h"
 #include "mheap.h"
 #include "global_heap.h"
+#include "rr.h"
 #include "util.h"
 
 int time_to_run = 2;  // sec
@@ -29,6 +30,7 @@ int num_cores;
 int time_work; // in usec
 char *logfile = NULL;
 bool do_ts_op;
+bool rr = true;
 
 extern bool debug;
 extern bool do_affinity;
@@ -69,24 +71,28 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		gh_schedule(gh, mycore);
+		if(rr) gh_schedule_rr(gh, mycore);
+		else gh_schedule(gh, mycore);
 		break;
 	case YIELD:
 		mycore->total += gh->tick_length;
 		if(p) {
 			mycore->work += gh->tick_length;
-			gh_yield(gh, mycore, p, gh->tick_length);
+			if (rr) gh_yield_rr(gh, mycore, p, gh->tick_length);
+			else gh_yield(gh, mycore, p, gh->tick_length);
 		} else {
 			mycore->idle += gh->tick_length;
 		}
 		break;
 	case ENQ:
-	        gh_enqueue(gh, mycore, p);
+		if (rr) gh_enqueue_rr(gh, mycore, p);
+		else gh_enqueue(gh, mycore, p);
 		break;
 	case DEQ:
 		mycore->total += gh->tick_length;
 		mycore->work += gh->tick_length/2;
-		gh_dequeue(gh, mycore, p, gh->tick_length/2);
+		if(rr) gh_dequeue_rr(gh, mycore, p, gh->tick_length/2);
+		else gh_dequeue(gh, mycore, p, gh->tick_length/2);
 		break;
 	}
 	long op_cycles = 0;
@@ -224,7 +230,8 @@ void main(int argc, char *argv[]) {
 		gs->grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {
 			struct process *p = grp_new_process(gs->gh->mh, i*num_threads_p_group+j, g);
-			gh_enqueue(gs->gh, gs->cores[0], p);
+			if(rr) gh_enqueue_rr(gs->gh, gs->cores[0], p);
+			else gh_enqueue(gs->gh, gs->cores[0], p);
 		}
 	}
 

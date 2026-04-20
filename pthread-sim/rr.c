@@ -38,7 +38,7 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 }
 
 static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
-	p->he.vruntime = safe_read_tsc();
+	p->he.vruntime = safe_read_tsc() &  ((1U << 31) - 1);
 	mh_add_process(c, p, h);
 }
 

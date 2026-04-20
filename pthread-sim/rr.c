@@ -9,8 +9,11 @@
 #include "driver.h"
 #include "global_heap.h"
 #include "core.h"
-#include "group.h"
 #include "mheap.h"
+
+//
+// global_heap with rr
+//
 
 extern int debug;
 

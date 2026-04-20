@@ -12,6 +12,10 @@
 #include "group.h"
 #include "mheap.h"
 
+//
+// global_heap with weights
+//
+
 bool debug = false;
 bool do_affinity = false;
 bool do_preempt = false;

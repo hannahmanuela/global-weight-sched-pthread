@@ -30,7 +30,7 @@ int num_cores;
 int time_work; // in usec
 char *logfile = NULL;
 bool do_ts_op;
-bool rr = true;
+bool rr;
 
 extern bool debug;
 extern bool do_affinity;
@@ -173,7 +173,7 @@ void main(int argc, char *argv[]) {
 	int ratio = 1;
 	int base_weight = 10;
 
-	while ((opt = getopt(argc, argv, "adpg:w:h:r:l:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "adpsg:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;
@@ -183,6 +183,10 @@ void main(int argc, char *argv[]) {
 			break;
 		case 'p':
 			do_preempt = true;
+			break;
+		case 's':
+			num_groups = 1;
+			rr = true;
 			break;
 		case 'g':
 			num_groups = atoi(optarg);
@@ -242,7 +246,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d runtime %ds weight ratio %d\n", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, time_to_run, ratio);
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, time_to_run, ratio);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;

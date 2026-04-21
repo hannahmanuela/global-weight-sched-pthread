@@ -27,13 +27,16 @@ void print(struct log_entry *r, int idx) {
 	}
 }
 
-int rank_error(struct log_entry *ring, int idx) {
+int rank_error(struct log_entry *ring, int idx, vt_t *maxdiff) {
 	int re = 0;
 	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
 		if(weight > 0 && (ring[idx].w != weight))
 			continue;
 		if(ring[idx].vt > ring[i].vt) {
 			re += 1; 
+			vt_t d = ring[idx].vt-ring[i].vt;
+			if(d > *maxdiff) *maxdiff = d;
+				
 #if 0
 			if(re == 1) {
 			  printf("re: idx %d %ld i %d %ld\n", idx, ring[idx].vt, i, ring[i].vt);
@@ -55,6 +58,7 @@ void process_log(int fd) {
 	int max_re = 0;
 	long max_ts;
 	vt_t max_vt;
+	vt_t max_diff;
 
 	if(read(fd, ring, sizeof(struct log_entry) * N) <= 0) {
 		perror("init ring read");
@@ -64,7 +68,7 @@ void process_log(int fd) {
 	while(1) {
 		if((weight == 0) || (ring[idx].w == weight)) {
 			nentry += 1;
-			int re = rank_error(ring, idx);
+			int re = rank_error(ring, idx, &max_diff);
 			// if(re > 0) printf("%d: %ld rank_error %d\n", idx, ring[idx].ts, re);
 			if(re > max_re) {
 				max_re = re;
@@ -84,10 +88,10 @@ void process_log(int fd) {
 			break;
 		idx = IDX(idx + 1);
 	}
-	printf("sum_re %d n %d %0.2f max %d (ts %ld, vt %ld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_ts, max_vt, weight);
+	printf("sum_re %d n %d %0.2f max %d (ts %ld, vt %ld, diff %ld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_ts, max_vt, max_diff, weight);
 	printf("distribution of rank errors:\n");
 	for(int i = 0; i < NBIN; i++)
-		printf("  re %d: %d\n", i, bin[i]);
+		if (bin[i] > 0) printf("  re %d: %d\n", i, bin[i]);
 	printf("=\n");
 }
 

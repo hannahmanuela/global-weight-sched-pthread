@@ -6,7 +6,7 @@
 #include "heap_elem.h"
 #include "lock.h"
 
-#define HEAP_CAPACITY 64    // XXX todo: reallocating while running mh_min_atomic
+#define HEAP_CAPACITY 1024    // XXX todo: reallocating while running mh_min_atomic
 
 struct heap {
 	struct spinlock lk __calign__;

@@ -3,14 +3,14 @@
 #define _VT_H_
 
 typedef long t_t;
-typedef int vt_t;
+typedef long long vt_t;
 typedef short w_t;
 typedef unsigned long long preempt_t;
 typedef unsigned short ncore_t;
 typedef unsigned short cid_t;
 
 // XXX handle vt_t wrap around
-#define DUMMY (INT_MAX)   // if vt_t is DUMMY, then dummy heap_elem
+#define DUMMY (LONG_MAX)   // if vt_t is DUMMY, then dummy heap_elem
 #define MAXWEIGHT (SHRT_MAX)  
 
 // [16-bit ncore, 16-bit weight, 16-bit vt, 16-bit cid]

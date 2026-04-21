@@ -474,11 +474,13 @@ void test_worst(int nheap) {
 	int worst = 0;
 	long sum = 0;
 
-	#define NBIN 20
+	#define NBIN 1000
 	static int bin[NBIN];
 
+	int seed = getpid();
 	for(int t = 0; t < n; t++) {
-		struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+		struct core *c[NCORE1] = {c_new(0, GRP1, seed)};
+		seed = rand_r(&seed);
 		struct global_heap *gh = gh_new(tl, nheap, c, NCORE1);
 		struct group *gs[GRP1];
 		gs[0] = grp_new(gh->mh, 0, 10);
@@ -513,7 +515,6 @@ void test_worst(int nheap) {
 
 
 void main(int argc, char *argv[]) {
-	srandom(getpid());
 	test_preempt_t();
         test_preempt();
 	//exit(1);

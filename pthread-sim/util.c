@@ -16,9 +16,10 @@
 #include "vt.h"
 
 long safe_read_tsc() {
-	_mm_lfence();
-	long ret_val = _rdtsc();
-	_mm_lfence();
+	//_mm_lfence();
+	unsigned int aux;
+	long ret_val = _rdtscp(&aux);
+	//_mm_lfence();
 	return ret_val;
 }
 

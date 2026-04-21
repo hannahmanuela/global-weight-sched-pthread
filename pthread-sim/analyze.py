@@ -2,13 +2,15 @@
 
 #!/usr/bin/env python3
 """
-Analysis script to plot the distribution of overall throughput from the out directory.
-X-axis: number of cores (filename)
+Analysis script to plot the distribution of overall throughput for one pinning policy.
+Usage: analyze.py <dir>   (e.g. out/seq, out/numa-first, out/phys-first)
+X-axis: number of cores (subdir name)
 Y-axis: overall throughput (iterations/second)
 """
 
 import os
 import re
+import sys
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
@@ -34,7 +36,10 @@ def extract_throughput_from_file(filepath):
     return None
 
 def main():
-    out_dir = Path('out')
+    if len(sys.argv) != 2:
+        print(f"Usage: {sys.argv[0]} <dir>")
+        sys.exit(1)
+    out_dir = Path(sys.argv[1])
     if not out_dir.exists():
         print(f"Error: {out_dir} directory not found")
         return
@@ -43,18 +48,23 @@ def main():
     data = {}
     core_counts = []
     
-    # Iterate through files in the out directory
-    for filepath in sorted(out_dir.iterdir()):
-        if not filepath.is_file():
+    # Iterate through subdirectories in the out directory (one per core count)
+    for subdir in sorted(out_dir.iterdir()):
+        if not subdir.is_dir():
             continue
-        
-        # Try to parse filename as number of cores (e.g., "27.txt" -> 27)
+
+        # Try to parse directory name as number of cores (e.g., "4" -> 4)
         try:
-            num_cores = int(filepath.stem)  # stem is filename without extension
+            num_cores = int(subdir.name)
         except ValueError:
-            print(f"Warning: Skipping non-numeric file: {filepath.name}")
+            print(f"Warning: Skipping non-numeric directory: {subdir.name}")
             continue
-        
+
+        filepath = subdir / 'vals.txt'
+        if not filepath.exists():
+            print(f"Warning: {filepath} not found")
+            continue
+
         # Extract overall throughput from the file
         overall_throughput = extract_throughput_from_file(filepath)
         
@@ -85,7 +95,7 @@ def main():
     
     ax.set_xlabel('Number of Cores')
     ax.set_ylabel('Overall Throughput (ops/s)')
-    ax.set_title('Distribution of Overall Throughput by Number of Cores')
+    ax.set_title(f'Overall Throughput by Number of Cores ({out_dir.name})')
     ax.set_ylim(bottom=0)  # Set y-axis lower limit to 0
     ax.grid(True, alpha=0.3, axis='y')
 
@@ -104,8 +114,9 @@ def main():
     ax.yaxis.set_major_formatter(ticker.FuncFormatter(format_sci_clean))
     
     plt.tight_layout()
-    plt.savefig('out/throughput_distribution.png', dpi=150)
-    print(f"Plot saved to throughput_distribution.png")
+    out_path = out_dir / 'throughput_distribution.png'
+    plt.savefig(out_path, dpi=150)
+    print(f"Plot saved to {out_path}")
     
     # Also print summary statistics
     print("\nSummary Statistics (overall throughput in iterations/second):")

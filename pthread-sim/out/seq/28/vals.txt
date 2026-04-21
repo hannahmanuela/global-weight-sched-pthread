@@ -1,0 +1,12 @@
+= rr num_cores 28 num_groups 1 nprocs 140 (procs/group 140) nheap 56 work 0 affinity? 0 preempt 0 runtime 3s weight ratio 1 pin seq
+tp 57.16M/s
+  sched #85739336 min 0.00 avg 0.00 max 0.00
+  yield #85739336 min 0.00 avg 0.00 max 0.00
+  retry ins 33031567 min 0.38 max 0.39
+  retry del 36847464 (stale 318601) min 0.42 max 0.48
+    max retry locked 18 stale 3 avg rand 0.02
+  retry lag sub 0
+  preempt set 0 retry 0
+  nsched_null 3500306 (0.04)
+= stats total ticks 85739336000 us work 82239030000 us idle 3500306000 us
+  = 0: w 10 grp runtime 0.000000 fraction 0.00

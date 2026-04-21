@@ -1,0 +1,12 @@
+= rr num_cores 8 num_groups 1 nprocs 40 (procs/group 40) nheap 16 work 0 affinity? 0 preempt 0 runtime 3s weight ratio 1 pin numa-first
+tp 28.56M/s
+  sched #42836395 min 0.00 avg 0.00 max 0.00
+  yield #42836395 min 0.00 avg 0.00 max 0.00
+  retry ins 13175968 min 0.30 max 0.31
+  retry del 15626001 (stale 169652) min 0.36 max 0.37
+    max retry locked 16 stale 3 avg rand 0.07
+  retry lag sub 0
+  preempt set 0 retry 0
+  nsched_null 1291322 (0.03)
+= stats total ticks 42836395000 us work 41545073000 us idle 1291322000 us
+  = 0: w 10 grp runtime 0.000000 fraction 0.00

@@ -32,6 +32,47 @@ char *logfile = NULL;
 bool do_ts_op;
 bool rr;
 
+// Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
+//   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
+//   HT siblings: CPU N and CPU N+28 share a physical core.
+#define CORES_PER_NUMA 14
+#define NUMA_NODES     2
+#define HT_PER_CORE    2
+
+enum pin_policy {
+	PIN_SEQ        = 0, // cid -> cid (interleaves NUMA, then HT)
+	PIN_NUMA_FIRST = 1, // fill NUMA 0 (incl. HT), then NUMA 1
+	PIN_PHYS_FIRST = 2, // fill all 28 physical cores across both NUMAs, then HT
+};
+int pin_pol = PIN_SEQ;
+
+int calc_pin_cpu(int cid, enum pin_policy policy) {
+	switch (policy) {
+	case PIN_SEQ:
+		// 0, 1, 2, ..., 55
+		return cid;
+	case PIN_NUMA_FIRST: {
+		// NUMA 0 (evens 0..54), then NUMA 1 (odds 1..55).
+		int per_numa = CORES_PER_NUMA * HT_PER_CORE; // 28
+		int node = cid / per_numa;
+		int slot = cid % per_numa;
+		return 2 * slot + node;
+	}
+	case PIN_PHYS_FIRST: {
+		// Phase 0: NUMA 0 phys    (evens 0..26)
+		// Phase 1: NUMA 1 phys    (odds  1..27)
+		// Phase 2: NUMA 0 HT sibs (evens 28..54)
+		// Phase 3: NUMA 1 HT sibs (odds  29..55)
+		int phase = cid / CORES_PER_NUMA;   // 0..3
+		int slot  = cid % CORES_PER_NUMA;   // 0..13
+		int node  = phase % NUMA_NODES;     // 0,1,0,1
+		int ht    = phase / NUMA_NODES;     // 0,0,1,1
+		return 2 * slot + node + 28 * ht;
+	}
+	}
+	return -1;
+}
+
 extern bool debug;
 extern bool do_affinity;
 extern bool do_preempt;
@@ -141,10 +182,12 @@ void sleepwakeup(struct global_heap *gh, struct core *mycore) {
 void *run_core(void* core) {
 	struct core *mycore = (struct core *) core;
 
-	// pin to an actual core
+	// pin to an actual core per the selected policy
+	int cpu_want = calc_pin_cpu(mycore->cid, pin_pol);
+
 	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);
-	CPU_SET(2+2*mycore->cid, &cpuset);
+	CPU_SET(cpu_want, &cpuset);
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0)
 		error("couldn't set affininity\n");
 
@@ -161,7 +204,7 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <num_cores> <num_threads>\n", s);
+	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time -P <0|1|2> <num_cores> <num_threads>\n", s);
 	exit(1);
 
 }
@@ -173,7 +216,7 @@ void main(int argc, char *argv[]) {
 	int ratio = 1;
 	int base_weight = 10;
 
-	while ((opt = getopt(argc, argv, "adpsg:w:h:r:l:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "adpsg:w:h:r:l:t:P:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;
@@ -205,6 +248,10 @@ void main(int argc, char *argv[]) {
 			break;
 		case 't':
 			time_to_run = atoi(optarg);
+			break;
+		case 'P':
+			pin_pol = atoi(optarg);
+			if (pin_pol < 0 || pin_pol > 2) usage(argv[0]);
 			break;
 		}
 	}
@@ -246,7 +293,8 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, time_to_run, ratio);
+	const char *pin_name = (pin_pol == PIN_SEQ) ? "seq" : (pin_pol == PIN_NUMA_FIRST) ? "numa-first" : "phys-first";
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d runtime %ds weight ratio %d pin %s\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, time_to_run, ratio, pin_name);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;

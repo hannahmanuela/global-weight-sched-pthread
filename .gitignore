@@ -1,18 +1,30 @@
-*
+# Build artifacts
+*.o
+*.d
 
-!*/
+# Compiled binaries
+pthread-sim/global-heap
+pthread-sim/logdump
+pthread-sim/logmerge
+pthread-sim/rankerror
+pthread-sim/test-global
+pthread-sim/test-heap
 
-# Unignore all with extensions
-!*.c
-!*.h
-!*.pl
-!*.md
-!*.cpp
-!*.sh
-!*.py
-!*.png
-!**/out/**
-!Makefile
+# perf profiling output
+perf.data
+perf.data.old
+*.perf-folded
 
-# Ignore virtual environment in pthread-sim
-pthread-sim/**/.venv/
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# IDE
+.vscode/
+
+# Large log
+pthread-sim/event_log.txt
+
+# Legacy output dir
+pthread-sim/out-onegrp-test/

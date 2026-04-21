@@ -147,7 +147,8 @@ static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, struct cor
 	}
 }
 
-static void mh_upd_stat(struct process *p, struct core *c, int other, vt_t other_vt, int r, int r_lock) {
+static void mh_upd_stat(struct process *p, struct core *c, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
+	p->my_vt = vt;
 	p->other_hid = other;
 	p->other_vt = other_vt;
 	c->nretry_del += (r + r_lock);
@@ -222,8 +223,9 @@ retry:
 		goto retry;
 	}
 	struct process *p = mh_del_min_process(c, h);
+	p->tsc = safe_read_tsc();
 	lock_release(&h->lk);
-	mh_upd_stat(p, c, (h->id == i) ? j  : i, other_vt, r, r_lock); 
+	mh_upd_stat(p, c, (h->id == i) ? j  : i, vt, other_vt, r, r_lock); 
 	return p;
 }
 
@@ -238,6 +240,8 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 		}	
 		struct process *p = mh_del_min_process(c, h);
 		assert(p->h == h);
+		p->tsc = safe_read_tsc();
+		p->my_vt = he->vruntime;
 		lock_release(&h->lk);
 		return p;
 	}
@@ -312,7 +316,7 @@ retry:
 		p = mh_remove_min(h);
 		assert(cp == p);
 		assert(p->cid == cid);
-		mh_upd_stat(p, c, j, other_vt, r, r_lock);
+		mh_upd_stat(p, c, j, vt, other_vt, r, r_lock);
 		goto end;
 	}
 	int l = lock_try_acquire(&h1->lk);
@@ -329,7 +333,7 @@ retry:
 	c->miss[cp->group->gid]++;
 	p = mh_del_min_process(c, h1);
 	lock_release(&h1->lk);
-	mh_upd_stat(p, c, j, other_vt, r, r_lock);
+	mh_upd_stat(p, c, j, vt, other_vt, r, r_lock);
 end:
 	lock_release(&h->lk);
 	return p;

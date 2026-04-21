@@ -21,7 +21,9 @@ struct process {
 
 	int pid;
 	struct process *next;
-
+	
+	long tsc;
+	vt_t my_vt;
 	int other_hid;
 	vt_t other_vt;
 

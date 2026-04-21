@@ -81,7 +81,7 @@ void c_log_append(struct core *c, struct process *p) {
 		c->log_nentry = 0;
 	}
 	int i = c->log_nentry++;
-	c->log[i].ts = _rdtsc();
+	c->log[i].ts = p->tsc;
 	c->log[i].vt = p->he.vruntime;
 	c->log[i].cid = c->cid;
 	c->log[i].pid = p->pid;

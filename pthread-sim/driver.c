@@ -29,8 +29,9 @@ int num_groups = 4;
 int num_cores;
 int time_work; // in usec
 char *logfile = NULL;
+int ratio = 1;
+int base_weight = 10;
 bool do_ts_op;
-bool rr;
 
 // Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
 //   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
@@ -49,6 +50,7 @@ int calc_pin_cpu(int cid) {
 extern bool debug;
 extern bool do_affinity;
 extern bool do_preempt;
+extern bool rr;
 
 struct global_state {
 	struct global_heap *gh;
@@ -152,6 +154,21 @@ void sleepwakeup(struct global_heap *gh, struct core *mycore) {
 	action(gh, mycore, WAKEUP);
 }
 
+void global_heap_groups(int num_groups, int num_threads_p_group) {
+	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
+	w_t w = base_weight;
+	for (int i = 0; i < num_groups; i++) {
+		struct group *g = grp_new(gs->gh->mh, i, w);
+		w  += base_weight * (ratio - 1);
+		gs->grps[i] = g;
+		for (int j = 0; j < num_threads_p_group; j++) {
+			struct process *p = grp_new_process(gs->gh->mh, i*num_threads_p_group+j, g);
+			if(rr) gh_enqueue_rr(gs->gh, gs->cores[0], p);
+			else gh_enqueue(gs->gh, gs->cores[0], p);
+		}
+	}
+}
+
 void *run_core(void* core) {
 	struct core *mycore = (struct core *) core;
 
@@ -186,8 +203,6 @@ void main(int argc, char *argv[]) {
 	int opt = 0;
 	int nheap = 0;
 	int tick_length = 1000;
-	int ratio = 1;
-	int base_weight = 10;
 
 	while ((opt = getopt(argc, argv, "adpsg:w:h:r:l:t:")) != -1) {
 		switch(opt) {
@@ -242,18 +257,7 @@ void main(int argc, char *argv[]) {
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
 	gs->gh = gh_new(tick_length, nheap, gs->cores, num_cores);
-	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
-	w_t w = base_weight;
-	for (int i = 0; i < num_groups; i++) {
-		struct group *g = grp_new(gs->gh->mh, i, w);
-		w  += base_weight * (ratio - 1);
-		gs->grps[i] = g;
-		for (int j = 0; j < num_threads_p_group; j++) {
-			struct process *p = grp_new_process(gs->gh->mh, i*num_threads_p_group+j, g);
-			if(rr) gh_enqueue_rr(gs->gh, gs->cores[0], p);
-			else gh_enqueue(gs->gh, gs->cores[0], p);
-		}
-	}
+	global_heap_groups(num_groups, num_threads_p_group);
 
 	// printf("==="); mh_print(gs->gh->mh);
 

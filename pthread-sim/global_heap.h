@@ -6,7 +6,7 @@ struct global_heap {
 	int ncore;
 	int tick_length;
 	struct mheap *mh;
-
+	struct mheap *mh1;   // for low priority rr procs
 	preempt_t preempt __calign__;
 };
 

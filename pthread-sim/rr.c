@@ -17,8 +17,8 @@
 
 extern int debug;
 
-// Select next process to run
-struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
+// Select next process to run from gid
+struct process *gh_schedule_rr_gid(struct global_heap *gh, struct core *c, int gid) {
 	struct process *min_proc = NULL;
 	min_proc = mh_min_proc(gh->mh, c);
 	if (min_proc == NULL) {
@@ -35,6 +35,11 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	}
 	c->process = min_proc;
 	return min_proc;
+}
+
+// Select next process to run
+struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
+	return gh_schedule_rr_gid(gh, c, 0);
 }
 
 static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {

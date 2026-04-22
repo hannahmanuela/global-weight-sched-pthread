@@ -55,12 +55,12 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 }
 
 void proc_print(struct process *p) {
-	printf("[pid %d(%d) vt %u w %d]", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
+	printf("[pid %d(%d) vt %llu w %d]", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
 }	
 
 void grp_set_vruntime(struct process *p, vt_t vt) {
 	if(debug)
-		printf("%d(%d): grp_set_vruntime: vt %u\n", p->pid, p->group->gid, vt);
+		printf("%d(%d): grp_set_vruntime: vt %llu\n", p->pid, p->group->gid, vt);
 	atomic_store(&p->group->vruntime, vt);
 }
 
@@ -94,7 +94,7 @@ static float grp_runtime(struct group *g, long t) {
 }
 
 void grp_print(struct group *g) {
-	printf("[%d: n %d vt %d lag %d min_vt_deq %d]", g->gid, g->nthread, g->vruntime, g->lag, g->min_vt_deq);
+	printf("[%d: n %d vt %lld lag %lld min_vt_deq %lld]", g->gid, g->nthread, g->vruntime, g->lag, g->min_vt_deq);
 }
 
 void grp_stats(struct group *g, long sum) {

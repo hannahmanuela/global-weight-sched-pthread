@@ -45,7 +45,7 @@ static struct process *schedule_retry(struct core *c, struct global_heap *gh) {
 }
 
 static struct global_heap *mk_mheap(struct core *cs[], int ncore, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
-	struct global_heap *gh = gh_new(tl, nheap, cs, ncore);
+	struct global_heap *gh = gh_new(tl, nheap, cs, ncore, false);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(gh->mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
@@ -270,7 +270,7 @@ void test_running_lag() {
 
 	int nheap = 1;
 	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
-	struct global_heap *gh = gh_new(tl, nheap, c, num_cores);
+	struct global_heap *gh = gh_new(tl, nheap, c, num_cores, false);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(gh->mh, i, ws[i]);
 	}
@@ -479,7 +479,7 @@ void test_worst(int nheap) {
 
 	for(int t = 0; t < n; t++) {
 		struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
-		struct global_heap *gh = gh_new(tl, nheap, c, NCORE1);
+		struct global_heap *gh = gh_new(tl, nheap, c, NCORE1, false);
 		struct group *gs[GRP1];
 		gs[0] = grp_new(gh->mh, 0, 10);
 		struct heap *h = mh_choose_heap(gh->mh, c[0]);
@@ -508,7 +508,7 @@ void test_worst(int nheap) {
 			break;
 		}
 	}
-	printf("== test_worst: avg %d med %d worst %d\n", sum/n, median, worst);
+	printf("== test_worst: avg %ld med %d worst %d\n", sum/n, median, worst);
 }
 
 

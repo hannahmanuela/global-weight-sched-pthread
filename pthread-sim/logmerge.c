@@ -14,7 +14,7 @@ char buf[32];
 
 void main(int argc, char *argv[]) {
 	if (argc != 3) {
-		printf("%s: <n> <name>");
+		printf("%s: <n> <name>\n", argv[0]);
 		exit(1);
 	}
 		

@@ -9,6 +9,7 @@
 #include "driver.h"
 #include "global_heap.h"
 #include "core.h"
+#include "mvalue.h"
 #include "mheap.h"
 
 //
@@ -27,7 +28,7 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	}
 
 	if(debug) {
-		printf("%d: schedule_rr %d(%d) vt %d h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
+		printf("%d: schedule_rr %d(%d) vt %lld h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
 		mh_print(min_proc->mh);
 	}
 	if(c->fd > 0) {
@@ -38,7 +39,14 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 }
 
 static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
-	p->he.vruntime = safe_read_tsc();
+	if (gh->using_mv) {
+		p->he.vruntime = mv_get_val(gh->mv, c);
+		vt_t curr_t = safe_read_tsc();
+		mv_set_val(gh->mv, c, curr_t);
+		p->he.ground_truth_time = curr_t;
+	} else {
+		p->he.vruntime = safe_read_tsc();
+	}
 	mh_add_process(c, p, h);
 }
 
@@ -50,7 +58,7 @@ void gh_enqueue_rr(struct global_heap *gh, struct core *c, struct process *p) {
 	enq_proc_vt(gh, c, p, h);
 
 	if(debug) {
-		printf("%d(%d): enqueue_rr nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
+		printf("%d(%d): enqueue_rr nthread %d lh %p vt %llu gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 		mh_print(p->group->mh);
 	}
 }
@@ -62,7 +70,7 @@ void gh_yield_rr(struct global_heap *gh, struct core *c, struct process *p, t_t 
 	enq_proc_vt(gh, c, p, h);
 
 	if(debug) {
-		printf("%d(%d): yield_rr time_passed %ld nt %d w %d vt %d h %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime, h->id);
+		printf("%d(%d): yield_rr time_passed %ld nt %d w %d vt %lld h %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime, h->id);
 		mh_print(p->group->mh);
 	}
 }

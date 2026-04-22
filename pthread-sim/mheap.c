@@ -61,7 +61,7 @@ static vt_t heap_check(struct heap *h) {
 
 static void print_elem(struct heap_elem *e) {
 	if(e->vruntime == DUMMY) {
-		printf("[dummy vt %u w %d]", e->vruntime, e->weight);
+		printf("[dummy vt %llu w %d]", e->vruntime, e->weight);
 		return;
 	}
 	struct process *p = (struct process *) e->elem;
@@ -83,7 +83,7 @@ void mh_print(struct mheap *mh) {
 	printf("= mh:\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
-		printf("  Heap %d size %d last_vt %d: \n", i, h->heap_size, h->last_vt);
+		printf("  Heap %d size %d last_vt %lld: \n", i, h->heap_size, h->last_vt);
 		heap_iter(mh->h[i], print_elem);
 		printf("\n");
 	}

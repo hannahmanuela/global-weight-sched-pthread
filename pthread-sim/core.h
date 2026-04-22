@@ -11,6 +11,7 @@
 struct log_entry {
 	long ts;
 	vt_t vt;
+	vt_t gtt;
 	int cid;
 	int pid;
 	int gid;

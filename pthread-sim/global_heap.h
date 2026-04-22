@@ -7,10 +7,13 @@ struct global_heap {
 	int tick_length;
 	struct mheap *mh;
 
+	bool using_mv;
+	struct mvalue *mv;
+
 	preempt_t preempt __calign__;
 };
 
-struct global_heap *gh_new(int tick_length, int n, struct core *cs[], int ncore);
+struct global_heap *gh_new(int tick_length, int n, struct core *cs[], int ncore, bool using_mv);
 struct process *gh_schedule(struct global_heap *gh, struct core *c);
 void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed);
 void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p);

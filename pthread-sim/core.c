@@ -18,7 +18,7 @@ void core_print(struct core *c) {
 	if (p == NULL) {
 		printf("  pid %d ", -1);
 	} else {
-		printf("  [pid %d vt %d w %d]", p->pid, p->he.vruntime, p->he.weight);
+		printf("  [pid %d vt %lld w %d]", p->pid, p->he.vruntime, p->he.weight);
 	}
 }
 
@@ -82,6 +82,7 @@ void c_log_append(struct core *c, struct process *p) {
 	}
 	int i = c->log_nentry++;
 	c->log[i].ts = p->tsc;
+	c->log[i].gtt = p->he.ground_truth_time;
 	c->log[i].vt = p->he.vruntime;
 	c->log[i].cid = c->cid;
 	c->log[i].pid = p->pid;

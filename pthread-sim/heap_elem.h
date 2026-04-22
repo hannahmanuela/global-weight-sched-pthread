@@ -10,6 +10,7 @@ typedef short idx_t;
 
 struct heap_elem {
 	vt_t vruntime;
+	vt_t ground_truth_time;
 	w_t weight;
 	void *elem;
 };

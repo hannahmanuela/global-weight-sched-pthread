@@ -11,6 +11,7 @@
 #include "core.h"
 #include "group.h"
 #include "mheap.h"
+#include "mvalue.h"
 
 //
 // global_heap with weights
@@ -20,10 +21,12 @@ bool debug = false;
 bool do_affinity = false;
 bool do_preempt = false;
 
-struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int ncore) {
+struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int ncore, bool using_mv) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
 	gh->tick_length = tick_length;
 	gh->mh = mh_new(nheap);
+	gh->using_mv = using_mv;
+	gh->mv = using_mv ? mv_new(nheap) : NULL;
 	gh->cs = cs;
 	gh->ncore = ncore;
 	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);
@@ -90,7 +93,7 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 	}
 
 	if(debug) {
-		printf("%d: schedule %d(%d) vt %d h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
+		printf("%d: schedule %d(%d) vt %lld h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
 		mh_print(min_proc->mh);
 	}
 	if(c->fd > 0) {
@@ -196,7 +199,7 @@ void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 		enq_proc_vt(gh, c, p, h);
 
 		if(debug) {
-			printf("%d(%d): enqueue nthread %d lh %p vt %u gvt %d\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
+			printf("%d(%d): enqueue nthread %d lh %p vt %llu gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 			mh_print(p->group->mh);
 		}
 	}
@@ -225,7 +228,7 @@ void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t tim
 	enq_proc_vt(gh, c, p, h);
 
 	if(debug) {
-		printf("%d(%d): yield time_passed %ld nt %d w %d vt %d h %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime, h->id);
+		printf("%d(%d): yield time_passed %ld nt %d w %d vt %lld h %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime, h->id);
 		mh_print(p->group->mh);
 	}
 }

@@ -31,6 +31,7 @@ int time_work; // in usec
 char *logfile = NULL;
 bool do_ts_op;
 bool rr;
+bool using_mv = false;
 
 // Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
 //   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
@@ -204,7 +205,7 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time -P <0|1|2> <num_cores> <num_threads>\n", s);
+	fprintf(stderr, "%s -a -d -m -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time -P <0|1|2> <num_cores> <num_threads>\n", s);
 	exit(1);
 
 }
@@ -216,7 +217,7 @@ void main(int argc, char *argv[]) {
 	int ratio = 1;
 	int base_weight = 10;
 
-	while ((opt = getopt(argc, argv, "adpsg:w:h:r:l:t:P:")) != -1) {
+	while ((opt = getopt(argc, argv, "adpsmg:w:h:r:l:t:P:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;
@@ -226,6 +227,9 @@ void main(int argc, char *argv[]) {
 			break;
 		case 'p':
 			do_preempt = true;
+			break;
+		case 'm':
+			using_mv = true;
 			break;
 		case 's':
 			num_groups = 1;
@@ -272,7 +276,7 @@ void main(int argc, char *argv[]) {
 		gs->cores[i] = c_new(i, num_groups, i);
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
-	gs->gh = gh_new(tick_length, nheap, gs->cores, num_cores);
+	gs->gh = gh_new(tick_length, nheap, gs->cores, num_cores, using_mv);
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
 	w_t w = base_weight;
 	for (int i = 0; i < num_groups; i++) {
@@ -369,17 +373,17 @@ void main(int argc, char *argv[]) {
 		nnrand += c->nrand;
 	}
 	printf("tp %0.2fM/s\n", AVG(nsched+nyield, time_to_run)/1000000);
-	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", AVG(nsched+nyield, time_to_run)/1000000, p_l, p_h);
+	if(p_l > 0) printf(" debug: %0.2f %0.2f %0.2f)\n", AVG(nsched+nyield, time_to_run)/1000000, p_l, p_h);
 	printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
-	printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
-	printf("  retry lag sub %d\n", lag_sub_retry);
-	printf("  preempt set %d retry %d\n", npreempt_set, npreempt_retry);
+	printf("    max retry locked %ld stale %ld avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
+	printf("  retry lag sub %ld\n", lag_sub_retry);
+	printf("  preempt set %ld retry %ld\n", npreempt_set, npreempt_retry);
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
 	if(do_affinity)
-		printf("  hit %ld miss %d hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
+		printf("  hit %ld miss %ld hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = gs->cores[i];
 		c_print(c, num_groups);

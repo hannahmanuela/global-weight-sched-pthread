@@ -11,7 +11,7 @@
 
 static void heap_alloc(struct heap *h) {
 	//h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
-	assert(sizeof(struct heap_elem) == 24);
+	assert(sizeof(struct heap_elem) == 32);
 	h->heap_capacity = HEAP_CAPACITY;
 }
 
@@ -35,6 +35,7 @@ void heap_free(struct heap *h) {
 
 void heap_elem_init(struct heap_elem *he, vt_t vt, int w, void *elem) {
 	he->vruntime = vt;
+	he->ground_truth_time = 0;
 	he->weight = w;
 	he->elem = elem;
 }

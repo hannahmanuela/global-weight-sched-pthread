@@ -1,0 +1,754 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="294" onload="init(evt)" viewBox="0 0 1200 294" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+
+		// use GET parameters to restore a flamegraphs state.
+		var params = get_params();
+		if (params.x && params.y)
+			zoom(find_group(document.querySelector('[x="' + params.x + '"][y="' + params.y + '"]')));
+                if (params.s) search(params.s);
+	}
+
+	// event listeners
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom(true);
+			zoom(target);
+			if (!document.querySelector('.parent')) {
+				// we have basically done a clearzoom so clear the url
+				var params = get_params();
+				if (params.x) delete params.x;
+				if (params.y) delete params.y;
+				history.replaceState(null, null, parse_params(params));
+				unzoombtn.classList.add("hide");
+				return;
+			}
+
+			// set parameters for zoom state
+			var el = target.querySelector("rect");
+			if (el && el.attributes && el.attributes.y && el.attributes._orig_x) {
+				var params = get_params()
+				params.x = el.attributes._orig_x.value;
+				params.y = el.attributes.y.value;
+				history.replaceState(null, null, parse_params(params));
+			}
+		}
+		else if (e.target.id == "unzoom") clearzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+		else if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function get_params() {
+		var params = {};
+		var paramsarr = window.location.search.substr(1).split('&');
+		for (var i = 0; i < paramsarr.length; ++i) {
+			var tmp = paramsarr[i].split("=");
+			if (!tmp[0] || !tmp[1]) continue;
+			params[tmp[0]]  = decodeURIComponent(tmp[1]);
+		}
+		return params;
+	}
+	function parse_params(params) {
+		var uri = "?";
+		for (var key in params) {
+			uri += key + '=' + encodeURIComponent(params[key]) + '&';
+		}
+		if (uri.slice(-1) == "&")
+			uri = uri.substring(0, uri.length - 1);
+		if (uri == '?')
+			uri = window.location.href.split('?')[0];
+		return uri;
+	}
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		var sl = t.getSubStringLength(0, txt.length);
+		// check if only whitespace or if we can fit the entire string into width w
+		if (/^ *$/.test(txt) || sl < w)
+			return;
+
+		// this isn't perfect, but gives a good starting point
+		// and avoids calling getSubStringLength too often
+		var start = Math.floor((w/sl) * txt.length);
+		for (var x = start; x > 0; x = x-2) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom(dont_update_text) {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			if(!dont_update_text) update_text(el[i]);
+		}
+		search();
+	}
+	function clearzoom() {
+		unzoom();
+
+		// remove zoom state
+		var params = get_params();
+		if (params.x) delete params.x;
+		if (params.y) delete params.y;
+		history.replaceState(null, null, parse_params(params));
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+		var params = get_params();
+		delete params.s;
+		history.replaceState(null, null, parse_params(params));
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) search(term);
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (term) currentSearchTerm = term;
+		if (currentSearchTerm === null) return;
+
+		var re = new RegExp(currentSearchTerm, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+		var params = get_params();
+		params.s = currentSearchTerm;
+		history.replaceState(null, null, parse_params(params));
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="294.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="277" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="277" > </text>
+<g id="frames">
+<g >
+<title>doop (16,368,797,859 samples, 47.17%; +0.78%)</title><rect x="572.7" y="165" width="556.6" height="15.0" fill="rgb(255,190,190)" rx="2" ry="2" />
+<text  x="575.67" y="175.5" >doop</text>
+</g>
+<g >
+<title>rand_r (636,259,547 samples, 1.83%; +0.94%)</title><rect x="318.9" y="85" width="21.6" height="15.0" fill="rgb(255,186,186)" rx="2" ry="2" />
+<text  x="321.87" y="95.5" >r..</text>
+</g>
+<g >
+<title>heap_sift_down (2,546,800,078 samples, 7.34%; +2.06%)</title><rect x="809.3" y="53" width="86.6" height="15.0" fill="rgb(255,158,158)" rx="2" ry="2" />
+<text  x="812.26" y="63.5" >heap_sift_..</text>
+</g>
+<g >
+<title>now (1,302,699,781 samples, 3.75%; +0.37%)</title><rect x="1129.3" y="165" width="44.3" height="15.0" fill="rgb(255,200,200)" rx="2" ry="2" />
+<text  x="1132.26" y="175.5" >now</text>
+</g>
+<g >
+<title>heap_swap (433,793,878 samples, 1.25%; +0.72%)</title><rect x="895.9" y="53" width="14.7" height="15.0" fill="rgb(255,192,192)" rx="2" ry="2" />
+<text  x="898.86" y="63.5" ></text>
+</g>
+<g >
+<title>heap_swap (486,390,392 samples, 1.40%; +0.65%)</title><rect x="128.8" y="53" width="16.6" height="15.0" fill="rgb(255,193,193)" rx="2" ry="2" />
+<text  x="131.83" y="63.5" ></text>
+</g>
+<g >
+<title>calc_delta (450,615,108 samples, 1.30%; +0.46%)</title><rect x="153.4" y="85" width="15.4" height="15.0" fill="rgb(255,198,198)" rx="2" ry="2" />
+<text  x="156.43" y="95.5" ></text>
+</g>
+<g >
+<title>[unknown] (5,785,099 samples, 0.02%; 0.00%)</title><rect x="297.4" y="101" width="0.2" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="300.43" y="111.5" ></text>
+</g>
+<g >
+<title>__rdtscp (98,319,510 samples, 0.28%; +0.15%)</title><rect x="1124.3" y="85" width="3.4" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
+<text  x="1127.34" y="95.5" ></text>
+</g>
+<g >
+<title>heap_push (11,569,528 samples, 0.03%; 0.00%)</title><rect x="1178.9" y="213" width="0.4" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="1181.92" y="223.5" ></text>
+</g>
+<g >
+<title>mh_select.isra.0 (3,097,767,462 samples, 8.93%; +4.85%)</title><rect x="1007.4" y="101" width="105.4" height="15.0" fill="rgb(255,89,89)" rx="2" ry="2" />
+<text  x="1010.43" y="111.5" >mh_select.is..</text>
+</g>
+<g >
+<title>c_rand (28,924,105 samples, 0.08%; -0.02%)</title><rect x="1173.7" y="213" width="1.0" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="1176.67" y="223.5" ></text>
+</g>
+<g >
+<title>mh_select.isra.0 (5,785,357 samples, 0.02%; +0.02%)</title><rect x="1189.3" y="213" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1192.34" y="223.5" ></text>
+</g>
+<g >
+<title>c_rand (5,784,808 samples, 0.02%; -0.02%)</title><rect x="689.6" y="101" width="0.2" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="692.62" y="111.5" ></text>
+</g>
+<g >
+<title>[unknown] (5,785,177 samples, 0.02%; 0.00%)</title><rect x="622.2" y="133" width="0.2" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="625.16" y="143.5" ></text>
+</g>
+<g >
+<title>safe_read_tsc (46,276,153 samples, 0.13%; +0.03%)</title><rect x="1127.7" y="133" width="1.6" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1130.68" y="143.5" ></text>
+</g>
+<g >
+<title>safe_read_tsc (5,785,132 samples, 0.02%; -0.00%)</title><rect x="1189.7" y="213" width="0.2" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="1192.74" y="223.5" ></text>
+</g>
+<g >
+<title>mh_add_process (1,953,832,625 samples, 5.63%; +0.23%)</title><rect x="78.9" y="101" width="66.5" height="15.0" fill="rgb(255,204,204)" rx="2" ry="2" />
+<text  x="81.93" y="111.5" >mh_add_..</text>
+</g>
+<g >
+<title>global-heap (34,700,749,842 samples, 99.99%; 0.00%)</title><rect x="10.0" y="229" width="1179.9" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="13.00" y="239.5" >global-heap</text>
+</g>
+<g >
+<title>lock_try_acquire (5,316,073,963 samples, 15.32%; +8.46%)</title><rect x="343.6" y="101" width="180.8" height="15.0" fill="rgb(255,0,0)" rx="2" ry="2" />
+<text  x="346.65" y="111.5" >lock_try_acquire</text>
+</g>
+<g >
+<title>heap_remove_min (46,280,372 samples, 0.13%; +0.10%)</title><rect x="1179.3" y="213" width="1.6" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="1182.31" y="223.5" ></text>
+</g>
+<g >
+<title>doop (28,925,096 samples, 0.08%; +0.03%)</title><rect x="1174.7" y="213" width="0.9" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1177.65" y="223.5" ></text>
+</g>
+<g >
+<title>mh_min_proc (14,837,878,770 samples, 42.76%; +0.35%)</title><rect x="623.1" y="133" width="504.6" height="15.0" fill="rgb(255,201,201)" rx="2" ry="2" />
+<text  x="626.15" y="143.5" >mh_min_proc</text>
+</g>
+<g >
+<title>lock_release (75,205,677 samples, 0.22%; +0.15%)</title><rect x="1180.9" y="213" width="2.5" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
+<text  x="1183.88" y="223.5" ></text>
+</g>
+<g >
+<title>mh_rand_heaps (23,140,105 samples, 0.07%; +0.02%)</title><rect x="1188.6" y="213" width="0.7" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1191.56" y="223.5" ></text>
+</g>
+<g >
+<title>c_rand (11,570,292 samples, 0.03%; +0.02%)</title><rect x="69.9" y="117" width="0.4" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="72.88" y="127.5" ></text>
+</g>
+<g >
+<title>heap_elem_cmp (908,786,503 samples, 2.62%; +1.57%)</title><rect x="853.6" y="37" width="30.9" height="15.0" fill="rgb(255,171,171)" rx="2" ry="2" />
+<text  x="856.59" y="47.5" >he..</text>
+</g>
+<g >
+<title>rand_r (884,904,948 samples, 2.55%; +1.16%)</title><rect x="973.7" y="69" width="30.1" height="15.0" fill="rgb(255,181,181)" rx="2" ry="2" />
+<text  x="976.67" y="79.5" >ra..</text>
+</g>
+<g >
+<title>grp_add_vruntime (2,252,522,787 samples, 6.49%; +4.25%)</title><rect x="168.8" y="85" width="76.5" height="15.0" fill="rgb(255,104,104)" rx="2" ry="2" />
+<text  x="171.75" y="95.5" >grp_add_..</text>
+</g>
+<g >
+<title>safe_read_tsc (190,879,676 samples, 0.55%; +0.15%)</title><rect x="1121.2" y="101" width="6.5" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
+<text  x="1124.19" y="111.5" ></text>
+</g>
+<g >
+<title>heap_sift_up (1,260,789,935 samples, 3.63%; +0.08%)</title><rect x="102.5" y="69" width="42.9" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="105.49" y="79.5" >heap..</text>
+</g>
+<g >
+<title>proc_vt.isra.0 (5,784,918 samples, 0.02%; +0.02%)</title><rect x="1189.5" y="213" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1192.54" y="223.5" ></text>
+</g>
+<g >
+<title>_start (3,458,144 samples, 0.01%; 0.00%)</title><rect x="1173.6" y="213" width="0.1" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="1176.55" y="223.5" ></text>
+</g>
+<g >
+<title>heap_swap (334,324,872 samples, 0.96%; +0.64%)</title><rect x="884.5" y="37" width="11.4" height="15.0" fill="rgb(255,194,194)" rx="2" ry="2" />
+<text  x="887.49" y="47.5" ></text>
+</g>
+<g >
+<title>heap_elem_cmp (11,569,528 samples, 0.03%; 0.00%)</title><rect x="1178.9" y="181" width="0.4" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="1181.92" y="191.5" ></text>
+</g>
+<g >
+<title>mh_sample_min_proc (14,444,599,726 samples, 41.62%; +2.08%)</title><rect x="636.5" y="117" width="491.2" height="15.0" fill="rgb(255,158,158)" rx="2" ry="2" />
+<text  x="639.52" y="127.5" >mh_sample_min_proc</text>
+</g>
+<g >
+<title>lock_release (17,355,205 samples, 0.05%; +0.03%)</title><rect x="622.6" y="133" width="0.5" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="625.56" y="143.5" ></text>
+</g>
+<g >
+<title>doop (15,749,739,336 samples, 45.38%; +0.56%)</title><rect x="37.1" y="149" width="535.6" height="15.0" fill="rgb(255,196,196)" rx="2" ry="2" />
+<text  x="40.13" y="159.5" >doop</text>
+</g>
+<g >
+<title>heap_elem_cmp (733,904,971 samples, 2.11%; +0.75%)</title><rect x="103.9" y="53" width="24.9" height="15.0" fill="rgb(255,191,191)" rx="2" ry="2" />
+<text  x="106.87" y="63.5" >h..</text>
+</g>
+<g >
+<title>start_thread (34,219,006,613 samples, 98.61%; 0.00%)</title><rect x="10.0" y="197" width="1163.6" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="13.00" y="207.5" >start_thread</text>
+</g>
+<g >
+<title>c_rand (1,353,613,329 samples, 3.90%; +0.83%)</title><rect x="297.6" y="101" width="46.0" height="15.0" fill="rgb(255,189,189)" rx="2" ry="2" />
+<text  x="300.62" y="111.5" >c_rand</text>
+</g>
+<g >
+<title>lock_release (52,064,453 samples, 0.15%; +0.05%)</title><rect x="77.2" y="101" width="1.7" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="80.16" y="111.5" ></text>
+</g>
+<g >
+<title>gh_yield (69,307,143 samples, 0.20%; +0.15%)</title><rect x="1175.6" y="213" width="2.4" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
+<text  x="1178.64" y="223.5" ></text>
+</g>
+<g >
+<title>mh_remove_min (3,712,297,352 samples, 10.70%; +0.23%)</title><rect x="784.4" y="85" width="126.2" height="15.0" fill="rgb(255,204,204)" rx="2" ry="2" />
+<text  x="787.38" y="95.5" >mh_remove_min</text>
+</g>
+<g >
+<title>action (15,888,578,848 samples, 45.78%; -0.01%)</title><rect x="32.4" y="165" width="540.3" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="35.41" y="175.5" >action</text>
+</g>
+<g >
+<title>heap_elem_cmp (11,569,528 samples, 0.03%; -0.04%)</title><rect x="1178.9" y="165" width="0.4" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="1181.92" y="175.5" ></text>
+</g>
+<g >
+<title>rand_r (5,785,099 samples, 0.02%; +0.02%)</title><rect x="297.4" y="85" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="300.43" y="95.5" ></text>
+</g>
+<g >
+<title>proc_vt.isra.0 (3,752,650,839 samples, 10.81%; +0.41%)</title><rect x="145.4" y="101" width="127.6" height="15.0" fill="rgb(255,199,199)" rx="2" ry="2" />
+<text  x="148.36" y="111.5" >proc_vt.isra.0</text>
+</g>
+<g >
+<title>mh_choose_heap (11,570,150 samples, 0.03%; -0.00%)</title><rect x="1183.4" y="213" width="0.4" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="1186.44" y="223.5" ></text>
+</g>
+<g >
+<title>heap_remove_min (3,544,614,050 samples, 10.21%; +1.04%)</title><rect x="790.1" y="69" width="120.5" height="15.0" fill="rgb(255,184,184)" rx="2" ry="2" />
+<text  x="793.08" y="79.5" >heap_remove_min</text>
+</g>
+<g >
+<title>c_rand (1,968,750,027 samples, 5.67%; +1.19%)</title><rect x="940.5" y="85" width="66.9" height="15.0" fill="rgb(255,180,180)" rx="2" ry="2" />
+<text  x="943.48" y="95.5" >c_rand</text>
+</g>
+<g >
+<title>rand_r@plt (92,559,962 samples, 0.27%; +0.16%)</title><rect x="340.5" y="85" width="3.1" height="15.0" fill="rgb(255,205,205)" rx="2" ry="2" />
+<text  x="343.50" y="95.5" ></text>
+</g>
+<g >
+<title>mh_rand_heaps (2,847,238,499 samples, 8.20%; +0.64%)</title><rect x="910.6" y="101" width="96.8" height="15.0" fill="rgb(255,194,194)" rx="2" ry="2" />
+<text  x="913.61" y="111.5" >mh_rand_heaps</text>
+</g>
+<g >
+<title>enq_proc_vt (5,960,992,191 samples, 17.18%; +0.07%)</title><rect x="70.3" y="117" width="202.7" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="73.27" y="127.5" >enq_proc_vt</text>
+</g>
+<g >
+<title>__vdso_gettimeofday (678,933,977 samples, 1.96%; +0.71%)</title><rect x="1147.5" y="149" width="23.1" height="15.0" fill="rgb(255,192,192)" rx="2" ry="2" />
+<text  x="1150.51" y="159.5" >_..</text>
+</g>
+<g >
+<title>lock_release (5,785,177 samples, 0.02%; +0.02%)</title><rect x="622.2" y="117" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="625.16" y="127.5" ></text>
+</g>
+<g >
+<title>lock_try_acquire (2,648,308,171 samples, 7.63%; +3.73%)</title><rect x="690.0" y="101" width="90.1" height="15.0" fill="rgb(255,117,117)" rx="2" ry="2" />
+<text  x="693.02" y="111.5" >lock_try_a..</text>
+</g>
+<g >
+<title>mh_del_min_process (3,839,213,725 samples, 11.06%; +0.25%)</title><rect x="780.1" y="101" width="130.5" height="15.0" fill="rgb(255,203,203)" rx="2" ry="2" />
+<text  x="783.07" y="111.5" >mh_del_min_process</text>
+</g>
+<g >
+<title>grp_add_vruntime (27,186,472 samples, 0.08%; +0.04%)</title><rect x="1178.0" y="213" width="0.9" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="1180.99" y="223.5" ></text>
+</g>
+<g >
+<title>gettimeofday@plt (86,776,196 samples, 0.25%; +0.18%)</title><rect x="1170.6" y="149" width="3.0" height="15.0" fill="rgb(255,205,205)" rx="2" ry="2" />
+<text  x="1173.60" y="159.5" ></text>
+</g>
+<g >
+<title>mh_upd_stat (247,933,825 samples, 0.71%; +0.51%)</title><rect x="1112.8" y="101" width="8.4" height="15.0" fill="rgb(255,197,197)" rx="2" ry="2" />
+<text  x="1115.76" y="111.5" ></text>
+</g>
+<g >
+<title>gh_schedule (15,479,515,554 samples, 44.61%; +0.62%)</title><rect x="602.9" y="149" width="526.4" height="15.0" fill="rgb(255,194,194)" rx="2" ry="2" />
+<text  x="605.90" y="159.5" >gh_schedule</text>
+</g>
+<g >
+<title>__GI___clone3 (34,219,006,613 samples, 98.61%; 0.00%)</title><rect x="10.0" y="213" width="1163.6" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="13.00" y="223.5" >__GI___clone3</text>
+</g>
+<g >
+<title>rand_r@plt (107,855,913 samples, 0.31%; +0.09%)</title><rect x="1003.8" y="69" width="3.6" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="1006.76" y="79.5" ></text>
+</g>
+<g >
+<title>all (34,702,749,840 samples, 100%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="13.00" y="255.5" ></text>
+</g>
+<g >
+<title>calc_delta (1,303,518,428 samples, 3.76%; +2.06%)</title><rect x="527.2" y="101" width="44.3" height="15.0" fill="rgb(255,158,158)" rx="2" ry="2" />
+<text  x="530.16" y="111.5" >calc..</text>
+</g>
+<g >
+<title>heap_remove_min (5,785,300 samples, 0.02%; -0.00%)</title><rect x="622.4" y="133" width="0.2" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="625.36" y="143.5" ></text>
+</g>
+<g >
+<title>lock_release (5,784,257 samples, 0.02%; +0.02%)</title><rect x="689.8" y="101" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="692.82" y="111.5" ></text>
+</g>
+<g >
+<title>heap_push (1,780,285,200 samples, 5.13%; +0.76%)</title><rect x="84.8" y="85" width="60.6" height="15.0" fill="rgb(255,191,191)" rx="2" ry="2" />
+<text  x="87.83" y="95.5" >heap_p..</text>
+</g>
+<g >
+<title>mh_add_process (34,709,965 samples, 0.10%; +0.01%)</title><rect x="571.5" y="133" width="1.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="574.49" y="143.5" ></text>
+</g>
+<g >
+<title>doop (11,043,737 samples, 0.03%; +0.01%)</title><rect x="10.0" y="181" width="0.4" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="13.00" y="191.5" ></text>
+</g>
+<g >
+<title>upd_lag (1,384,399,487 samples, 3.99%; +0.03%)</title><rect x="524.4" y="117" width="47.1" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="527.41" y="127.5" >upd_..</text>
+</g>
+<g >
+<title>now (5,784,877 samples, 0.02%; +0.02%)</title><rect x="10.4" y="181" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="13.38" y="191.5" ></text>
+</g>
+<g >
+<title>mh_choose_heap (7,394,801,904 samples, 21.31%; +0.84%)</title><rect x="273.0" y="117" width="251.4" height="15.0" fill="rgb(255,189,189)" rx="2" ry="2" />
+<text  x="275.97" y="127.5" >mh_choose_heap</text>
+</g>
+<g >
+<title>heap_elem_cmp (63,636,659 samples, 0.18%; -0.09%)</title><rect x="126.7" y="37" width="2.1" height="15.0" fill="rgb(207,207,255)" rx="2" ry="2" />
+<text  x="129.66" y="47.5" ></text>
+</g>
+<g >
+<title>sub_lag (812,356,151 samples, 2.34%; +1.44%)</title><rect x="245.3" y="85" width="27.7" height="15.0" fill="rgb(255,174,174)" rx="2" ry="2" />
+<text  x="248.34" y="95.5" >s..</text>
+</g>
+<g >
+<title>mh_min_proc (138,821,030 samples, 0.40%; +0.21%)</title><rect x="1183.8" y="213" width="4.8" height="15.0" fill="rgb(255,204,204)" rx="2" ry="2" />
+<text  x="1186.83" y="223.5" ></text>
+</g>
+<g >
+<title>gh_yield (15,075,717,271 samples, 43.44%; +0.33%)</title><rect x="58.9" y="133" width="512.6" height="15.0" fill="rgb(255,201,201)" rx="2" ry="2" />
+<text  x="61.87" y="143.5" >gh_yield</text>
+</g>
+<g >
+<title>heap_sift_up (11,569,528 samples, 0.03%; 0.00%)</title><rect x="1178.9" y="197" width="0.4" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="1181.92" y="207.5" ></text>
+</g>
+<g >
+<title>run_core (34,202,177,999 samples, 98.56%; +0.72%)</title><rect x="10.6" y="181" width="1163.0" height="15.0" fill="rgb(255,192,192)" rx="2" ry="2" />
+<text  x="13.57" y="191.5" >run_core</text>
+</g>
+</g>
+</svg>

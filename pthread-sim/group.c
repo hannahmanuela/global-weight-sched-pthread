@@ -55,12 +55,12 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 }
 
 void proc_print(struct process *p) {
-	printf("[pid %d(%d) vt %llu w %d]", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
-}	
+	printf("[pid %d(%d) vt %lld w %d]", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
+}
 
 void grp_set_vruntime(struct process *p, vt_t vt) {
 	if(debug)
-		printf("%d(%d): grp_set_vruntime: vt %llu\n", p->pid, p->group->gid, vt);
+		printf("%d(%d): grp_set_vruntime: vt %lld\n", p->pid, p->group->gid, vt);
 	atomic_store(&p->group->vruntime, vt);
 }
 

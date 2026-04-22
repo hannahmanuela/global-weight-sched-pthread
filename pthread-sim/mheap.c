@@ -61,7 +61,7 @@ static vt_t heap_check(struct heap *h) {
 
 static void print_elem(struct heap_elem *e) {
 	if(e->vruntime == DUMMY) {
-		printf("[dummy vt %llu w %d]", e->vruntime, e->weight);
+		printf("[dummy vt %lld w %d]", e->vruntime, e->weight);
 		return;
 	}
 	struct process *p = (struct process *) e->elem;

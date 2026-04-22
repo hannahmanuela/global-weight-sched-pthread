@@ -58,7 +58,7 @@ void gh_enqueue_rr(struct global_heap *gh, struct core *c, struct process *p) {
 	enq_proc_vt(gh, c, p, h);
 
 	if(debug) {
-		printf("%d(%d): enqueue_rr nthread %d lh %p vt %llu gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
+		printf("%d(%d): enqueue_rr nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 		mh_print(p->group->mh);
 	}
 }

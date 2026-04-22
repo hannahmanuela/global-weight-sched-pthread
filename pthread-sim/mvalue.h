@@ -8,15 +8,10 @@
 
 struct core;
 
-struct value {
-	struct spinlock lk __calign__;
-
-	vt_t value;
-} __calign__;
 
 struct mvalue {
-	struct value **value;
-	int nheap;
+	vt_t **value;
+	int nvalues;
 };
 
 struct mvalue *mv_new(int n);

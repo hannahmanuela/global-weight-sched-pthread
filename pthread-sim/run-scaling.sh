@@ -2,7 +2,7 @@
 
 
 if [ "$#" -ne 1 ]; then
-    echo "Usage: $0 <policy (rr, fs)>"
+    echo "Usage: $0 <policy (rr, fs, fs-mv)>"
     exit 1
 fi
 
@@ -23,6 +23,8 @@ for NUM_CORE in ${NUM_CORES[@]}; do
 
     if [ $POLICY = "rr" ]; then
         COMMAND="./global-heap -s -t $SECS_TO_RUN $NUM_CORE $(($NUM_CORE * 5)) > $OUT_DIR/vals.txt"
+    elif [ $POLICY = "fs-mv" ]; then
+        COMMAND="./global-heap -m -g 4 -t $SECS_TO_RUN $NUM_CORE $(($NUM_CORE * 5)) > $OUT_DIR/vals.txt"
     else
         COMMAND="./global-heap -g 4 -t $SECS_TO_RUN $NUM_CORE $(($NUM_CORE * 5)) > $OUT_DIR/vals.txt"
     fi

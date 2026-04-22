@@ -47,7 +47,7 @@ static struct process *schedule_retry(struct core *c, struct global_heap *gh) {
 static struct global_heap *mk_mheap(struct core *cs[], int ncore, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
 	struct global_heap *gh = gh_new(tl, nheap, cs, ncore, false);
 	for (int i = 0; i < ngrp; i++) {
-		gs[i] = grp_new(gh->mh, i, ws[i]);
+		gs[i] = grp_new(gh->mh, i, ws[i], false);
 		for (int j = 0; j < nproc; j++) {
 			struct process *p = grp_new_process(gh->mh, i * nproc + j, gs[i]);
 			gh_enqueue(gh, cs[0], p);
@@ -272,7 +272,7 @@ void test_running_lag() {
 	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
 	struct global_heap *gh = gh_new(tl, nheap, c, num_cores, false);
 	for (int i = 0; i < ngrp; i++) {
-		gs[i] = grp_new(gh->mh, i, ws[i]);
+		gs[i] = grp_new(gh->mh, i, ws[i], false);
 	}
 
 	struct process *p1 = grp_new_process(gh->mh, 0, gs[0]);
@@ -483,7 +483,7 @@ void test_worst(int nheap) {
 		seed = rand_r(&seed);
 		struct global_heap *gh = gh_new(tl, nheap, c, NCORE1, false);
 		struct group *gs[GRP1];
-		gs[0] = grp_new(gh->mh, 0, 10);
+		gs[0] = grp_new(gh->mh, 0, 10, false);
 		struct heap *h = mh_choose_heap(gh->mh, c[0]);
 
 		struct process *p = grp_new_process(gh->mh, 1, gs[0]);

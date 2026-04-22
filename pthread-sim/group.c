@@ -9,6 +9,7 @@
 #include "heap.h"
 #include "mheap.h"
 #include "group.h"
+#include "mvalue.h"
 
 extern bool debug;
 extern bool do_affinity;
@@ -38,10 +39,16 @@ struct process *grp_new_process(struct mheap *mh, int id, struct group *group) {
 	return p;
 }
 
-struct group *grp_new(struct mheap *mh, int id, int weight) {
+struct group *grp_new(struct mheap *mh, int id, int weight, bool using_mv) {
 	struct group *g = malloc(sizeof(struct group));
 	g->gid = id;
 	g->vruntime = 0;
+	g->using_mv = using_mv;
+	if (using_mv) {
+		g->vruntime_mv = mv_new(2);
+	} else {
+		g->vruntime_mv = NULL;
+	}
 	g->lag = 0;
 	g->weight = weight;
 	g->nthread = 0;
@@ -58,14 +65,31 @@ void proc_print(struct process *p) {
 	printf("[pid %d(%d) vt %lld w %d]", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
 }
 
-void grp_set_vruntime(struct process *p, vt_t vt) {
-	if(debug)
-		printf("%d(%d): grp_set_vruntime: vt %lld\n", p->pid, p->group->gid, vt);
-	atomic_store(&p->group->vruntime, vt);
+vt_t grp_get_vruntime(struct process *p, struct core *c) {
+	if (p->group->using_mv) {
+		return mv_get_val(p->group->vruntime_mv, c);
+	} else {
+		return p->group->vruntime;
+	}
 }
 
-vt_t grp_add_vruntime(struct process *p, vt_t vt) {
-	return atomic_fetch_add_explicit(&p->group->vruntime, vt, __ATOMIC_RELAXED);
+void grp_set_vruntime(struct process *p, struct core *c, vt_t vt) {
+	if(debug)
+		printf("%d(%d): grp_set_vruntime: vt %lld\n", p->pid, p->group->gid, vt);
+	if (p->group->using_mv) {
+		mv_set_val(p->group->vruntime_mv, c, vt);
+	} else {
+		atomic_store(&p->group->vruntime, vt);
+	}
+}
+
+vt_t grp_add_vruntime(struct process *p, struct core *c, vt_t vt) {
+	if (p->group->using_mv) {
+		int idx_to_use = c_rand(c, p->group->vruntime_mv->nvalues);
+		return atomic_load_explicit((_Atomic vt_t *) p->group->vruntime_mv->value[0], __ATOMIC_RELAXED);;
+	} else {
+		return atomic_fetch_add_explicit(&p->group->vruntime, vt, __ATOMIC_RELAXED);
+	}
 }
 
 vt_t grp_add_lag(struct process *p, vt_t vt) {

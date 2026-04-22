@@ -35,6 +35,10 @@ struct group {
 	vt_t vruntime  __calign__;
 	vt_t lag;
 
+	bool using_mv __calign__;
+
+	struct mvalue *vruntime_mv  __calign__;
+
 	vt_t min_vt_deq __calign__;
 	int nthread; // number of threads in the group
 
@@ -48,15 +52,16 @@ struct group {
 	int weight;
 } __calign__;
 
-struct group *grp_new(struct mheap *mh, int id, int weight);
+struct group *grp_new(struct mheap *mh, int id, int weight, bool using_mv);
 void proc_print(struct process *p);
 struct process *grp_new_process(struct mheap *mh, int id, struct group *g);
 int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
 
 void grp_stats(struct group *g, long tot);
 void grp_print(struct group *g);
-void grp_set_vruntime(struct process *p, vt_t min);
-vt_t grp_add_vruntime(struct process *p, vt_t min);
+vt_t grp_get_vruntime(struct process *p, struct core *c);
+void grp_set_vruntime(struct process *p, struct core *c, vt_t min);
+vt_t grp_add_vruntime(struct process *p, struct core *c, vt_t min);
 vt_t grp_add_lag(struct process *p, vt_t min);
 vt_t grp_load_lag(struct process *p);
 

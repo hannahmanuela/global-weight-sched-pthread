@@ -26,7 +26,7 @@ struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int nc
 	gh->tick_length = tick_length;
 	gh->mh = mh_new(nheap);
 	gh->using_mv = using_mv;
-	gh->mv = using_mv ? mv_new(nheap) : NULL;
+	gh->mv = using_mv ? mv_new(2) : NULL;
 	gh->cs = cs;
 	gh->ncore = ncore;
 	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);
@@ -133,8 +133,8 @@ static vt_t proc_vt(struct global_heap *gh, struct core *c, struct process *p) {
 	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
 	vt_t lag;
 	vt_t vt = sub_lag(c, p, wvt, &lag);
-	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
-	assert(my_vt >= p->he.vruntime);  // overflow?
+	vt_t my_vt = grp_add_vruntime(p, c, vt) + lag;
+	// assert(my_vt >= p->he.vruntime);  // overflow?
 	return my_vt;
 }	
 
@@ -186,13 +186,13 @@ void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
-		vt_t lag = p->group->vruntime - p->group->min_vt_deq;
+		vt_t lag = grp_get_vruntime(p, c) - p->group->min_vt_deq;
 		vt_t h_min = mh_min_vt(h);
 		if(p->group->min_vt_deq > h_min) {
 			lag += (p->group->min_vt_deq-h_min);
 		}
 		vt_t vt = h_min + lag;
-		grp_set_vruntime(p, vt);
+		grp_set_vruntime(p, c, vt);
 	}
 
 	if(!gh_preempt(gh, c, p)) {

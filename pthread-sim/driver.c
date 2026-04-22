@@ -249,7 +249,7 @@ void main(int argc, char *argv[]) {
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
 	w_t w = base_weight;
 	for (int i = 0; i < num_groups; i++) {
-		struct group *g = grp_new(gs->gh->mh, i, w);
+		struct group *g = grp_new(gs->gh->mh, i, w, using_mv);
 		w  += base_weight * (ratio - 1);
 		gs->grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {

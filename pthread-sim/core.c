@@ -18,7 +18,7 @@ void core_print(struct core *c) {
 	if (p == NULL) {
 		printf("  pid %d ", -1);
 	} else {
-		printf("  [pid %d vt %d w %d]", p->pid, p->he.vruntime, p->he.weight);
+		printf("  [pid %d vt %lld w %d]", p->pid, p->he.vruntime, p->he.weight);
 	}
 }
 

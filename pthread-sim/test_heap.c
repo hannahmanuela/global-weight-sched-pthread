@@ -19,7 +19,7 @@ struct elem {
 	
 void heap_elem_print(struct heap_elem *he) {
 	struct elem *e = container_of(he, struct elem, he);
-	printf("id %d vt %d\n", e->id, he->vruntime);
+	printf("id %d vt %lld\n", e->id, he->vruntime);
 }
 
 void heap_print(struct heap *heap) {

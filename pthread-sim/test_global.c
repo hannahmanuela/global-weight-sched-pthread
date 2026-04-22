@@ -510,7 +510,7 @@ void test_worst(int nheap) {
 			break;
 		}
 	}
-	printf("== test_worst: avg %d med %d worst %d\n", sum/n, median, worst);
+	printf("== test_worst: avg %ld med %d worst %d\n", sum/n, median, worst);
 }
 
 

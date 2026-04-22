@@ -37,7 +37,7 @@ void main(int argc, char *argv[]) {
 				exit(1);
 			}
 			ts = log[i].ts;
-			printf("ts %ld vt %d cid %d pid %d(%d, %d) hid %d ohid %d ovt %ld\n", log[i].ts, log[i].vt, log[i].cid, log[i].pid, log[i].gid, log[i].w, log[i].hid, log[i].ohid, log[i].ovt);
+			printf("ts %ld vt %lld cid %d pid %d(%d, %d) hid %d ohid %d ovt %lld\n", log[i].ts, log[i].vt, log[i].cid, log[i].pid, log[i].gid, log[i].w, log[i].hid, log[i].ohid, log[i].ovt);
 		}
 	}
 	close(fd);

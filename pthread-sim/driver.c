@@ -39,38 +39,11 @@ bool rr;
 #define NUMA_NODES     2
 #define HT_PER_CORE    2
 
-enum pin_policy {
-	PIN_SEQ        = 0, // cid -> cid (interleaves NUMA, then HT)
-	PIN_NUMA_FIRST = 1, // fill NUMA 0 (incl. HT), then NUMA 1
-	PIN_PHYS_FIRST = 2, // fill all 28 physical cores across both NUMAs, then HT
-};
-int pin_pol = PIN_SEQ;
-
-int calc_pin_cpu(int cid, enum pin_policy policy) {
-	switch (policy) {
-	case PIN_SEQ:
-		// 0, 1, 2, ..., 55
-		return cid;
-	case PIN_NUMA_FIRST: {
-		// NUMA 0 (evens 0..54), then NUMA 1 (odds 1..55).
-		int per_numa = CORES_PER_NUMA * HT_PER_CORE; // 28
-		int node = cid / per_numa;
-		int slot = cid % per_numa;
-		return 2 * slot + node;
-	}
-	case PIN_PHYS_FIRST: {
-		// Phase 0: NUMA 0 phys    (evens 0..26)
-		// Phase 1: NUMA 1 phys    (odds  1..27)
-		// Phase 2: NUMA 0 HT sibs (evens 28..54)
-		// Phase 3: NUMA 1 HT sibs (odds  29..55)
-		int phase = cid / CORES_PER_NUMA;   // 0..3
-		int slot  = cid % CORES_PER_NUMA;   // 0..13
-		int node  = phase % NUMA_NODES;     // 0,1,0,1
-		int ht    = phase / NUMA_NODES;     // 0,0,1,1
-		return 2 * slot + node + 28 * ht;
-	}
-	}
-	return -1;
+int calc_pin_cpu(int cid) {
+	int per_numa = CORES_PER_NUMA * HT_PER_CORE;
+	int node = cid / per_numa;
+	int slot = cid % per_numa;
+	return 2 * slot + node;
 }
 
 extern bool debug;
@@ -183,7 +156,7 @@ void *run_core(void* core) {
 	struct core *mycore = (struct core *) core;
 
 	// pin to an actual core per the selected policy
-	int cpu_want = calc_pin_cpu(mycore->cid, pin_pol);
+	int cpu_want = calc_pin_cpu(mycore->cid);
 
 	cpu_set_t cpuset;
 	CPU_ZERO(&cpuset);
@@ -204,7 +177,7 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time -P <0|1|2> <num_cores> <num_threads>\n", s);
+	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <num_cores> <num_threads>\n", s);
 	exit(1);
 
 }
@@ -216,7 +189,7 @@ void main(int argc, char *argv[]) {
 	int ratio = 1;
 	int base_weight = 10;
 
-	while ((opt = getopt(argc, argv, "adpsg:w:h:r:l:t:P:")) != -1) {
+	while ((opt = getopt(argc, argv, "adpsg:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case 'a':
 			do_affinity = true;
@@ -248,10 +221,6 @@ void main(int argc, char *argv[]) {
 			break;
 		case 't':
 			time_to_run = atoi(optarg);
-			break;
-		case 'P':
-			pin_pol = atoi(optarg);
-			if (pin_pol < 0 || pin_pol > 2) usage(argv[0]);
 			break;
 		}
 	}
@@ -293,8 +262,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	const char *pin_name = (pin_pol == PIN_SEQ) ? "seq" : (pin_pol == PIN_NUMA_FIRST) ? "numa-first" : "phys-first";
-	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d runtime %ds weight ratio %d pin %s\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, time_to_run, ratio, pin_name);
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, time_to_run, ratio);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;
@@ -369,17 +337,17 @@ void main(int argc, char *argv[]) {
 		nnrand += c->nrand;
 	}
 	printf("tp %0.2fM/s\n", AVG(nsched+nyield, time_to_run)/1000000);
-	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", AVG(nsched+nyield, time_to_run)/1000000, p_l, p_h);
+	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
 	printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
-	printf("    max retry locked %d stale %d avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
-	printf("  retry lag sub %d\n", lag_sub_retry);
-	printf("  preempt set %d retry %d\n", npreempt_set, npreempt_retry);
+	printf("    max retry locked %ld stale %ld avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
+	printf("  retry lag sub %ld\n", lag_sub_retry);
+	printf("  preempt set %ld retry %ld\n", npreempt_set, npreempt_retry);
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
 	if(do_affinity)
-		printf("  hit %ld miss %d hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
+		printf("  hit %ld miss %ld hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = gs->cores[i];
 		c_print(c, num_groups);

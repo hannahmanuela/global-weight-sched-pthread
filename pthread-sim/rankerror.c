@@ -23,7 +23,7 @@ int weight = 0;
 
 void print(struct log_entry *r, int idx) {
 	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
-		printf("%d: ts %ld vt %ld cid %d pid %d(%d) hid %d ohid %d ovt %ld\n", i, ring[i].ts, ring[i].vt, ring[i].cid, ring[i].pid, ring[i].gid, ring[i].hid, ring[i].ohid, ring[i].ovt);
+		printf("%d: ts %ld vt %lld cid %d pid %d(%d) hid %d ohid %d ovt %lld\n", i, ring[i].ts, ring[i].vt, ring[i].cid, ring[i].pid, ring[i].gid, ring[i].hid, ring[i].ohid, ring[i].ovt);
 	}
 }
 
@@ -88,7 +88,7 @@ void process_log(int fd) {
 			break;
 		idx = IDX(idx + 1);
 	}
-	printf("sum_re %d n %d %0.2f max %d (ts %ld, vt %ld, diff %ld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_ts, max_vt, max_diff, weight);
+	printf("sum_re %d n %d %0.2f max %d (ts %ld, vt %lld, diff %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_ts, max_vt, max_diff, weight);
 	printf("distribution of rank errors:\n");
 	for(int i = 0; i < NBIN; i++)
 		if (bin[i] > 0) printf("  re %d: %d\n", i, bin[i]);

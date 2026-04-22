@@ -1,30 +1,35 @@
 #!/bin/bash
 
 
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <policy (rr, fs)>"
+    exit 1
+fi
+
+
+
+POLICY=$1
+
 SECS_TO_RUN=3
 
-NUM_CORES=(1 2 4 6 8 10 12 14 16 20 24 28 32 36 40 44 48 52 56)
+NUM_CORES=(1 2 4 6 8 10 12 14 16 20 24 28)
 
-# Policies from driver.c: 0=seq, 1=numa-first, 2=phys-first
-declare -A POLICY_NAMES=( [0]="seq" [1]="numa-first" [2]="phys-first" )
+for NUM_CORE in ${NUM_CORES[@]}; do
+    echo "running $POLICY with $NUM_CORE"
 
-for POLICY in 0 1 2; do
-    POLICY_NAME=${POLICY_NAMES[$POLICY]}
-    echo "=== policy $POLICY ($POLICY_NAME) ==="
+    OUT_DIR="out/$POLICY/$NUM_CORE"
+    rm -rf $OUT_DIR
+    mkdir -p $OUT_DIR
 
-    for NUM_CORE in ${NUM_CORES[@]}; do
-        echo "running $POLICY_NAME with $NUM_CORE"
+    if [ $POLICY = "rr" ]; then
+        COMMAND="./global-heap -s -t $SECS_TO_RUN $NUM_CORE $(($NUM_CORE * 5)) > $OUT_DIR/vals.txt"
+    else
+        COMMAND="./global-heap -g 4 -t $SECS_TO_RUN $NUM_CORE $(($NUM_CORE * 5)) > $OUT_DIR/vals.txt"
+    fi
+    
+    sudo /home/hannahmanuela/perf-tools/bin/perf record -o $OUT_DIR/perf.data -F 500 -g -- sh -c "$COMMAND"
 
-        OUT_DIR="out/$POLICY_NAME/$NUM_CORE"
-        rm -rf $OUT_DIR
-        mkdir -p $OUT_DIR
+    sudo /home/hannahmanuela/perf-tools/bin/perf report -n --stdio -i $OUT_DIR/perf.data > $OUT_DIR/call_graph.txt
 
-        COMMAND="./global-heap -s -t $SECS_TO_RUN -P $POLICY $NUM_CORE $(($NUM_CORE * 5)) > $OUT_DIR/vals.txt"
-
-        sudo /home/hannahmanuela/perf-tools/bin/perf record -o $OUT_DIR/perf.data -F 500 -g -- sh -c "$COMMAND"
-
-        sudo /home/hannahmanuela/perf-tools/bin/perf report -n --stdio -i $OUT_DIR/perf.data > $OUT_DIR/call_graph.txt
-
-        echo "done with $POLICY_NAME $NUM_CORE"
-    done
+    echo "done with $POLICY $NUM_CORE"
 done

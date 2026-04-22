@@ -86,7 +86,7 @@ void grp_set_vruntime(struct process *p, struct core *c, vt_t vt) {
 vt_t grp_add_vruntime(struct process *p, struct core *c, vt_t vt) {
 	if (p->group->using_mv) {
 		int idx_to_use = c_rand(c, p->group->vruntime_mv->nvalues);
-		return atomic_load_explicit((_Atomic vt_t *) p->group->vruntime_mv->value[0], __ATOMIC_RELAXED);;
+		return atomic_fetch_add_explicit(p->group->vruntime_mv->value[idx_to_use], vt, __ATOMIC_RELAXED);
 	} else {
 		return atomic_fetch_add_explicit(&p->group->vruntime, vt, __ATOMIC_RELAXED);
 	}

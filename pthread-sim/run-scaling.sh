@@ -27,7 +27,7 @@ for NUM_CORE in ${NUM_CORES[@]}; do
         COMMAND="./global-heap -g 4 -t $SECS_TO_RUN $NUM_CORE $(($NUM_CORE * 5)) > $OUT_DIR/vals.txt"
     fi
     
-    sudo /home/hannahmanuela/perf-tools/bin/perf record -o $OUT_DIR/perf.data -F 500 -g -- sh -c "$COMMAND"
+    sudo /home/hannahmanuela/perf-tools/bin/perf record -o $OUT_DIR/perf.data -F 500 -g --call-graph dwarf -- sh -c "$COMMAND"
 
     sudo /home/hannahmanuela/perf-tools/bin/perf report -n --stdio -i $OUT_DIR/perf.data > $OUT_DIR/call_graph.txt
 

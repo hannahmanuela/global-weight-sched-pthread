@@ -3,521 +3,916 @@
 #
 # Total Lost Samples: 0
 #
-# Samples: 40K of event 'cycles:P'
-# Event count (approx.): 235219703116
+# Samples: 41K of event 'cycles:P'
+# Event count (approx.): 238049305351
 #
-# Children      Self       Samples  Command      Shared Object         Symbol                              
-# ........  ........  ............  ...........  ....................  ....................................
+# Children      Self       Samples  Command      Shared Object         Symbol                                        
+# ........  ........  ............  ...........  ....................  ..............................................
 #
-    99.99%     0.00%             0  global-heap  libc.so.6             [.] clone3
+    98.24%     0.00%             0  global-heap  libc.so.6             [.] __GI___clone3 (inlined)
             |
-            ---clone3
+            ---__GI___clone3 (inlined)
                |          
-                --99.99%--start_thread
+                --98.24%--start_thread
                           |          
-                           --99.26%--run_core
+                           --98.19%--run_core
                                      |          
-                                     |--94.66%--doop
+                                     |--55.62%--action (inlined)
                                      |          |          
-                                     |          |--52.99%--gh_yield
-                                     |          |          |          
-                                     |          |          |--10.87%--grp_add_vruntime
-                                     |          |          |          
-                                     |          |          |--9.24%--lock_try_acquire
-                                     |          |          |          
-                                     |          |          |--8.93%--proc_vt.isra.0
-                                     |          |          |          
-                                     |          |          |--4.10%--mh_choose_heap
-                                     |          |          |          |          
-                                     |          |          |          |--1.38%--rand_r
-                                     |          |          |          |          
-                                     |          |          |           --1.11%--c_rand
-                                     |          |          |          
-                                     |          |           --2.98%--heap_push
-                                     |          |          
-                                     |           --37.02%--gh_schedule
+                                     |           --55.31%--doop
                                      |                     |          
-                                     |                     |--18.83%--mh_min_proc
-                                     |                     |          |          
-                                     |                     |          |--7.81%--heap_remove_min
-                                     |                     |          |          
-                                     |                     |          |--5.00%--mh_rand_heaps
-                                     |                     |          |          |          
-                                     |                     |          |          |--2.19%--rand_r
-                                     |                     |          |          |          
-                                     |                     |          |           --1.41%--c_rand
-                                     |                     |          |          
-                                     |                     |          |--0.73%--c_rand
-                                     |                     |          |          
-                                     |                     |           --0.59%--safe_read_tsc
-                                     |                     |          
-                                     |                     |--7.43%--mh_select.isra.0
-                                     |                     |          
-                                     |                     |--7.01%--lock_try_acquire
-                                     |                     |          
-                                     |                      --0.82%--heap_remove_min
+                                     |                      --52.94%--gh_yield
+                                     |                                |          
+                                     |                                |--23.03%--enq_proc_vt (inlined)
+                                     |                                |          |          
+                                     |                                |          |--19.32%--proc_vt.isra.0
+                                     |                                |          |          |          
+                                     |                                |          |          |--10.79%--grp_add_vruntime
+                                     |                                |          |          |          
+                                     |                                |          |          |--7.34%--sub_lag (inlined)
+                                     |                                |          |          |          
+                                     |                                |          |           --0.87%--calc_delta (inlined)
+                                     |                                |          |          
+                                     |                                |           --3.33%--mh_add_process
+                                     |                                |                     |          
+                                     |                                |                      --3.18%--heap_push
+                                     |                                |                                |          
+                                     |                                |                                 --2.33%--heap_sift_up (inlined)
+                                     |                                |                                           |          
+                                     |                                |                                           |--1.15%--heap_swap (inlined)
+                                     |                                |                                           |          
+                                     |                                |                                            --1.01%--heap_elem_cmp (inlined)
+                                     |                                |          
+                                     |                                |--13.29%--mh_choose_heap
+                                     |                                |          |          
+                                     |                                |          |--9.07%--lock_try_acquire
+                                     |                                |          |          
+                                     |                                |           --2.78%--c_rand
+                                     |                                |                     |          
+                                     |                                |                      --1.40%--rand_r
+                                     |                                |          
+                                     |                                 --8.26%--upd_lag (inlined)
+                                     |                                           |          
+                                     |                                            --7.98%--calc_delta (inlined)
                                      |          
-                                      --2.71%--now
+                                     |--38.39%--doop
+                                     |          |          
+                                     |           --36.48%--gh_schedule
+                                     |                     |          
+                                     |                      --34.13%--mh_min_proc
+                                     |                                |          
+                                     |                                 --32.90%--mh_sample_min_proc (inlined)
+                                     |                                           |          
+                                     |                                           |--8.68%--mh_del_min_process (inlined)
+                                     |                                           |          |          
+                                     |                                           |           --8.53%--mh_remove_min (inlined)
+                                     |                                           |                     |          
+                                     |                                           |                      --8.26%--heap_remove_min
+                                     |                                           |                                |          
+                                     |                                           |                                |--5.18%--heap_sift_down (inlined)
+                                     |                                           |                                |          |          
+                                     |                                           |                                |          |--1.97%--heap_elem_cmp (inlined)
+                                     |                                           |                                |          |          
+                                     |                                           |                                |           --0.82%--heap_swap (inlined)
+                                     |                                           |                                |          
+                                     |                                           |                                 --1.86%--heap_swap (inlined)
+                                     |                                           |          
+                                     |                                           |--7.25%--mh_select.isra.0
+                                     |                                           |          
+                                     |                                           |--6.87%--lock_try_acquire
+                                     |                                           |          
+                                     |                                           |--5.75%--mh_rand_heaps
+                                     |                                           |          |          
+                                     |                                           |           --4.33%--c_rand
+                                     |                                           |                     |          
+                                     |                                           |                      --2.06%--rand_r
+                                     |                                           |          
+                                     |                                           |--0.74%--mh_upd_stat (inlined)
+                                     |                                           |          
+                                     |                                            --0.56%--safe_read_tsc
+                                     |          
+                                      --3.13%--now
                                                 |          
                                                  --1.62%--__vdso_gettimeofday
 
-    99.99%     0.00%             0  global-heap  libc.so.6             [.] start_thread
+    98.24%     0.00%             0  global-heap  libc.so.6             [.] start_thread
             |
             ---start_thread
                |          
-                --99.26%--run_core
+                --98.19%--run_core
                           |          
-                          |--94.66%--doop
+                          |--55.62%--action (inlined)
                           |          |          
-                          |          |--52.99%--gh_yield
-                          |          |          |          
-                          |          |          |--10.87%--grp_add_vruntime
-                          |          |          |          
-                          |          |          |--9.24%--lock_try_acquire
-                          |          |          |          
-                          |          |          |--8.93%--proc_vt.isra.0
-                          |          |          |          
-                          |          |          |--4.10%--mh_choose_heap
-                          |          |          |          |          
-                          |          |          |          |--1.38%--rand_r
-                          |          |          |          |          
-                          |          |          |           --1.11%--c_rand
-                          |          |          |          
-                          |          |           --2.98%--heap_push
-                          |          |          
-                          |           --37.02%--gh_schedule
+                          |           --55.31%--doop
                           |                     |          
-                          |                     |--18.83%--mh_min_proc
-                          |                     |          |          
-                          |                     |          |--7.81%--heap_remove_min
-                          |                     |          |          
-                          |                     |          |--5.00%--mh_rand_heaps
-                          |                     |          |          |          
-                          |                     |          |          |--2.19%--rand_r
-                          |                     |          |          |          
-                          |                     |          |           --1.41%--c_rand
-                          |                     |          |          
-                          |                     |          |--0.73%--c_rand
-                          |                     |          |          
-                          |                     |           --0.59%--safe_read_tsc
-                          |                     |          
-                          |                     |--7.43%--mh_select.isra.0
-                          |                     |          
-                          |                     |--7.01%--lock_try_acquire
-                          |                     |          
-                          |                      --0.82%--heap_remove_min
+                          |                      --52.94%--gh_yield
+                          |                                |          
+                          |                                |--23.03%--enq_proc_vt (inlined)
+                          |                                |          |          
+                          |                                |          |--19.32%--proc_vt.isra.0
+                          |                                |          |          |          
+                          |                                |          |          |--10.79%--grp_add_vruntime
+                          |                                |          |          |          
+                          |                                |          |          |--7.34%--sub_lag (inlined)
+                          |                                |          |          |          
+                          |                                |          |           --0.87%--calc_delta (inlined)
+                          |                                |          |          
+                          |                                |           --3.33%--mh_add_process
+                          |                                |                     |          
+                          |                                |                      --3.18%--heap_push
+                          |                                |                                |          
+                          |                                |                                 --2.33%--heap_sift_up (inlined)
+                          |                                |                                           |          
+                          |                                |                                           |--1.15%--heap_swap (inlined)
+                          |                                |                                           |          
+                          |                                |                                            --1.01%--heap_elem_cmp (inlined)
+                          |                                |          
+                          |                                |--13.29%--mh_choose_heap
+                          |                                |          |          
+                          |                                |          |--9.07%--lock_try_acquire
+                          |                                |          |          
+                          |                                |           --2.78%--c_rand
+                          |                                |                     |          
+                          |                                |                      --1.40%--rand_r
+                          |                                |          
+                          |                                 --8.26%--upd_lag (inlined)
+                          |                                           |          
+                          |                                            --7.98%--calc_delta (inlined)
                           |          
-                           --2.71%--now
+                          |--38.39%--doop
+                          |          |          
+                          |           --36.48%--gh_schedule
+                          |                     |          
+                          |                      --34.13%--mh_min_proc
+                          |                                |          
+                          |                                 --32.90%--mh_sample_min_proc (inlined)
+                          |                                           |          
+                          |                                           |--8.68%--mh_del_min_process (inlined)
+                          |                                           |          |          
+                          |                                           |           --8.53%--mh_remove_min (inlined)
+                          |                                           |                     |          
+                          |                                           |                      --8.26%--heap_remove_min
+                          |                                           |                                |          
+                          |                                           |                                |--5.18%--heap_sift_down (inlined)
+                          |                                           |                                |          |          
+                          |                                           |                                |          |--1.97%--heap_elem_cmp (inlined)
+                          |                                           |                                |          |          
+                          |                                           |                                |           --0.82%--heap_swap (inlined)
+                          |                                           |                                |          
+                          |                                           |                                 --1.86%--heap_swap (inlined)
+                          |                                           |          
+                          |                                           |--7.25%--mh_select.isra.0
+                          |                                           |          
+                          |                                           |--6.87%--lock_try_acquire
+                          |                                           |          
+                          |                                           |--5.75%--mh_rand_heaps
+                          |                                           |          |          
+                          |                                           |           --4.33%--c_rand
+                          |                                           |                     |          
+                          |                                           |                      --2.06%--rand_r
+                          |                                           |          
+                          |                                           |--0.74%--mh_upd_stat (inlined)
+                          |                                           |          
+                          |                                            --0.56%--safe_read_tsc
+                          |          
+                           --3.13%--now
                                      |          
                                       --1.62%--__vdso_gettimeofday
 
-    99.71%     1.51%           615  global-heap  global-heap           [.] run_core
+    98.19%     1.27%           527  global-heap  global-heap           [.] run_core
             |          
-            |--98.21%--run_core
+            |--96.92%--run_core
             |          |          
-            |          |--94.66%--doop
+            |          |--55.31%--action (inlined)
             |          |          |          
-            |          |          |--52.99%--gh_yield
-            |          |          |          |          
-            |          |          |          |--10.87%--grp_add_vruntime
-            |          |          |          |          
-            |          |          |          |--9.24%--lock_try_acquire
-            |          |          |          |          
-            |          |          |          |--8.93%--proc_vt.isra.0
-            |          |          |          |          
-            |          |          |          |--4.10%--mh_choose_heap
-            |          |          |          |          |          
-            |          |          |          |          |--1.38%--rand_r
-            |          |          |          |          |          
-            |          |          |          |           --1.11%--c_rand
-            |          |          |          |          
-            |          |          |           --2.98%--heap_push
-            |          |          |          
-            |          |           --37.02%--gh_schedule
+            |          |           --55.31%--doop
             |          |                     |          
-            |          |                     |--18.83%--mh_min_proc
-            |          |                     |          |          
-            |          |                     |          |--7.81%--heap_remove_min
-            |          |                     |          |          
-            |          |                     |          |--5.00%--mh_rand_heaps
-            |          |                     |          |          |          
-            |          |                     |          |          |--2.19%--rand_r
-            |          |                     |          |          |          
-            |          |                     |          |           --1.41%--c_rand
-            |          |                     |          |          
-            |          |                     |          |--0.73%--c_rand
-            |          |                     |          |          
-            |          |                     |           --0.59%--safe_read_tsc
-            |          |                     |          
-            |          |                     |--7.43%--mh_select.isra.0
-            |          |                     |          
-            |          |                     |--7.01%--lock_try_acquire
-            |          |                     |          
-            |          |                      --0.82%--heap_remove_min
+            |          |                      --52.94%--gh_yield
+            |          |                                |          
+            |          |                                |--23.03%--enq_proc_vt (inlined)
+            |          |                                |          |          
+            |          |                                |          |--19.32%--proc_vt.isra.0
+            |          |                                |          |          |          
+            |          |                                |          |          |--10.79%--grp_add_vruntime
+            |          |                                |          |          |          
+            |          |                                |          |          |--7.34%--sub_lag (inlined)
+            |          |                                |          |          |          
+            |          |                                |          |           --0.87%--calc_delta (inlined)
+            |          |                                |          |          
+            |          |                                |           --3.33%--mh_add_process
+            |          |                                |                     |          
+            |          |                                |                      --3.18%--heap_push
+            |          |                                |                                |          
+            |          |                                |                                 --2.33%--heap_sift_up (inlined)
+            |          |                                |                                           |          
+            |          |                                |                                           |--1.15%--heap_swap (inlined)
+            |          |                                |                                           |          
+            |          |                                |                                            --1.01%--heap_elem_cmp (inlined)
+            |          |                                |          
+            |          |                                |--13.29%--mh_choose_heap
+            |          |                                |          |          
+            |          |                                |          |--9.07%--lock_try_acquire
+            |          |                                |          |          
+            |          |                                |           --2.78%--c_rand
+            |          |                                |                     |          
+            |          |                                |                      --1.40%--rand_r
+            |          |                                |          
+            |          |                                 --8.26%--upd_lag (inlined)
+            |          |                                           |          
+            |          |                                            --7.98%--calc_delta (inlined)
             |          |          
-            |           --2.71%--now
+            |          |--38.39%--doop
+            |          |          |          
+            |          |           --36.48%--gh_schedule
+            |          |                     |          
+            |          |                      --34.13%--mh_min_proc
+            |          |                                |          
+            |          |                                 --32.90%--mh_sample_min_proc (inlined)
+            |          |                                           |          
+            |          |                                           |--8.68%--mh_del_min_process (inlined)
+            |          |                                           |          |          
+            |          |                                           |           --8.53%--mh_remove_min (inlined)
+            |          |                                           |                     |          
+            |          |                                           |                      --8.26%--heap_remove_min
+            |          |                                           |                                |          
+            |          |                                           |                                |--5.18%--heap_sift_down (inlined)
+            |          |                                           |                                |          |          
+            |          |                                           |                                |          |--1.97%--heap_elem_cmp (inlined)
+            |          |                                           |                                |          |          
+            |          |                                           |                                |           --0.82%--heap_swap (inlined)
+            |          |                                           |                                |          
+            |          |                                           |                                 --1.86%--heap_swap (inlined)
+            |          |                                           |          
+            |          |                                           |--7.25%--mh_select.isra.0
+            |          |                                           |          
+            |          |                                           |--6.87%--lock_try_acquire
+            |          |                                           |          
+            |          |                                           |--5.75%--mh_rand_heaps
+            |          |                                           |          |          
+            |          |                                           |           --4.33%--c_rand
+            |          |                                           |                     |          
+            |          |                                           |                      --2.06%--rand_r
+            |          |                                           |          
+            |          |                                           |--0.74%--mh_upd_stat (inlined)
+            |          |                                           |          
+            |          |                                            --0.56%--safe_read_tsc
+            |          |          
+            |           --3.13%--now
             |                     |          
             |                      --1.62%--__vdso_gettimeofday
             |          
-             --1.51%--clone3
+             --1.27%--__GI___clone3 (inlined)
                        start_thread
-                       |          
-                        --1.05%--run_core
+                       run_core
 
-    95.40%     4.18%          1709  global-heap  global-heap           [.] doop
+    93.86%     4.35%          1801  global-heap  global-heap           [.] doop
             |          
-            |--91.22%--doop
+            |--89.65%--doop
             |          |          
-            |          |--52.99%--gh_yield
+            |          |--52.94%--gh_yield
             |          |          |          
-            |          |          |--10.87%--grp_add_vruntime
-            |          |          |          
-            |          |          |--9.24%--lock_try_acquire
-            |          |          |          
-            |          |          |--8.93%--proc_vt.isra.0
-            |          |          |          
-            |          |          |--4.10%--mh_choose_heap
+            |          |          |--23.03%--enq_proc_vt (inlined)
             |          |          |          |          
-            |          |          |          |--1.38%--rand_r
+            |          |          |          |--19.32%--proc_vt.isra.0
+            |          |          |          |          |          
+            |          |          |          |          |--10.79%--grp_add_vruntime
+            |          |          |          |          |          
+            |          |          |          |          |--7.34%--sub_lag (inlined)
+            |          |          |          |          |          
+            |          |          |          |           --0.87%--calc_delta (inlined)
             |          |          |          |          
-            |          |          |           --1.11%--c_rand
+            |          |          |           --3.33%--mh_add_process
+            |          |          |                     |          
+            |          |          |                      --3.18%--heap_push
+            |          |          |                                |          
+            |          |          |                                 --2.33%--heap_sift_up (inlined)
+            |          |          |                                           |          
+            |          |          |                                           |--1.15%--heap_swap (inlined)
+            |          |          |                                           |          
+            |          |          |                                            --1.01%--heap_elem_cmp (inlined)
             |          |          |          
-            |          |           --2.98%--heap_push
+            |          |          |--13.29%--mh_choose_heap
+            |          |          |          |          
+            |          |          |          |--9.07%--lock_try_acquire
+            |          |          |          |          
+            |          |          |           --2.78%--c_rand
+            |          |          |                     |          
+            |          |          |                      --1.40%--rand_r
+            |          |          |          
+            |          |           --8.26%--upd_lag (inlined)
+            |          |                     |          
+            |          |                      --7.98%--calc_delta (inlined)
             |          |          
-            |           --37.02%--gh_schedule
+            |           --36.48%--gh_schedule
             |                     |          
-            |                     |--18.83%--mh_min_proc
-            |                     |          |          
-            |                     |          |--7.81%--heap_remove_min
-            |                     |          |          
-            |                     |          |--5.00%--mh_rand_heaps
-            |                     |          |          |          
-            |                     |          |          |--2.19%--rand_r
-            |                     |          |          |          
-            |                     |          |           --1.41%--c_rand
-            |                     |          |          
-            |                     |          |--0.73%--c_rand
-            |                     |          |          
-            |                     |           --0.59%--safe_read_tsc
-            |                     |          
-            |                     |--7.43%--mh_select.isra.0
-            |                     |          
-            |                     |--7.01%--lock_try_acquire
-            |                     |          
-            |                      --0.82%--heap_remove_min
+            |                      --34.13%--mh_min_proc
+            |                                |          
+            |                                 --32.90%--mh_sample_min_proc (inlined)
+            |                                           |          
+            |                                           |--8.68%--mh_del_min_process (inlined)
+            |                                           |          |          
+            |                                           |           --8.53%--mh_remove_min (inlined)
+            |                                           |                     |          
+            |                                           |                      --8.26%--heap_remove_min
+            |                                           |                                |          
+            |                                           |                                |--5.18%--heap_sift_down (inlined)
+            |                                           |                                |          |          
+            |                                           |                                |          |--1.97%--heap_elem_cmp (inlined)
+            |                                           |                                |          |          
+            |                                           |                                |           --0.82%--heap_swap (inlined)
+            |                                           |                                |          
+            |                                           |                                 --1.86%--heap_swap (inlined)
+            |                                           |          
+            |                                           |--7.25%--mh_select.isra.0
+            |                                           |          
+            |                                           |--6.87%--lock_try_acquire
+            |                                           |          
+            |                                           |--5.75%--mh_rand_heaps
+            |                                           |          |          
+            |                                           |           --4.33%--c_rand
+            |                                           |                     |          
+            |                                           |                      --2.06%--rand_r
+            |                                           |          
+            |                                           |--0.74%--mh_upd_stat (inlined)
+            |                                           |          
+            |                                            --0.56%--safe_read_tsc
             |          
-             --4.18%--clone3
+             --4.20%--__GI___clone3 (inlined)
                        start_thread
                        |          
-                        --4.10%--run_core
+                        --4.18%--run_core
                                   |          
-                                   --3.70%--doop
+                                  |--2.29%--action (inlined)
+                                  |          doop
+                                  |          
+                                   --1.90%--doop
 
-    53.36%    16.59%          6773  global-heap  global-heap           [.] gh_yield
+    55.62%     0.00%             0  global-heap  global-heap           [.] action (inlined)
+            |
+            ---action (inlined)
+               |          
+                --55.31%--doop
+                          |          
+                           --52.94%--gh_yield
+                                     |          
+                                     |--23.03%--enq_proc_vt (inlined)
+                                     |          |          
+                                     |          |--19.32%--proc_vt.isra.0
+                                     |          |          |          
+                                     |          |          |--10.79%--grp_add_vruntime
+                                     |          |          |          
+                                     |          |          |--7.34%--sub_lag (inlined)
+                                     |          |          |          
+                                     |          |           --0.87%--calc_delta (inlined)
+                                     |          |          
+                                     |           --3.33%--mh_add_process
+                                     |                     |          
+                                     |                      --3.18%--heap_push
+                                     |                                |          
+                                     |                                 --2.33%--heap_sift_up (inlined)
+                                     |                                           |          
+                                     |                                           |--1.15%--heap_swap (inlined)
+                                     |                                           |          
+                                     |                                            --1.01%--heap_elem_cmp (inlined)
+                                     |          
+                                     |--13.29%--mh_choose_heap
+                                     |          |          
+                                     |          |--9.07%--lock_try_acquire
+                                     |          |          
+                                     |           --2.78%--c_rand
+                                     |                     |          
+                                     |                      --1.40%--rand_r
+                                     |          
+                                      --8.26%--upd_lag (inlined)
+                                                |          
+                                                 --7.98%--calc_delta (inlined)
+
+    53.09%    16.98%          7027  global-heap  global-heap           [.] gh_yield
             |          
-            |--36.77%--gh_yield
+            |--36.26%--gh_yield
             |          |          
-            |          |--10.87%--grp_add_vruntime
-            |          |          
-            |          |--9.24%--lock_try_acquire
-            |          |          
-            |          |--8.93%--proc_vt.isra.0
-            |          |          
-            |          |--4.10%--mh_choose_heap
+            |          |--22.79%--enq_proc_vt (inlined)
             |          |          |          
-            |          |          |--1.38%--rand_r
+            |          |          |--19.32%--proc_vt.isra.0
+            |          |          |          |          
+            |          |          |          |--10.79%--grp_add_vruntime
+            |          |          |          |          
+            |          |          |          |--7.34%--sub_lag (inlined)
+            |          |          |          |          
+            |          |          |           --0.87%--calc_delta (inlined)
             |          |          |          
-            |          |           --1.11%--c_rand
+            |          |           --3.33%--mh_add_process
+            |          |                     |          
+            |          |                      --3.18%--heap_push
+            |          |                                |          
+            |          |                                 --2.33%--heap_sift_up (inlined)
+            |          |                                           |          
+            |          |                                           |--1.15%--heap_swap (inlined)
+            |          |                                           |          
+            |          |                                            --1.01%--heap_elem_cmp (inlined)
             |          |          
-            |           --2.98%--heap_push
+            |           --13.29%--mh_choose_heap
+            |                     |          
+            |                     |--9.07%--lock_try_acquire
+            |                     |          
+            |                      --2.78%--c_rand
+            |                                |          
+            |                                 --1.40%--rand_r
             |          
-             --16.59%--clone3
+             --16.83%--__GI___clone3 (inlined)
+                       start_thread
+                       run_core
+                       action (inlined)
+                       |          
+                        --16.83%--doop
+                                  gh_yield
+                                  |          
+                                   --8.26%--upd_lag (inlined)
+                                             |          
+                                              --7.98%--calc_delta (inlined)
+
+    36.62%     2.35%           971  global-heap  global-heap           [.] gh_schedule
+            |          
+            |--34.40%--gh_schedule
+            |          |          
+            |           --34.13%--mh_min_proc
+            |                     |          
+            |                      --32.90%--mh_sample_min_proc (inlined)
+            |                                |          
+            |                                |--8.68%--mh_del_min_process (inlined)
+            |                                |          |          
+            |                                |           --8.53%--mh_remove_min (inlined)
+            |                                |                     |          
+            |                                |                      --8.26%--heap_remove_min
+            |                                |                                |          
+            |                                |                                |--5.18%--heap_sift_down (inlined)
+            |                                |                                |          |          
+            |                                |                                |          |--1.97%--heap_elem_cmp (inlined)
+            |                                |                                |          |          
+            |                                |                                |           --0.82%--heap_swap (inlined)
+            |                                |                                |          
+            |                                |                                 --1.86%--heap_swap (inlined)
+            |                                |          
+            |                                |--7.25%--mh_select.isra.0
+            |                                |          
+            |                                |--6.87%--lock_try_acquire
+            |                                |          
+            |                                |--5.75%--mh_rand_heaps
+            |                                |          |          
+            |                                |           --4.33%--c_rand
+            |                                |                     |          
+            |                                |                      --2.06%--rand_r
+            |                                |          
+            |                                |--0.74%--mh_upd_stat (inlined)
+            |                                |          
+            |                                 --0.56%--safe_read_tsc
+            |          
+             --2.22%--__GI___clone3 (inlined)
                        start_thread
                        run_core
                        |          
-                        --16.56%--doop
-                                  |          
-                                   --16.33%--gh_yield
+                        --2.22%--doop
+                                  gh_schedule
 
-    37.48%     2.45%           999  global-heap  global-heap           [.] gh_schedule
+    34.34%     5.58%          2307  global-heap  global-heap           [.] mh_min_proc
             |          
-            |--35.03%--gh_schedule
+            |--28.96%--mh_min_proc
             |          |          
-            |          |--18.83%--mh_min_proc
-            |          |          |          
-            |          |          |--7.81%--heap_remove_min
-            |          |          |          
-            |          |          |--5.00%--mh_rand_heaps
-            |          |          |          |          
-            |          |          |          |--2.19%--rand_r
-            |          |          |          |          
-            |          |          |           --1.41%--c_rand
-            |          |          |          
-            |          |          |--0.73%--c_rand
-            |          |          |          
-            |          |           --0.59%--safe_read_tsc
-            |          |          
-            |          |--7.43%--mh_select.isra.0
-            |          |          
-            |          |--7.01%--lock_try_acquire
-            |          |          
-            |           --0.82%--heap_remove_min
+            |           --28.76%--mh_sample_min_proc (inlined)
+            |                     |          
+            |                     |--8.26%--mh_del_min_process (inlined)
+            |                     |          mh_remove_min (inlined)
+            |                     |          heap_remove_min
+            |                     |          |          
+            |                     |          |--5.18%--heap_sift_down (inlined)
+            |                     |          |          |          
+            |                     |          |          |--1.97%--heap_elem_cmp (inlined)
+            |                     |          |          |          
+            |                     |          |           --0.82%--heap_swap (inlined)
+            |                     |          |          
+            |                     |           --1.86%--heap_swap (inlined)
+            |                     |          
+            |                     |--7.25%--mh_select.isra.0
+            |                     |          
+            |                     |--6.87%--lock_try_acquire
+            |                     |          
+            |                     |--5.75%--mh_rand_heaps
+            |                     |          |          
+            |                     |           --4.33%--c_rand
+            |                     |                     |          
+            |                     |                      --2.06%--rand_r
+            |                     |          
+            |                      --0.56%--safe_read_tsc
             |          
-             --2.45%--clone3
-                       start_thread
-                       run_core
-                       |          
-                        --2.38%--doop
-                                  |          
-                                   --2.17%--gh_schedule
-
-    20.07%     5.60%          2288  global-heap  global-heap           [.] mh_min_proc
-            |          
-            |--14.47%--mh_min_proc
-            |          |          
-            |          |--7.81%--heap_remove_min
-            |          |          
-            |          |--5.00%--mh_rand_heaps
-            |          |          |          
-            |          |          |--2.19%--rand_r
-            |          |          |          
-            |          |           --1.41%--c_rand
-            |          |          
-            |          |--0.73%--c_rand
-            |          |          
-            |           --0.59%--safe_read_tsc
-            |          
-             --5.60%--clone3
+             --5.38%--__GI___clone3 (inlined)
                        start_thread
                        run_core
                        doop
                        |          
-                        --5.48%--gh_schedule
+                        --5.37%--gh_schedule
+                                  mh_min_proc
                                   |          
-                                   --4.50%--mh_min_proc
+                                   --4.15%--mh_sample_min_proc (inlined)
+                                             |          
+                                              --0.74%--mh_upd_stat (inlined)
 
-    16.26%    16.05%          6556  global-heap  global-heap           [.] lock_try_acquire
+    32.90%     0.00%             0  global-heap  global-heap           [.] mh_sample_min_proc (inlined)
+            |
+            ---mh_sample_min_proc (inlined)
+               |          
+               |--8.68%--mh_del_min_process (inlined)
+               |          |          
+               |           --8.53%--mh_remove_min (inlined)
+               |                     |          
+               |                      --8.26%--heap_remove_min
+               |                                |          
+               |                                |--5.18%--heap_sift_down (inlined)
+               |                                |          |          
+               |                                |          |--1.97%--heap_elem_cmp (inlined)
+               |                                |          |          
+               |                                |           --0.82%--heap_swap (inlined)
+               |                                |          
+               |                                 --1.86%--heap_swap (inlined)
+               |          
+               |--7.25%--mh_select.isra.0
+               |          
+               |--6.87%--lock_try_acquire
+               |          
+               |--5.75%--mh_rand_heaps
+               |          |          
+               |           --4.33%--c_rand
+               |                     |          
+               |                      --2.06%--rand_r
+               |          
+               |--0.74%--mh_upd_stat (inlined)
+               |          
+                --0.56%--safe_read_tsc
+
+    23.03%     0.00%             0  global-heap  global-heap           [.] enq_proc_vt (inlined)
+            |
+            ---enq_proc_vt (inlined)
+               |          
+               |--19.32%--proc_vt.isra.0
+               |          |          
+               |          |--10.79%--grp_add_vruntime
+               |          |          
+               |          |--7.34%--sub_lag (inlined)
+               |          |          
+               |           --0.87%--calc_delta (inlined)
+               |          
+                --3.33%--mh_add_process
+                          |          
+                           --3.18%--heap_push
+                                     |          
+                                      --2.33%--heap_sift_up (inlined)
+                                                |          
+                                                |--1.15%--heap_swap (inlined)
+                                                |          
+                                                 --1.01%--heap_elem_cmp (inlined)
+
+    19.33%     8.54%          3533  global-heap  global-heap           [.] proc_vt.isra.0
             |          
-             --16.05%--clone3
+            |--10.80%--proc_vt.isra.0
+            |          |          
+            |           --10.79%--grp_add_vruntime
+            |          
+             --8.53%--__GI___clone3 (inlined)
                        start_thread
                        run_core
-                       doop
-                       |          
-                       |--9.23%--gh_yield
-                       |          |          
-                       |           --9.23%--lock_try_acquire
-                       |          
-                        --6.81%--gh_schedule
-                                  |          
-                                   --6.81%--lock_try_acquire
-
-    11.02%    10.95%          4472  global-heap  global-heap           [.] grp_add_vruntime
-            |          
-             --10.95%--clone3
-                       start_thread
-                       run_core
+                       action (inlined)
                        doop
                        gh_yield
+                       enq_proc_vt (inlined)
+                       proc_vt.isra.0
                        |          
-                        --10.80%--grp_add_vruntime
+                       |--7.34%--sub_lag (inlined)
+                       |          
+                        --0.87%--calc_delta (inlined)
 
-     9.16%     8.94%          3650  global-heap  global-heap           [.] proc_vt.isra.0
+    15.95%    15.95%          6606  global-heap  global-heap           [.] lock_try_acquire
             |          
-             --8.94%--clone3
+             --15.94%--__GI___clone3 (inlined)
                        start_thread
                        run_core
-                       doop
                        |          
-                        --8.84%--gh_yield
-                                  |          
-                                   --8.77%--proc_vt.isra.0
+                       |--9.07%--action (inlined)
+                       |          doop
+                       |          gh_yield
+                       |          mh_choose_heap
+                       |          lock_try_acquire
+                       |          
+                        --6.87%--doop
+                                  gh_schedule
+                                  mh_min_proc
+                                  mh_sample_min_proc (inlined)
+                                  lock_try_acquire
 
-     8.64%     8.57%          3505  global-heap  global-heap           [.] heap_remove_min
+    13.29%     1.43%           588  global-heap  global-heap           [.] mh_choose_heap
             |          
-             --8.57%--clone3
+            |--11.87%--mh_choose_heap
+            |          |          
+            |          |--9.07%--lock_try_acquire
+            |          |          
+            |           --2.78%--c_rand
+            |                     |          
+            |                      --1.40%--rand_r
+            |          
+             --1.42%--__GI___clone3 (inlined)
+                       start_thread
+                       run_core
+                       action (inlined)
+                       doop
+                       gh_yield
+                       mh_choose_heap
+
+    10.90%    10.90%          4512  global-heap  global-heap           [.] grp_add_vruntime
+            |          
+             --10.79%--__GI___clone3 (inlined)
+                       start_thread
+                       run_core
+                       action (inlined)
+                       doop
+                       gh_yield
+                       enq_proc_vt (inlined)
+                       proc_vt.isra.0
+                       grp_add_vruntime
+
+     8.68%     0.00%             0  global-heap  global-heap           [.] mh_del_min_process (inlined)
+            |
+            ---mh_del_min_process (inlined)
+               |          
+                --8.53%--mh_remove_min (inlined)
+                          |          
+                           --8.26%--heap_remove_min
+                                     |          
+                                     |--5.18%--heap_sift_down (inlined)
+                                     |          |          
+                                     |          |--1.97%--heap_elem_cmp (inlined)
+                                     |          |          
+                                     |           --0.82%--heap_swap (inlined)
+                                     |          
+                                      --1.86%--heap_swap (inlined)
+
+     8.53%     0.00%             0  global-heap  global-heap           [.] mh_remove_min (inlined)
+            |
+            ---mh_remove_min (inlined)
+               |          
+                --8.26%--heap_remove_min
+                          |          
+                          |--5.18%--heap_sift_down (inlined)
+                          |          |          
+                          |          |--1.97%--heap_elem_cmp (inlined)
+                          |          |          
+                          |           --0.82%--heap_swap (inlined)
+                          |          
+                           --1.86%--heap_swap (inlined)
+
+     8.38%     8.38%          3469  global-heap  global-heap           [.] heap_remove_min
+            |          
+             --8.28%--__GI___clone3 (inlined)
                        start_thread
                        run_core
                        doop
                        gh_schedule
                        |          
-                       |--7.82%--mh_min_proc
-                       |          |          
-                       |           --7.81%--heap_remove_min
-                       |          
-                        --0.75%--heap_remove_min
-
-     7.47%     7.22%          2949  global-heap  global-heap           [.] mh_select.isra.0
-            |          
-             --7.22%--clone3
-                       start_thread
-                       run_core
-                       doop
-                       gh_schedule
-                       |          
-                        --7.18%--mh_select.isra.0
-
-     5.67%     1.50%           613  global-heap  global-heap           [.] mh_rand_heaps
-            |          
-            |--4.17%--mh_rand_heaps
-            |          |          
-            |          |--2.19%--rand_r
-            |          |          
-            |           --1.41%--c_rand
-            |          
-             --1.50%--clone3
-                       start_thread
-                       run_core
-                       doop
-                       gh_schedule
-                       |          
-                        --1.35%--mh_min_proc
+                        --8.26%--mh_min_proc
+                                  mh_sample_min_proc (inlined)
+                                  mh_del_min_process (inlined)
+                                  mh_remove_min (inlined)
+                                  heap_remove_min
                                   |          
-                                   --0.99%--mh_rand_heaps
-
-     4.30%     1.52%           622  global-heap  global-heap           [.] mh_choose_heap
-            |          
-            |--2.78%--mh_choose_heap
-            |          |          
-            |          |--1.38%--rand_r
-            |          |          
-            |           --1.11%--c_rand
-            |          
-             --1.52%--clone3
-                       start_thread
-                       run_core
-                       doop
-                       |          
-                        --1.49%--gh_yield
+                                  |--5.18%--heap_sift_down (inlined)
+                                  |          |          
+                                  |          |--1.97%--heap_elem_cmp (inlined)
+                                  |          |          
+                                  |           --0.82%--heap_swap (inlined)
                                   |          
-                                   --1.33%--mh_choose_heap
+                                   --1.86%--heap_swap (inlined)
 
-     4.06%     3.59%          1464  global-heap  global-heap           [.] c_rand
+     8.26%     0.00%             0  global-heap  global-heap           [.] upd_lag (inlined)
+            |
+            ---upd_lag (inlined)
+               |          
+                --7.98%--calc_delta (inlined)
+
+     7.98%     0.00%             0  global-heap  global-heap           [.] calc_delta (inlined)
+            |
+            ---calc_delta (inlined)
+
+     7.48%     3.63%          1503  global-heap  global-heap           [.] c_rand
             |          
-             --3.58%--clone3
+            |--4.16%--c_rand
+            |          |          
+            |           --3.46%--rand_r
+            |          
+             --3.31%--__GI___clone3 (inlined)
                        start_thread
                        run_core
-                       doop
                        |          
-                       |--2.21%--gh_schedule
+                       |--2.06%--doop
+                       |          gh_schedule
                        |          mh_min_proc
+                       |          mh_sample_min_proc (inlined)
                        |          |          
-                       |           --1.76%--mh_rand_heaps
-                       |                     |          
-                       |                      --1.39%--c_rand
+                       |           --2.03%--mh_rand_heaps
+                       |                     c_rand
                        |          
-                        --1.38%--gh_yield
+                        --1.25%--action (inlined)
+                                  doop
+                                  gh_yield
                                   |          
-                                   --1.24%--mh_choose_heap
-                                             |          
-                                              --1.10%--c_rand
+                                   --1.22%--mh_choose_heap
+                                             c_rand
 
-     3.60%     3.39%          1385  global-heap  libc.so.6             [.] rand_r
+     7.34%     0.00%             0  global-heap  global-heap           [.] sub_lag (inlined)
+            |
+            ---sub_lag (inlined)
+
+     7.27%     7.27%          3009  global-heap  global-heap           [.] mh_select.isra.0
             |          
-             --3.39%--clone3
+             --7.25%--__GI___clone3 (inlined)
                        start_thread
                        run_core
                        doop
+                       gh_schedule
                        |          
-                       |--2.06%--gh_schedule
+                        --7.25%--mh_min_proc
+                                  mh_sample_min_proc (inlined)
+                                  mh_select.isra.0
+
+     6.06%     1.73%           717  global-heap  global-heap           [.] mh_rand_heaps
+            |          
+            |--4.63%--mh_rand_heaps
+            |          |          
+            |           --4.33%--c_rand
+            |                     |          
+            |                      --2.06%--rand_r
+            |          
+             --1.42%--__GI___clone3 (inlined)
+                       start_thread
+                       run_core
+                       doop
+                       gh_schedule
+                       |          
+                        --1.42%--mh_min_proc
+                                  mh_sample_min_proc (inlined)
+                                  mh_rand_heaps
+
+     5.18%     0.00%             0  global-heap  global-heap           [.] heap_sift_down (inlined)
+            |
+            ---heap_sift_down (inlined)
+               |          
+               |--1.97%--heap_elem_cmp (inlined)
+               |          
+                --0.82%--heap_swap (inlined)
+
+     3.49%     3.49%          1445  global-heap  libc.so.6             [.] rand_r
+            |          
+             --3.47%--__GI___clone3 (inlined)
+                       start_thread
+                       run_core
+                       |          
+                       |--2.06%--doop
+                       |          gh_schedule
                        |          mh_min_proc
+                       |          mh_sample_min_proc (inlined)
                        |          mh_rand_heaps
-                       |          |          
-                       |           --2.04%--rand_r
+                       |          c_rand
+                       |          rand_r
                        |          
-                        --1.33%--gh_yield
+                        --1.41%--action (inlined)
+                                  doop
+                                  gh_yield
                                   mh_choose_heap
                                   |          
-                                   --1.33%--rand_r
+                                   --1.40%--c_rand
+                                             rand_r
 
-     3.22%     1.33%           544  global-heap  global-heap           [.] now
+     3.42%     0.24%           100  global-heap  global-heap           [.] mh_add_process
             |          
-            |--1.88%--now
+             --3.18%--mh_add_process
+                       |          
+                        --3.18%--heap_push
+                                  |          
+                                   --2.33%--heap_sift_up (inlined)
+                                             |          
+                                             |--1.15%--heap_swap (inlined)
+                                             |          
+                                              --1.01%--heap_elem_cmp (inlined)
+
+     3.29%     3.29%          1362  global-heap  global-heap           [.] heap_push
+            |          
+             --3.18%--__GI___clone3 (inlined)
+                       start_thread
+                       run_core
+                       action (inlined)
+                       doop
+                       gh_yield
+                       enq_proc_vt (inlined)
+                       mh_add_process
+                       heap_push
+                       |          
+                        --2.33%--heap_sift_up (inlined)
+                                  |          
+                                  |--1.15%--heap_swap (inlined)
+                                  |          
+                                   --1.01%--heap_elem_cmp (inlined)
+
+     3.18%     1.42%           589  global-heap  global-heap           [.] now
+            |          
+            |--1.77%--now
             |          |          
             |           --1.62%--__vdso_gettimeofday
             |          
-             --1.33%--clone3
+             --1.41%--__GI___clone3 (inlined)
                        start_thread
                        |          
-                        --1.14%--run_core
-                                  |          
-                                   --1.03%--now
+                        --1.37%--run_core
+                                  now
 
-     3.10%     3.06%          1255  global-heap  global-heap           [.] heap_push
+     2.68%     0.00%             0  global-heap  global-heap           [.] heap_swap (inlined)
+            |
+            ---heap_swap (inlined)
+
+     2.44%     0.00%             0  global-heap  global-heap           [.] heap_sift_up (inlined)
+            |
+            ---heap_sift_up (inlined)
+               |          
+               |--1.15%--heap_swap (inlined)
+               |          
+                --1.11%--heap_elem_cmp (inlined)
+
+     1.97%     0.00%             0  global-heap  global-heap           [.] heap_elem_cmp (inlined)
+            |
+            ---heap_elem_cmp (inlined)
+
+     1.71%     1.70%           704  global-heap  [vdso]                [.] __vdso_gettimeofday
             |          
-             --3.06%--clone3
+             --1.70%--__GI___clone3 (inlined)
                        start_thread
                        run_core
-                       doop
-                       gh_yield
                        |          
-                        --2.94%--heap_push
+                        --1.62%--now
+                                  __vdso_gettimeofday
 
-     1.90%     1.77%           723  global-heap  [vdso]                [.] __vdso_gettimeofday
-            |          
-             --1.77%--clone3
-                       start_thread
-                       run_core
-                       |          
-                        --1.68%--now
-                                  |          
-                                   --1.62%--__vdso_gettimeofday
+     1.15%     0.00%             0  global-heap  global-heap           [.] heap_swap (inlined)
+            |
+            ---heap_swap (inlined)
 
-     0.81%     0.71%           290  global-heap  global-heap           [.] safe_read_tsc
+     1.11%     0.00%             0  global-heap  global-heap           [.] heap_elem_cmp (inlined)
+            |
+            ---heap_elem_cmp (inlined)
+
+     0.87%     0.00%             0  global-heap  global-heap           [.] calc_delta (inlined)
+            |
+            ---calc_delta (inlined)
+
+     0.74%     0.00%             0  global-heap  global-heap           [.] mh_upd_stat (inlined)
+            |
+            ---mh_upd_stat (inlined)
+
+     0.70%     0.70%           289  global-heap  global-heap           [.] safe_read_tsc
             |          
-             --0.71%--clone3
+             --0.65%--__GI___clone3 (inlined)
                        start_thread
                        run_core
                        doop
                        gh_schedule
                        |          
-                        --0.59%--mh_min_proc
-                                  |          
-                                   --0.58%--safe_read_tsc
+                        --0.56%--mh_min_proc
+                                  mh_sample_min_proc (inlined)
+                                  safe_read_tsc
 
-     0.75%     0.37%           151  global-heap  global-heap           [.] rand_r@plt
-     0.43%     0.26%           107  global-heap  global-heap           [.] mh_add_process
-     0.29%     0.24%            98  global-heap  global-heap           [.] lock_release
-     0.24%     0.13%            53  global-heap  global-heap           [.] gettimeofday@plt
-     0.05%     0.00%             0  global-heap  [kernel.kallsyms]     [k] asm_sysvec_apic_timer_interrupt
-     0.04%     0.00%             0  global-heap  [kernel.kallsyms]     [k] sysvec_apic_timer_interrupt
-     0.04%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __sysvec_apic_timer_interrupt
-     0.04%     0.00%             0  global-heap  [kernel.kallsyms]     [k] hrtimer_interrupt
-     0.04%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __hrtimer_run_queues
-     0.03%     0.00%             1  global-heap  [kernel.kallsyms]     [k] tick_nohz_handler
-     0.03%     0.00%             0  global-heap  [kernel.kallsyms]     [k] update_process_times
-     0.02%     0.00%             0  global-heap  [kernel.kallsyms]     [k] sched_tick
-     0.01%     0.00%             0  global-heap  [kernel.kallsyms]     [k] task_tick_fair
-     0.01%     0.00%             1  global-heap  [kernel.kallsyms]     [k] tmigr_requires_handle_remote
-     0.01%     0.01%             3  global-heap  [kernel.kallsyms]     [k] get_jiffies_update
-     0.01%     0.01%             3  global-heap  [kernel.kallsyms]     [k] __irqentry_text_end
-     0.01%     0.00%             0  global-heap  global-heap           [.] _start
-     0.01%     0.00%             0  global-heap  libc.so.6             [.] __libc_start_main@@GLIBC_2.34
-     0.01%     0.00%             0  global-heap  libc.so.6             [.] __libc_start_call_main
-     0.01%     0.00%             0  global-heap  global-heap           [.] main
-     0.01%     0.00%             1  global-heap  [kernel.kallsyms]     [k] update_curr
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] update_cfs_group
-     0.00%     0.00%             2  global-heap  [kernel.kallsyms]     [k] __update_load_avg_se
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] update_load_avg
-     0.00%     0.00%             2  global-heap  [kernel.kallsyms]     [k] native_write_msr
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] perf_event_task_tick
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] perf_adjust_freq_unthr_context
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] x86_pmu_enable
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] intel_pmu_enable_all
+     0.39%     0.39%           160  global-heap  global-heap           [.] rand_r@plt
+     0.29%     0.00%             0  global-heap  global-heap           [.] __rdtscp (inlined)
+     0.26%     0.26%           108  global-heap  global-heap           [.] lock_release
+     0.13%     0.13%            56  global-heap  global-heap           [.] gettimeofday@plt
+     0.02%     0.00%             0  global-heap  [unknown]             [.] 0x0000000069e90e94
+     0.01%     0.00%             0  global-heap  [unknown]             [.] 0x0000000000000001
+     0.01%     0.00%             0  global-heap  [unknown]             [.] 0x0000000069e90e93
+     0.01%     0.00%             0  global-heap  [unknown]             [.] 0x0000000069e90e95
+     0.01%     0.00%             0  global-heap  [unknown]             [.] 0x0000000069e90e96
+     0.01%     0.00%             0  global-heap  [kernel.kallsyms]     [k] asm_sysvec_apic_timer_interrupt
+     0.01%     0.00%             0  global-heap  [kernel.kallsyms]     [k] sysvec_apic_timer_interrupt
+     0.00%     0.00%             0  global-heap  [unknown]             [.] 0x0000000000000002
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] entry_SYSCALL_64_after_hwframe
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_syscall_64
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] x64_sys_call
-     0.00%     0.00%             0  global-heap  libc.so.6             [.] pthread_create@GLIBC_2.2.5
-     0.00%     0.00%             2  global-heap  [kernel.kallsyms]     [k] native_queued_spin_lock_slowpath
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] dl_server_update
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] update_curr_dl_se
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] start_dl_timer
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] hrtimer_start_range_ns
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __sysvec_apic_timer_interrupt
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] hrtimer_interrupt
+     0.00%     0.00%             0  global-heap  global-heap           [.] _start
+     0.00%     0.00%             0  global-heap  libc.so.6             [.] __libc_start_main@GLIBC_2.2.5 (inlined)
+     0.00%     0.00%             0  global-heap  libc.so.6             [.] __libc_start_call_main
+     0.00%     0.00%             0  global-heap  global-heap           [.] main
+     0.00%     0.00%             0  global-heap  libc.so.6             [.] pthread_create@@GLIBC_2.34 (inlined)
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] asm_exc_page_fault
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] exc_page_fault
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_user_addr_fault
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] handle_mm_fault
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __handle_mm_fault
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] perf_event_alloc
+     0.00%     0.00%             3  global-heap  [kernel.kallsyms]     [k] clear_page_erms
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] alloc_pages_mpol
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __alloc_frozen_pages_noprof
      0.00%     0.00%             0  global-heap  libc.so.6             [.] create_thread
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __x64_sys_clone3
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __do_sys_clone3
@@ -526,109 +921,131 @@
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] perf_event_init_task
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] inherit_task_group.isra.0
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] inherit_event.isra.0
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] update_rq_clock
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] _raw_spin_lock
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] perf_event_alloc
+     0.00%     0.00%             0  global-heap  [unknown]             [.] 0x0000002200000007
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] llist_add_batch
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] irqentry_exit
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] irqentry_exit_to_user_mode
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] schedule
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __schedule
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] put_prev_task_fair
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] put_prev_entity
-     0.00%     0.00%             0  global-heap  [unknown]             [.] 0x0000000000020c81
-     0.00%     0.00%             0  global-heap  [unknown]             [.] 0000000000000000
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] native_apic_msr_eoi
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] ktime_get_update_offsets_now
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] rb_next
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] timerqueue_add
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] enqueue_hrtimer
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] reweight_entity
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] place_entity
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] rcu_segcblist_ready_cbs
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] rcu_sched_clock_irq
-     0.00%     0.00%             2  global-heap  [kernel.kallsyms]     [k] memset_orig
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] task_work_run
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] task_numa_work
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] change_prot_numa
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] tlb_finish_mmu
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] flush_tlb_mm_range
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] native_flush_tlb_multi
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] on_each_cpu_cond_mask
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] native_queued_spin_lock_slowpath
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] _raw_spin_lock
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] native_flush_tlb_one_user
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] asm_sysvec_call_function
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] sysvec_call_function
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __sysvec_call_function
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] generic_smp_call_function_single_interrupt
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __flush_smp_call_function_queue
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] flush_tlb_func
+     0.00%     0.00%             0  global-heap  [unknown]             [.] 0x0000000d00000015
+     0.00%     0.00%             0  global-heap  [unknown]             [.] 0x000000060000001f
+     0.00%     0.00%             0  global-heap  [unknown]             [.] 0x0000002900000006
+     0.00%     0.00%             0  global-heap  [unknown]             [.] 0x0000002c00000024
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] place_entity
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __hrtimer_run_queues
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] tick_nohz_handler
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] update_process_times
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] sched_tick
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] task_tick_fair
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] update_cfs_group
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] reweight_entity
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] lapic_next_deadline
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] tick_program_event
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] clockevents_program_event
+     0.00%     0.00%             1  global-heap  [megaraid_sas]        [k] complete_cmd_fusion
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] asm_common_interrupt
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] common_interrupt
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __common_interrupt
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] handle_edge_irq
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] handle_irq_event
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __handle_irq_event_percpu
+     0.00%     0.00%             0  global-heap  [megaraid_sas]        [k] megasas_isr_fusion
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] kmem_cache_alloc_node_noprof
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] ___slab_alloc
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] allocate_slab
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] alloc_frozen_pages_noprof
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] __irqentry_text_end
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] kmem_cache_free
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] 0xffffffff812dbdbc
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_group_exit
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_exit
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] mmput
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] exit_mmap
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] remove_vma
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __vm_area_free
+     0.00%     0.00%             0  global-heap  libc.so.6             [.] allocate_stack (inlined)
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_anonymous_page
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __pte_alloc
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] pte_alloc_one
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] alloc_pages_noprof
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] intel_pmu_hw_config.part.0
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] perf_try_init_event
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] x86_pmu_event_init
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] allocate_fake_cpuc
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] refill_obj_stock
-     0.00%     0.00%             0  global-heap  libc.so.6             [.] __pthread_clockjoin_ex
-     0.00%     0.00%             0  global-heap  libc.so.6             [.] __GI___nptl_deallocate_stack
-     0.00%     0.00%             0  global-heap  libc.so.6             [.] __munmap
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __x64_sys_munmap
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __vm_munmap
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_vmi_munmap
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_vmi_align_munmap
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] vms_complete_munmap_vmas
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] vms_clear_ptes.part.0
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] free_pgtables
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] unlink_anon_vmas
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __put_anon_vma
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] kmem_cache_free
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __memcg_slab_free_hook
-     0.00%     0.00%             1  global-heap  libc.so.6             [.] __memset_avx2_unaligned_erms_rtm
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] _raw_spin_lock_irqsave
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] intel_cpuc_prepare
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] vma_interval_tree_remove
-     0.00%     0.00%             1  sh           [kernel.kallsyms]     [k] static_key_count
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] hsw_hw_config
+     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] memset_orig
+     0.00%     0.00%             1  sh           [kernel.kallsyms]     [k] sched_balance_domains
      0.00%     0.00%             1  sh           ld-linux-x86-64.so.2  [.] _dl_relocate_object
-     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_start_user
+     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _start
      0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_start
+     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_start_final (inlined)
      0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_sysdep_start
      0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] dl_main
-     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_map_object_deps
-     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_catch_exception
-     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] openaux
-     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_map_object
-     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_map_object_from_fd
+     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] init_tls
+     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] _dl_allocate_tls_storage
+     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] malloc (inlined)
+     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] __minimal_malloc
      0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] mmap64
+     0.00%     0.00%             0  global-heap  ld-linux-x86-64.so.2  [.] __mmap64 (inlined)
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __x64_sys_mmap
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] ksys_mmap_pgoff
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] vm_mmap_pgoff
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_mmap
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] mmap_region
      0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __mmap_region
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] vms_gather_munmap_vmas
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __split_vma
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] vma_prepare
-     0.00%     0.00%             0  sh           dash                  [.] 0x0000556dde396f35
-     0.00%     0.00%             0  sh           libc.so.6             [.] __libc_start_main@@GLIBC_2.34
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] mas_preallocate
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] mas_node_count_gfp
+     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] mas_alloc_nodes
+     0.00%     0.00%             1  global-heap  libc.so.6             [.] _int_malloc
+     0.00%     0.00%             0  sh           dash                  [.] 0x0000560d5893ff34
+     0.00%     0.00%             0  sh           libc.so.6             [.] __libc_start_main@GLIBC_2.2.5 (inlined)
      0.00%     0.00%             0  sh           libc.so.6             [.] __libc_start_call_main
-     0.00%     0.00%             0  sh           dash                  [.] 0x0000556dde396d62
-     0.00%     0.00%             0  sh           dash                  [.] 0x0000556dde3a1a49
-     0.00%     0.00%             0  sh           dash                  [.] 0x0000556dde39b1b0
-     0.00%     0.00%             0  sh           dash                  [.] 0x0000556dde3a446c
-     0.00%     0.00%             0  sh           dash                  [.] 0x0000556dde3aa7f0
-     0.00%     0.00%             0  sh           dash                  [.] 0x0000556dde3aa3a1
-     0.00%     0.00%             0  sh           dash                  [.] 0x0000556dde3a7091
-     0.00%     0.00%             0  sh           libc.so.6             [.] __GI___libc_open
+     0.00%     0.00%             0  sh           dash                  [.] 0x0000560d5893fd61
+     0.00%     0.00%             0  sh           dash                  [.] 0x0000560d5894aa48
+     0.00%     0.00%             0  sh           dash                  [.] 0x0000560d589441af
+     0.00%     0.00%             0  sh           dash                  [.] 0x0000560d5894d46b
+     0.00%     0.00%             0  sh           dash                  [.] 0x0000560d589537ef
+     0.00%     0.00%             0  sh           dash                  [.] 0x0000560d589533a0
+     0.00%     0.00%             0  sh           dash                  [.] 0x0000560d58950090
+     0.00%     0.00%             0  sh           libc.so.6             [.] open (inlined)
      0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] entry_SYSCALL_64_after_hwframe
      0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] do_syscall_64
      0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] x64_sys_call
      0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] __x64_sys_openat
      0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] do_sys_openat2
      0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] do_filp_open
-     0.00%     0.00%             0  sh           ld-linux-x86-64.so.2  [.] _dl_start_user
      0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] path_openat
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] vfs_open
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] do_dentry_open
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] security_file_open
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] apparmor_file_open
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] asm_sysvec_apic_timer_interrupt
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] sysvec_apic_timer_interrupt
+     0.00%     0.00%             0  sh           ld-linux-x86-64.so.2  [.] _start
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] irq_exit_rcu
      0.00%     0.00%             0  sh           ld-linux-x86-64.so.2  [.] _dl_start
-     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] ext4_create
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] __irq_exit_rcu
+     0.00%     0.00%             0  sh           ld-linux-x86-64.so.2  [.] _dl_start_final (inlined)
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] handle_softirqs
      0.00%     0.00%             0  sh           ld-linux-x86-64.so.2  [.] _dl_sysdep_start
-     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] __ext4_new_inode
+     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] sched_balance_softirq
      0.00%     0.00%             0  sh           ld-linux-x86-64.so.2  [.] dl_main
-     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] ext4_init_security
-     0.00%     0.00%             0  sh           [kernel.kallsyms]     [k] asm_exc_page_fault
-     0.00%     0.00%             1  global-heap  [kernel.kallsyms]     [k] clear_page_erms
-     0.00%     0.00%             0  global-heap  global-heap           [.] gh_new
-     0.00%     0.00%             0  global-heap  global-heap           [.] mh_new
-     0.00%     0.00%             0  global-heap  global-heap           [.] heap_new
-     0.00%     0.00%             0  global-heap  libc.so.6             [.] _mid_memalign.isra.0
-     0.00%     0.00%             0  global-heap  libc.so.6             [.] _int_memalign
-     0.00%     0.00%             0  global-heap  libc.so.6             [.] _int_malloc
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] do_anonymous_page
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] vma_alloc_folio_noprof
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] folio_alloc_mpol_noprof
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] alloc_pages_mpol
-     0.00%     0.00%             0  global-heap  [kernel.kallsyms]     [k] __alloc_frozen_pages_noprof
 
 
 #
-# (Tip: See assembly instructions with percentage: perf annotate <symbol>)
+# (Tip: To show assembler sample context control flow use perf record -b / perf report --samples 10 and then browse context)
 #

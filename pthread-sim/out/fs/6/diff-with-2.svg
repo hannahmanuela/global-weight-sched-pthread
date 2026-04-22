@@ -1,6 +1,6 @@
 <?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg version="1.1" width="1200" height="230" onload="init(evt)" viewBox="0 0 1200 230" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<svg version="1.1" width="1200" height="294" onload="init(evt)" viewBox="0 0 1200 294" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
 <!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
 <!-- NOTES:  -->
 <defs>
@@ -422,193 +422,357 @@
 	}
 ]]>
 </script>
-<rect x="0.0" y="0" width="1200.0" height="230.0" fill="url(#background)"  />
+<rect x="0.0" y="0" width="1200.0" height="294.0" fill="url(#background)"  />
 <text id="title" x="600.00" y="24" >Flame Graph</text>
-<text id="details" x="10.00" y="213" > </text>
+<text id="details" x="10.00" y="277" > </text>
 <text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
 <text id="search" x="1090.00" y="24" >Search</text>
 <text id="ignorecase" x="1174.00" y="24" >ic</text>
-<text id="matched" x="1090.00" y="213" > </text>
+<text id="matched" x="1090.00" y="277" > </text>
 <g id="frames">
 <g >
-<title>gh_yield (22,662,651,036 samples, 43.51%; +3.98%)</title><rect x="614.3" y="85" width="513.5" height="15.0" fill="rgb(255,126,126)" rx="2" ry="2" />
-<text  x="617.32" y="95.5" >gh_yield</text>
+<title>grp_add_vruntime (271,487,526 samples, 0.52%; +0.50%)</title><rect x="1171.9" y="213" width="6.1" height="15.0" fill="rgb(255,198,198)" rx="2" ry="2" />
+<text  x="1174.87" y="223.5" ></text>
 </g>
 <g >
-<title>mh_choose_heap (2,703,447,917 samples, 5.19%; +1.19%)</title><rect x="996.1" y="69" width="61.3" height="15.0" fill="rgb(255,185,185)" rx="2" ry="2" />
-<text  x="999.10" y="79.5" >mh_cho..</text>
+<title>heap_push (2,413,306,108 samples, 4.64%; +0.75%)</title><rect x="95.2" y="85" width="54.8" height="15.0" fill="rgb(255,193,193)" rx="2" ry="2" />
+<text  x="98.23" y="95.5" >heap_..</text>
 </g>
 <g >
-<title>heap_push (2,573,614,415 samples, 4.94%; +2.71%)</title><rect x="771.4" y="69" width="58.3" height="15.0" fill="rgb(255,153,153)" rx="2" ry="2" />
-<text  x="774.37" y="79.5" >heap_p..</text>
+<title>mh_del_min_process (4,919,519,423 samples, 9.45%; +0.12%)</title><rect x="777.8" y="101" width="111.6" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="780.80" y="111.5" >mh_del_min_pr..</text>
 </g>
 <g >
-<title>clone3 (52,076,000,828 samples, 99.99%; 0.00%)</title><rect x="10.1" y="149" width="1179.9" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
-<text  x="13.08" y="159.5" >clone3</text>
+<title>heap_remove_min (5,785,259 samples, 0.01%; -0.00%)</title><rect x="619.3" y="133" width="0.1" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="622.25" y="143.5" ></text>
 </g>
 <g >
-<title>global-heap (52,079,683,652 samples, 100.00%; 0.00%)</title><rect x="10.0" y="165" width="1180.0" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
-<text  x="13.00" y="175.5" >global-heap</text>
+<title>heap_swap (381,727,814 samples, 0.73%; +0.52%)</title><rect x="866.1" y="37" width="8.7" height="15.0" fill="rgb(255,198,198)" rx="2" ry="2" />
+<text  x="869.13" y="47.5" ></text>
 </g>
 <g >
-<title>heap_remove_min (445,733,075 samples, 0.86%; +0.58%)</title><rect x="123.4" y="69" width="10.1" height="15.0" fill="rgb(255,197,197)" rx="2" ry="2" />
-<text  x="126.44" y="79.5" ></text>
+<title>rand_r@plt (128,826,212 samples, 0.25%; +0.10%)</title><rect x="983.8" y="69" width="2.9" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="986.77" y="79.5" ></text>
 </g>
 <g >
-<title>safe_read_tsc (155,307,213 samples, 0.30%; +0.16%)</title><rect x="610.8" y="69" width="3.5" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
-<text  x="613.80" y="79.5" ></text>
+<title>proc_vt.isra.0 (5,676,848,691 samples, 10.91%; +0.34%)</title><rect x="150.0" y="101" width="128.7" height="15.0" fill="rgb(255,202,202)" rx="2" ry="2" />
+<text  x="152.96" y="111.5" >proc_vt.isra.0</text>
 </g>
 <g >
-<title>rand_r (1,452,506,768 samples, 2.79%; +1.95%)</title><rect x="451.9" y="37" width="32.9" height="15.0" fill="rgb(255,169,169)" rx="2" ry="2" />
-<text  x="454.93" y="47.5" >ra..</text>
+<title>gh_yield (17,345,148 samples, 0.03%; +0.02%)</title><rect x="568.2" y="149" width="0.4" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="571.25" y="159.5" ></text>
 </g>
 <g >
-<title>rand_r (845,727,139 samples, 1.62%; +0.99%)</title><rect x="1035.4" y="53" width="19.2" height="15.0" fill="rgb(255,189,189)" rx="2" ry="2" />
-<text  x="1038.45" y="63.5" ></text>
+<title>sub_lag (1,656,612,080 samples, 3.18%; +2.58%)</title><rect x="241.1" y="85" width="37.6" height="15.0" fill="rgb(255,152,152)" rx="2" ry="2" />
+<text  x="244.12" y="95.5" >sub..</text>
 </g>
 <g >
-<title>mh_add_process (179,446,599 samples, 0.34%; +0.21%)</title><rect x="992.0" y="69" width="4.1" height="15.0" fill="rgb(255,205,205)" rx="2" ry="2" />
-<text  x="995.04" y="79.5" ></text>
+<title>run_core (50,997,196,053 samples, 98.00%; +0.72%)</title><rect x="10.3" y="181" width="1156.4" height="15.0" fill="rgb(255,194,194)" rx="2" ry="2" />
+<text  x="13.26" y="191.5" >run_core</text>
 </g>
 <g >
-<title>heap_remove_min (4,371,428,209 samples, 8.39%; +5.12%)</title><rect x="300.6" y="53" width="99.1" height="15.0" fill="rgb(255,103,103)" rx="2" ry="2" />
-<text  x="303.61" y="63.5" >heap_remove..</text>
+<title>heap_sift_down (3,126,374,282 samples, 6.01%; +1.90%)</title><rect x="803.9" y="53" width="70.9" height="15.0" fill="rgb(255,167,167)" rx="2" ry="2" />
+<text  x="806.89" y="63.5" >heap_sif..</text>
 </g>
 <g >
-<title>start_thread (52,076,000,828 samples, 99.99%; 0.00%)</title><rect x="10.1" y="133" width="1179.9" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
-<text  x="13.08" y="143.5" >start_thread</text>
+<title>__rdtscp (254,329,037 samples, 0.49%; +0.40%)</title><rect x="1107.7" y="85" width="5.7" height="15.0" fill="rgb(255,201,201)" rx="2" ry="2" />
+<text  x="1110.66" y="95.5" ></text>
 </g>
 <g >
-<title>doop (48,433,835,071 samples, 93.00%; +3.19%)</title><rect x="41.6" y="101" width="1097.4" height="15.0" fill="rgb(255,143,143)" rx="2" ry="2" />
-<text  x="44.63" y="111.5" >doop</text>
+<title>enq_proc_vt (8,622,994,564 samples, 16.57%; +0.17%)</title><rect x="83.2" y="117" width="195.5" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
+<text  x="86.15" y="127.5" >enq_proc_vt</text>
 </g>
 <g >
-<title>safe_read_tsc (357,191,986 samples, 0.69%; +0.40%)</title><rect x="488.9" y="53" width="8.1" height="15.0" fill="rgb(255,201,201)" rx="2" ry="2" />
-<text  x="491.90" y="63.5" ></text>
+<title>safe_read_tsc (410,433,060 samples, 0.79%; +0.22%)</title><rect x="1104.1" y="101" width="9.3" height="15.0" fill="rgb(255,205,205)" rx="2" ry="2" />
+<text  x="1107.12" y="111.5" ></text>
 </g>
 <g >
-<title>c_rand (739,931,315 samples, 1.42%; +0.83%)</title><rect x="1018.7" y="53" width="16.7" height="15.0" fill="rgb(255,192,192)" rx="2" ry="2" />
-<text  x="1021.68" y="63.5" ></text>
+<title>doop (23,484,653,669 samples, 45.13%; +1.51%)</title><rect x="35.7" y="149" width="532.5" height="15.0" fill="rgb(255,176,176)" rx="2" ry="2" />
+<text  x="38.70" y="159.5" >doop</text>
 </g>
 <g >
-<title>lock_release (57,891,190 samples, 0.11%; +0.08%)</title><rect x="1127.8" y="85" width="1.3" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
-<text  x="1130.78" y="95.5" ></text>
+<title>doop (24,093,809,823 samples, 46.30%; +1.42%)</title><rect x="568.6" y="165" width="546.4" height="15.0" fill="rgb(255,178,178)" rx="2" ry="2" />
+<text  x="571.64" y="175.5" >doop</text>
 </g>
 <g >
-<title>c_rand (1,244,393,303 samples, 2.39%; +1.42%)</title><rect x="423.7" y="37" width="28.2" height="15.0" fill="rgb(255,180,180)" rx="2" ry="2" />
-<text  x="426.73" y="47.5" >c..</text>
+<title>lock_release (11,550,936 samples, 0.02%; +0.02%)</title><rect x="686.2" y="101" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="689.16" y="111.5" ></text>
 </g>
 <g >
-<title>proc_vt.isra.0 (106,737,847 samples, 0.20%; +0.11%)</title><rect x="1136.6" y="85" width="2.4" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
-<text  x="1139.57" y="95.5" ></text>
+<title>lock_try_acquire (11,551,236 samples, 0.02%; +0.02%)</title><rect x="1180.4" y="213" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1183.38" y="223.5" ></text>
 </g>
 <g >
-<title>proc_vt.isra.0 (3,108,387,343 samples, 5.97%; +4.48%)</title><rect x="1057.4" y="69" width="70.4" height="15.0" fill="rgb(255,116,116)" rx="2" ry="2" />
-<text  x="1060.35" y="79.5" >proc_vt..</text>
+<title>enq_proc_vt (11,559,842 samples, 0.02%; 0.00%)</title><rect x="1171.6" y="197" width="0.3" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="1174.61" y="207.5" ></text>
 </g>
 <g >
-<title>now (1,914,005,805 samples, 3.68%; +0.87%)</title><rect x="1146.6" y="101" width="43.4" height="15.0" fill="rgb(255,191,191)" rx="2" ry="2" />
-<text  x="1149.59" y="111.5" >now</text>
+<title>lock_release (11,560,865 samples, 0.02%; +0.01%)</title><rect x="619.4" y="133" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="622.39" y="143.5" ></text>
 </g>
 <g >
-<title>grp_add_vruntime (3,484,823,082 samples, 6.69%; +4.62%)</title><rect x="692.4" y="69" width="79.0" height="15.0" fill="rgb(255,113,113)" rx="2" ry="2" />
-<text  x="695.42" y="79.5" >grp_add_v..</text>
+<title>proc_vt.isra.0 (23,129,011 samples, 0.04%; +0.04%)</title><rect x="1188.9" y="213" width="0.5" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1191.91" y="223.5" ></text>
 </g>
 <g >
-<title>mh_rand_heaps (179,426,395 samples, 0.34%; +0.26%)</title><rect x="497.0" y="69" width="4.1" height="15.0" fill="rgb(255,204,204)" rx="2" ry="2" />
-<text  x="500.00" y="79.5" ></text>
+<title>mh_add_process (11,559,842 samples, 0.02%; +0.02%)</title><rect x="1171.6" y="181" width="0.3" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1174.61" y="191.5" ></text>
 </g>
 <g >
-<title>gh_schedule (162,085,621 samples, 0.31%; +0.15%)</title><rect x="1141.3" y="101" width="3.7" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
-<text  x="1144.35" y="111.5" ></text>
+<title>grp_add_vruntime (3,095,655,763 samples, 5.95%; +4.46%)</title><rect x="170.9" y="85" width="70.2" height="15.0" fill="rgb(255,110,110)" rx="2" ry="2" />
+<text  x="173.93" y="95.5" >grp_add..</text>
 </g>
 <g >
-<title>__vdso_gettimeofday (137,663,523 samples, 0.26%; +0.09%)</title><rect x="38.5" y="101" width="3.1" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
-<text  x="41.51" y="111.5" ></text>
+<title>rand_r (1,493,217,636 samples, 2.87%; +1.94%)</title><rect x="949.9" y="69" width="33.9" height="15.0" fill="rgb(255,166,166)" rx="2" ry="2" />
+<text  x="952.91" y="79.5" >ra..</text>
 </g>
 <g >
-<title>gh_yield (69,342,550 samples, 0.13%; +0.06%)</title><rect x="1145.0" y="101" width="1.6" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
-<text  x="1148.02" y="111.5" ></text>
+<title>heap_push (28,906,296 samples, 0.06%; 0.00%)</title><rect x="1178.0" y="213" width="0.7" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="1181.02" y="223.5" ></text>
 </g>
 <g >
-<title>lock_try_acquire (7,165,962,467 samples, 13.76%; +10.06%)</title><rect x="829.7" y="69" width="162.3" height="15.0" fill="rgb(255,0,0)" rx="2" ry="2" />
-<text  x="832.68" y="79.5" >lock_try_acquire</text>
+<title>lock_release (99,315,369 samples, 0.19%; +0.12%)</title><rect x="89.2" y="101" width="2.2" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="92.18" y="111.5" ></text>
 </g>
 <g >
-<title>lock_try_acquire (3,868,831,889 samples, 7.43%; +5.52%)</title><rect x="134.8" y="69" width="87.7" height="15.0" fill="rgb(255,94,94)" rx="2" ry="2" />
-<text  x="137.85" y="79.5" >lock_try_a..</text>
+<title>heap_elem_cmp (127,195,236 samples, 0.24%; +0.06%)</title><rect x="129.7" y="37" width="2.8" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="132.66" y="47.5" ></text>
 </g>
 <g >
-<title>now (215,162,355 samples, 0.41%; +0.24%)</title><rect x="17.3" y="117" width="4.9" height="15.0" fill="rgb(255,204,204)" rx="2" ry="2" />
-<text  x="20.32" y="127.5" ></text>
+<title>all (52,036,753,255 samples, 100%)</title><rect x="10.0" y="245" width="1180.0" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="13.00" y="255.5" ></text>
 </g>
 <g >
-<title>run_core (51,541,472,945 samples, 98.96%; +0.79%)</title><rect x="22.2" y="117" width="1167.8" height="15.0" fill="rgb(255,193,193)" rx="2" ry="2" />
-<text  x="25.19" y="127.5" >run_core</text>
+<title>mh_select.isra.0 (5,785,109 samples, 0.01%; +0.01%)</title><rect x="1188.8" y="213" width="0.1" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1191.77" y="223.5" ></text>
 </g>
 <g >
-<title>doop (319,365,528 samples, 0.61%; +0.37%)</title><rect x="10.1" y="117" width="7.2" height="15.0" fill="rgb(255,202,202)" rx="2" ry="2" />
-<text  x="13.08" y="127.5" ></text>
+<title>mh_add_process (11,570,519 samples, 0.02%; +0.01%)</title><rect x="1180.6" y="213" width="0.3" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1183.65" y="223.5" ></text>
 </g>
 <g >
-<title>c_rand (263,795,992 samples, 0.51%; +0.24%)</title><rect x="686.4" y="69" width="6.0" height="15.0" fill="rgb(255,204,204)" rx="2" ry="2" />
-<text  x="689.44" y="79.5" ></text>
+<title>global-heap (52,034,753,257 samples, 100.00%; 0.00%)</title><rect x="10.0" y="229" width="1180.0" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="13.00" y="239.5" >global-heap</text>
 </g>
 <g >
-<title>rand_r@plt (121,172,161 samples, 0.23%; +0.08%)</title><rect x="1054.6" y="53" width="2.8" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
-<text  x="1057.61" y="63.5" ></text>
+<title>heap_elem_cmp (28,906,296 samples, 0.06%; 0.00%)</title><rect x="1178.0" y="181" width="0.7" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="1181.02" y="191.5" ></text>
 </g>
 <g >
-<title>gettimeofday@plt (104,199,177 samples, 0.20%; +0.13%)</title><rect x="1139.0" y="101" width="2.3" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
-<text  x="1141.99" y="111.5" ></text>
+<title>c_rand (98,243,601 samples, 0.19%; +0.12%)</title><rect x="1166.8" y="213" width="2.2" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="1169.77" y="223.5" ></text>
 </g>
 <g >
-<title>mh_min_proc (12,115,386,822 samples, 23.26%; +4.00%)</title><rect x="222.5" y="69" width="274.5" height="15.0" fill="rgb(255,126,126)" rx="2" ry="2" />
-<text  x="225.50" y="79.5" >mh_min_proc</text>
+<title>mh_rand_heaps (4,292,551,158 samples, 8.25%; +0.99%)</title><rect x="889.4" y="101" width="97.3" height="15.0" fill="rgb(255,187,187)" rx="2" ry="2" />
+<text  x="892.35" y="111.5" >mh_rand_heaps</text>
 </g>
 <g >
-<title>__vdso_gettimeofday (1,128,575,894 samples, 2.17%; +1.12%)</title><rect x="1164.4" y="85" width="25.6" height="15.0" fill="rgb(255,186,186)" rx="2" ry="2" />
-<text  x="1167.38" y="95.5" >_..</text>
+<title>action (23,848,980,614 samples, 45.83%; +0.39%)</title><rect x="27.8" y="165" width="540.8" height="15.0" fill="rgb(255,201,201)" rx="2" ry="2" />
+<text  x="30.84" y="175.5" >action</text>
 </g>
 <g >
-<title>all (52,081,683,650 samples, 100%)</title><rect x="10.0" y="181" width="1180.0" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<title>mh_min_proc (21,775,099,791 samples, 41.85%; +0.62%)</title><rect x="619.6" y="133" width="493.8" height="15.0" fill="rgb(255,196,196)" rx="2" ry="2" />
+<text  x="622.65" y="143.5" >mh_min_proc</text>
+</g>
+<g >
+<title>mh_remove_min (4,815,403,363 samples, 9.25%; +0.28%)</title><rect x="780.2" y="85" width="109.2" height="15.0" fill="rgb(255,203,203)" rx="2" ry="2" />
+<text  x="783.16" y="95.5" >mh_remove_min</text>
+</g>
+<g >
+<title>mh_sample_min_proc (21,180,588,244 samples, 40.70%; +2.85%)</title><rect x="633.1" y="117" width="480.3" height="15.0" fill="rgb(255,146,146)" rx="2" ry="2" />
+<text  x="636.13" y="127.5" >mh_sample_min_proc</text>
+</g>
+<g >
+<title>c_rand (3,120,802,806 samples, 6.00%; +1.80%)</title><rect x="915.9" y="85" width="70.8" height="15.0" fill="rgb(255,169,169)" rx="2" ry="2" />
+<text  x="918.93" y="95.5" >c_rand</text>
+</g>
+<g >
+<title>mh_choose_heap (10,546,757,591 samples, 20.27%; +1.44%)</title><rect x="278.7" y="117" width="239.2" height="15.0" fill="rgb(255,177,177)" rx="2" ry="2" />
+<text  x="281.69" y="127.5" >mh_choose_heap</text>
+</g>
+<g >
+<title>c_rand (28,877,916 samples, 0.06%; +0.06%)</title><rect x="1181.4" y="197" width="0.7" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="1184.43" y="207.5" ></text>
+</g>
+<g >
+<title>heap_elem_cmp (28,906,296 samples, 0.06%; +0.01%)</title><rect x="1178.0" y="165" width="0.7" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1181.02" y="175.5" ></text>
+</g>
+<g >
+<title>heap_elem_cmp (952,158,919 samples, 1.83%; +0.80%)</title><rect x="111.0" y="53" width="21.5" height="15.0" fill="rgb(255,192,192)" rx="2" ry="2" />
+<text  x="113.95" y="63.5" >h..</text>
+</g>
+<g >
+<title>heap_sift_up (28,906,296 samples, 0.06%; 0.00%)</title><rect x="1178.0" y="197" width="0.7" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="1181.02" y="207.5" ></text>
+</g>
+<g >
+<title>lock_try_acquire (7,287,286,722 samples, 14.00%; +9.43%)</title><rect x="352.6" y="101" width="165.3" height="15.0" fill="rgb(255,0,0)" rx="2" ry="2" />
+<text  x="355.60" y="111.5" >lock_try_acquire</text>
+</g>
+<g >
+<title>rand_r@plt (75,190,056 samples, 0.14%; +0.08%)</title><rect x="350.9" y="85" width="1.7" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="353.90" y="95.5" ></text>
+</g>
+<g >
+<title>heap_swap (642,561,621 samples, 1.23%; +0.88%)</title><rect x="874.8" y="53" width="14.6" height="15.0" fill="rgb(255,190,190)" rx="2" ry="2" />
+<text  x="877.78" y="63.5" ></text>
+</g>
+<g >
+<title>c_rand (11,560,116 samples, 0.02%; -0.00%)</title><rect x="685.9" y="101" width="0.3" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="688.89" y="111.5" ></text>
+</g>
+<g >
+<title>c_rand (11,560,520 samples, 0.02%; +0.01%)</title><rect x="82.9" y="117" width="0.3" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="85.89" y="127.5" ></text>
+</g>
+<g >
+<title>lock_release (57,839,452 samples, 0.11%; +0.07%)</title><rect x="1179.1" y="213" width="1.3" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="1182.07" y="223.5" ></text>
+</g>
+<g >
+<title>__vdso_gettimeofday (1,187,049,563 samples, 2.28%; +1.45%)</title><rect x="1136.9" y="149" width="26.9" height="15.0" fill="rgb(255,177,177)" rx="2" ry="2" />
+<text  x="1139.92" y="159.5" >_..</text>
+</g>
+<g >
+<title>calc_delta (652,775,273 samples, 1.25%; +0.70%)</title><rect x="156.1" y="85" width="14.8" height="15.0" fill="rgb(255,194,194)" rx="2" ry="2" />
+<text  x="159.12" y="95.5" ></text>
+</g>
+<g >
+<title>mh_rand_heaps (5,785,219 samples, 0.01%; +0.01%)</title><rect x="1113.4" y="133" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1116.43" y="143.5" ></text>
+</g>
+<g >
+<title>mh_choose_heap (52,007,927 samples, 0.10%; +0.02%)</title><rect x="1180.9" y="213" width="1.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1183.91" y="223.5" ></text>
+</g>
+<g >
+<title>now (2,279,432,179 samples, 4.38%; +1.08%)</title><rect x="1115.0" y="165" width="51.7" height="15.0" fill="rgb(255,186,186)" rx="2" ry="2" />
+<text  x="1118.00" y="175.5" >now</text>
+</g>
+<g >
+<title>mh_add_process (2,580,820,542 samples, 4.96%; +0.14%)</title><rect x="91.4" y="101" width="58.6" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
+<text  x="94.44" y="111.5" >mh_add..</text>
+</g>
+<g >
+<title>mh_min_proc (208,191,717 samples, 0.40%; +0.27%)</title><rect x="1182.1" y="213" width="4.7" height="15.0" fill="rgb(255,203,203)" rx="2" ry="2" />
+<text  x="1185.09" y="223.5" ></text>
+</g>
+<g >
+<title>gh_schedule (11,551,260 samples, 0.02%; -0.01%)</title><rect x="1169.6" y="213" width="0.3" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="1172.64" y="223.5" ></text>
+</g>
+<g >
+<title>gh_schedule (22,739,366,156 samples, 43.70%; +1.01%)</title><rect x="599.4" y="149" width="515.6" height="15.0" fill="rgb(255,187,187)" rx="2" ry="2" />
+<text  x="602.36" y="159.5" >gh_schedule</text>
+</g>
+<g >
+<title>mh_upd_stat (358,433,897 samples, 0.69%; +0.55%)</title><rect x="1096.0" y="101" width="8.1" height="15.0" fill="rgb(255,197,197)" rx="2" ry="2" />
+<text  x="1098.99" y="111.5" ></text>
+</g>
+<g >
+<title>lock_try_acquire (4,029,797,658 samples, 7.74%; +5.15%)</title><rect x="686.4" y="101" width="91.4" height="15.0" fill="rgb(255,95,95)" rx="2" ry="2" />
+<text  x="689.42" y="111.5" >lock_try_a..</text>
+</g>
+<g >
+<title>gh_yield (22,171,706,400 samples, 42.61%; +1.23%)</title><rect x="63.6" y="133" width="502.8" height="15.0" fill="rgb(255,182,182)" rx="2" ry="2" />
+<text  x="66.64" y="143.5" >gh_yield</text>
+</g>
+<g >
+<title>heap_remove_min (4,578,405,055 samples, 8.80%; +1.17%)</title><rect x="785.5" y="69" width="103.9" height="15.0" fill="rgb(255,184,184)" rx="2" ry="2" />
+<text  x="788.53" y="79.5" >heap_remove_..</text>
+</g>
+<g >
+<title>mh_select.isra.0 (4,819,881,299 samples, 9.26%; +6.54%)</title><rect x="986.7" y="101" width="109.3" height="15.0" fill="rgb(255,64,64)" rx="2" ry="2" />
+<text  x="989.69" y="111.5" >mh_select.isr..</text>
+</g>
+<g >
+<title>heap_remove_min (17,327,051 samples, 0.03%; +0.01%)</title><rect x="1178.7" y="213" width="0.4" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1181.68" y="223.5" ></text>
+</g>
+<g >
+<title>proc_vt.isra.0 (5,774,990 samples, 0.01%; +0.01%)</title><rect x="568.1" y="133" width="0.1" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="571.12" y="143.5" ></text>
+</g>
+<g >
+<title>heap_swap (768,083,188 samples, 1.48%; +0.97%)</title><rect x="132.5" y="53" width="17.5" height="15.0" fill="rgb(255,188,188)" rx="2" ry="2" />
+<text  x="135.54" y="63.5" ></text>
+</g>
+<g >
+<title>safe_read_tsc (57,834,933 samples, 0.11%; +0.04%)</title><rect x="1113.7" y="133" width="1.3" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1116.69" y="143.5" ></text>
+</g>
+<g >
+<title>mh_rand_heaps (86,718,689 samples, 0.17%; +0.12%)</title><rect x="1186.8" y="213" width="2.0" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="1189.81" y="223.5" ></text>
+</g>
+<g >
+<title>gh_yield (86,754,025 samples, 0.17%; +0.11%)</title><rect x="1169.9" y="213" width="2.0" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
+<text  x="1172.90" y="223.5" ></text>
+</g>
+<g >
+<title>heap_elem_cmp (1,168,662,470 samples, 2.25%; +1.55%)</title><rect x="839.6" y="37" width="26.5" height="15.0" fill="rgb(255,175,175)" rx="2" ry="2" />
+<text  x="842.63" y="47.5" >h..</text>
+</g>
+<g >
+<title>doop (28,135,288 samples, 0.05%; +0.02%)</title><rect x="1169.0" y="213" width="0.6" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1172.00" y="223.5" ></text>
+</g>
+<g >
+<title>mh_add_process (75,182,138 samples, 0.14%; +0.09%)</title><rect x="566.4" y="133" width="1.7" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="569.41" y="143.5" ></text>
+</g>
+<g >
+<title>__vdso_gettimeofday (11,550,982 samples, 0.02%; +0.02%)</title><rect x="27.6" y="165" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="30.57" y="175.5" ></text>
+</g>
+<g >
+<title>upd_lag (2,141,546,966 samples, 4.12%; +0.17%)</title><rect x="517.9" y="117" width="48.5" height="15.0" fill="rgb(255,206,206)" rx="2" ry="2" />
+<text  x="520.85" y="127.5" >upd_..</text>
+</g>
+<g >
+<title>safe_read_tsc (23,120,087 samples, 0.04%; +0.03%)</title><rect x="1189.4" y="213" width="0.6" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1192.43" y="223.5" ></text>
+</g>
+<g >
+<title>doop (11,560,711 samples, 0.02%; +0.01%)</title><rect x="10.0" y="181" width="0.3" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
 <text  x="13.00" y="191.5" ></text>
 </g>
 <g >
-<title>mh_choose_heap (115,789,960 samples, 0.22%; +0.14%)</title><rect x="1132.5" y="85" width="2.6" height="15.0" fill="rgb(255,207,207)" rx="2" ry="2" />
-<text  x="1135.50" y="95.5" ></text>
+<title>__GI___clone3 (51,008,756,764 samples, 98.02%; 0.00%)</title><rect x="10.0" y="213" width="1156.7" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="13.00" y="223.5" >__GI___clone3</text>
 </g>
 <g >
-<title>lock_release (57,878,704 samples, 0.11%; +0.09%)</title><rect x="133.5" y="69" width="1.3" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
-<text  x="136.53" y="79.5" ></text>
+<title>c_rand (2,080,604,209 samples, 4.00%; +1.19%)</title><rect x="305.4" y="101" width="47.2" height="15.0" fill="rgb(255,183,183)" rx="2" ry="2" />
+<text  x="308.42" y="111.5" >c_rand</text>
 </g>
 <g >
-<title>mh_min_proc (63,676,137 samples, 0.12%; +0.03%)</title><rect x="1135.1" y="85" width="1.5" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
-<text  x="1138.12" y="95.5" ></text>
+<title>heap_sift_up (1,766,458,293 samples, 3.39%; +0.07%)</title><rect x="109.9" y="69" width="40.1" height="15.0" fill="rgb(255,208,208)" rx="2" ry="2" />
+<text  x="112.90" y="79.5" >hea..</text>
 </g>
 <g >
-<title>gh_schedule (22,627,552,319 samples, 43.45%; +0.93%)</title><rect x="101.7" y="85" width="512.6" height="15.0" fill="rgb(255,190,190)" rx="2" ry="2" />
-<text  x="104.65" y="95.5" >gh_schedule</text>
+<title>start_thread (51,008,756,764 samples, 98.02%; 0.00%)</title><rect x="10.0" y="197" width="1156.7" height="15.0" fill="rgb(255,255,255)" rx="2" ry="2" />
+<text  x="13.00" y="207.5" >start_thread</text>
 </g>
 <g >
-<title>c_rand (318,346,053 samples, 0.61%; +0.31%)</title><rect x="293.4" y="53" width="7.2" height="15.0" fill="rgb(255,203,203)" rx="2" ry="2" />
-<text  x="296.40" y="63.5" ></text>
+<title>mh_select.isra.0 (5,785,064 samples, 0.01%; -0.00%)</title><rect x="1113.6" y="133" width="0.1" height="15.0" fill="rgb(209,209,255)" rx="2" ry="2" />
+<text  x="1116.56" y="143.5" ></text>
 </g>
 <g >
-<title>mh_add_process (150,497,495 samples, 0.29%; +0.22%)</title><rect x="1129.1" y="85" width="3.4" height="15.0" fill="rgb(255,205,205)" rx="2" ry="2" />
-<text  x="1132.09" y="95.5" ></text>
+<title>gettimeofday@plt (125,556,670 samples, 0.24%; +0.20%)</title><rect x="1163.8" y="149" width="2.9" height="15.0" fill="rgb(255,205,205)" rx="2" ry="2" />
+<text  x="1166.84" y="159.5" ></text>
 </g>
 <g >
-<title>mh_select.isra.0 (4,843,548,084 samples, 9.30%; +6.36%)</title><rect x="501.1" y="69" width="109.7" height="15.0" fill="rgb(255,77,77)" rx="2" ry="2" />
-<text  x="504.06" y="79.5" >mh_select.isr..</text>
+<title>calc_delta (1,980,802,039 samples, 3.81%; +2.67%)</title><rect x="521.5" y="101" width="44.9" height="15.0" fill="rgb(255,150,150)" rx="2" ry="2" />
+<text  x="524.50" y="111.5" >calc..</text>
 </g>
 <g >
-<title>mh_rand_heaps (3,939,263,229 samples, 7.56%; +1.40%)</title><rect x="399.7" y="53" width="89.2" height="15.0" fill="rgb(255,180,180)" rx="2" ry="2" />
-<text  x="402.65" y="63.5" >mh_rand_he..</text>
+<title>c_rand (5,775,516 samples, 0.01%; +0.01%)</title><rect x="1188.6" y="197" width="0.2" height="15.0" fill="rgb(255,209,209)" rx="2" ry="2" />
+<text  x="1191.64" y="207.5" ></text>
 </g>
 <g >
-<title>rand_r@plt (179,451,232 samples, 0.34%; +0.22%)</title><rect x="484.8" y="37" width="4.1" height="15.0" fill="rgb(255,205,205)" rx="2" ry="2" />
-<text  x="487.84" y="47.5" ></text>
+<title>rand_r (1,048,674,095 samples, 2.02%; +1.42%)</title><rect x="327.1" y="85" width="23.8" height="15.0" fill="rgb(255,178,178)" rx="2" ry="2" />
+<text  x="330.12" y="95.5" >r..</text>
 </g>
 </g>
 </svg>

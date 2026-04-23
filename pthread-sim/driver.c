@@ -154,6 +154,25 @@ void sleepwakeup(struct global_heap *gh, struct core *mycore) {
 	action(gh, mycore, WAKEUP);
 }
 
+void rr_groups(int num_groups, int num_threads_p_group) {
+	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
+	int n = num_threads_p_group;
+	if(num_groups > 1) n -= 1;
+	for (int i = 0; i < num_groups; i++) {
+		struct group *g = grp_new(gs->gh->mh, i, 0);
+		gs->grps[i] = g;
+		if(i == 0) {
+			for (int j = 0; j < n; j++) {
+				struct process *p = grp_new_process(gs->gh->mh, j, g);
+				gh_enqueue_rr(gs->gh, gs->cores[0], p);
+			}
+		} else {
+			struct process *p = grp_new_process(gs->gh->mh, n+1, g);
+			gh_enqueue_rr(gs->gh, gs->cores[0], p);
+		}
+	}	
+}
+
 void global_heap_groups(int num_groups, int num_threads_p_group) {
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
 	w_t w = base_weight;
@@ -163,8 +182,7 @@ void global_heap_groups(int num_groups, int num_threads_p_group) {
 		gs->grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {
 			struct process *p = grp_new_process(gs->gh->mh, i*num_threads_p_group+j, g);
-			if(rr) gh_enqueue_rr(gs->gh, gs->cores[0], p);
-			else gh_enqueue(gs->gh, gs->cores[0], p);
+			gh_enqueue(gs->gh, gs->cores[0], p);
 		}
 	}
 }
@@ -257,7 +275,8 @@ void main(int argc, char *argv[]) {
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
 	gs->gh = gh_new(tick_length, nheap, gs->cores, num_cores);
-	global_heap_groups(num_groups, num_threads_p_group);
+	if (rr) rr_groups(num_groups, num_threads_p_group);
+	else global_heap_groups(num_groups, num_threads_p_group);
 
 	// printf("==="); mh_print(gs->gh->mh);
 

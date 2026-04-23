@@ -157,7 +157,9 @@ void sleepwakeup(struct global_heap *gh, struct core *mycore) {
 void rr_groups(int num_groups, int num_threads_p_group) {
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
 	int n = num_threads_p_group;
-	if(num_groups > 1) n -= 1;
+	if(num_groups > 1) {
+		n -= 1;
+	}
 	for (int i = 0; i < num_groups; i++) {
 		struct group *g = grp_new(gs->gh->mh, i, 0);
 		gs->grps[i] = g;
@@ -167,7 +169,7 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 				gh_enqueue_rr(gs->gh, gs->cores[0], p);
 			}
 		} else {
-			struct process *p = grp_new_process(gs->gh->mh, n+1, g);
+			struct process *p = grp_new_process(gs->gh->mh1, n+1, g);
 			gh_enqueue_rr(gs->gh, gs->cores[0], p);
 		}
 	}	

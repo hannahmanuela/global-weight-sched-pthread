@@ -12,7 +12,7 @@
 #include "mheap.h"
 
 //
-// global_heap with rr
+// rr with multiheap with 1 or two groups (i.e., priority levels)
 //
 
 extern int debug;
@@ -62,6 +62,8 @@ void gh_enqueue_rr(struct global_heap *gh, struct core *c, struct process *p) {
 
 // Yield and enqueue
 void gh_yield_rr(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+	p->runtime += time_passed;
+
 	struct heap *h = mh_choose_heap(p->mh, c);
 
 	enq_proc_vt(gh, c, p, h);

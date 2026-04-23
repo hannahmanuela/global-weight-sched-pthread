@@ -45,7 +45,7 @@ struct group *grp_new(struct mheap *mh, int id, int weight, bool using_mv) {
 	g->vruntime = 0;
 	g->using_mv = using_mv;
 	if (using_mv) {
-		g->vruntime_mv = mv_new(2);
+		g->vruntime_mv = mv_new(4);
 	} else {
 		g->vruntime_mv = NULL;
 	}
@@ -67,7 +67,9 @@ void proc_print(struct process *p) {
 
 vt_t grp_get_vruntime(struct process *p, struct core *c) {
 	if (p->group->using_mv) {
-		return mv_get_val(p->group->vruntime_mv, c);
+		vt_t sum = 0;
+		for (int i = 0; i < p->group->vruntime_mv->nvalues; i++) sum += atomic_load(p->group->vruntime_mv->value[i]);
+		return sum;
 	} else {
 		return p->group->vruntime;
 	}
@@ -77,7 +79,7 @@ void grp_set_vruntime(struct process *p, struct core *c, vt_t vt) {
 	if(debug)
 		printf("%d(%d): grp_set_vruntime: vt %lld\n", p->pid, p->group->gid, vt);
 	if (p->group->using_mv) {
-		mv_set_val(p->group->vruntime_mv, c, vt);
+		for (int i = 0; i < p->group->vruntime_mv->nvalues; i++) atomic_store(p->group->vruntime_mv->value[i], vt / p->group->vruntime_mv->nvalues);
 	} else {
 		atomic_store(&p->group->vruntime, vt);
 	}
@@ -85,8 +87,10 @@ void grp_set_vruntime(struct process *p, struct core *c, vt_t vt) {
 
 vt_t grp_add_vruntime(struct process *p, struct core *c, vt_t vt) {
 	if (p->group->using_mv) {
+		// not using power of two choices right now, 
+		// 		but adding that in w/o locks creates races that we may not like
 		int idx_to_use = c_rand(c, p->group->vruntime_mv->nvalues);
-		return atomic_fetch_add_explicit(p->group->vruntime_mv->value[idx_to_use], vt, __ATOMIC_RELAXED);
+		return atomic_fetch_add_explicit(p->group->vruntime_mv->value[idx_to_use], vt, __ATOMIC_RELAXED) * p->group->vruntime_mv->nvalues;
 	} else {
 		return atomic_fetch_add_explicit(&p->group->vruntime, vt, __ATOMIC_RELAXED);
 	}

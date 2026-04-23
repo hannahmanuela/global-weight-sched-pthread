@@ -9,6 +9,7 @@
 #include "heap.h"
 #include "mheap.h"
 #include "global_heap.h"
+#include "mvalue.h"
 #include "util.h"
 
 #define GRP1 1
@@ -514,6 +515,166 @@ void test_worst(int nheap) {
 }
 
 
+// -----------------------------------------------------------------------------
+// Tests for the partial-sum mv vruntime accounting in group.c
+//
+// Semantics under using_mv=true:
+//   grp_add_vruntime:  fetch_add on one random slot, return old_slot * N
+//   grp_get_vruntime:  sum of all slots (true total, no sampling)
+//   grp_set_vruntime:  write all slots to vt / N
+//
+// These tests exercise the invariants those semantics should preserve.
+// -----------------------------------------------------------------------------
+
+// Sum of all slots equals the cumulative adds (no lost or double-counted work).
+void test_mv_sum_invariant() {
+	printf("== test_mv_sum_invariant start\n");
+
+	struct mheap *mh = mh_new(1);
+	struct core *c = c_new(0, 1, 42);
+	struct group *g = grp_new(mh, 0, 10, true);
+	struct process *p = grp_new_process(mh, 0, g);
+
+	assert(grp_get_vruntime(p, c) == 0);
+
+	int K = 1000;
+	vt_t delta = 37;
+	for (int i = 0; i < K; i++) {
+		grp_add_vruntime(p, c, delta);
+	}
+	assert(grp_get_vruntime(p, c) == (vt_t) K * delta);
+
+	mh_free(mh);
+	printf("-- test_mv_sum_invariant ok\n");
+}
+
+// grp_set_vruntime must reset ALL slots, not one. Without this fix,
+// a stale slot from before a sleep would leak through as extra credit
+// on wake-up.
+void test_mv_set_resets_all_slots() {
+	printf("== test_mv_set_resets_all_slots start\n");
+
+	struct mheap *mh = mh_new(1);
+	struct core *c = c_new(0, 1, 42);
+	struct group *g = grp_new(mh, 0, 10, true);
+	struct process *p = grp_new_process(mh, 0, g);
+
+	int N = g->vruntime_mv->nvalues;
+
+	// Simulate a stale slot that a single-slot set_vruntime would leave.
+	atomic_store((_Atomic vt_t *) g->vruntime_mv->value[0], (vt_t) 99999);
+	assert(grp_get_vruntime(p, c) == 99999);
+
+	vt_t target = 4000;
+	assert(target % N == 0);
+	grp_set_vruntime(p, c, target);
+
+	for (int i = 0; i < N; i++) {
+		vt_t slot = atomic_load((_Atomic vt_t *) g->vruntime_mv->value[i]);
+		assert(slot == target / N);
+	}
+	assert(grp_get_vruntime(p, c) == target);
+
+	mh_free(mh);
+	printf("-- test_mv_set_resets_all_slots ok\n");
+}
+
+// After set_vruntime all slots are equal, so the first add's returned
+// estimate (old_slot * N) is exact — this is the lowest-variance point.
+void test_mv_add_returns_scaled_old_total() {
+	printf("== test_mv_add_returns_scaled_old_total start\n");
+
+	struct mheap *mh = mh_new(1);
+	struct core *c = c_new(0, 1, 42);
+	struct group *g = grp_new(mh, 0, 10, true);
+	struct process *p = grp_new_process(mh, 0, g);
+
+	int N = g->vruntime_mv->nvalues;
+
+	vt_t base = 8000;
+	assert(base % N == 0);
+	grp_set_vruntime(p, c, base);
+
+	vt_t r = grp_add_vruntime(p, c, 11);
+	assert(r == base);
+	assert(grp_get_vruntime(p, c) == base + 11);
+
+	mh_free(mh);
+	printf("-- test_mv_add_returns_scaled_old_total ok\n");
+}
+
+// Over a long sequence of adds, the returned estimates should be unbiased.
+// True old total at step i is i*delta, so sum of true old totals over K
+// steps is delta * K*(K-1)/2. The sum of observed returns should track
+// that to within statistical noise.
+void test_mv_add_unbiased_over_sequence() {
+	printf("== test_mv_add_unbiased_over_sequence start\n");
+
+	struct mheap *mh = mh_new(1);
+	struct core *c = c_new(0, 1, 12345);
+	struct group *g = grp_new(mh, 0, 10, true);
+	struct process *p = grp_new_process(mh, 0, g);
+
+	vt_t delta = 1000;
+	int K = 10000;
+	double expected_sum = (double) delta * (double) K * (K - 1) / 2.0;
+
+	double observed_sum = 0;
+	for (int i = 0; i < K; i++) {
+		vt_t r = grp_add_vruntime(p, c, delta);
+		observed_sum += (double) r;
+	}
+	double rel_err = (observed_sum - expected_sum) / expected_sum;
+	printf("  observed=%.2f expected=%.2f rel_err=%.4f\n", observed_sum, expected_sum, rel_err);
+	assert(rel_err > -0.05 && rel_err < 0.05);
+
+	// The underlying accounting is still exact.
+	assert(grp_get_vruntime(p, c) == (vt_t) K * delta);
+
+	mh_free(mh);
+	printf("-- test_mv_add_unbiased_over_sequence ok\n");
+}
+
+// The mv path and the single-value path should agree on the group's
+// total vruntime after any sequence of adds and sets. (Individual
+// grp_add_vruntime returns differ by design — only the aggregate matches.)
+void test_mv_matches_single_value_sum() {
+	printf("== test_mv_matches_single_value_sum start\n");
+
+	struct mheap *mh_s = mh_new(1);
+	struct mheap *mh_m = mh_new(1);
+	struct core *cs = c_new(0, 1, 77);
+	struct core *cm = c_new(0, 1, 77);
+
+	struct group *gs = grp_new(mh_s, 0, 10, false);
+	struct process *ps = grp_new_process(mh_s, 0, gs);
+	struct group *gm = grp_new(mh_m, 0, 10, true);
+	struct process *pm = grp_new_process(mh_m, 0, gm);
+
+	for (int i = 0; i < 500; i++) {
+		grp_add_vruntime(ps, cs, 13);
+		grp_add_vruntime(pm, cm, 13);
+	}
+	assert(grp_get_vruntime(ps, cs) == grp_get_vruntime(pm, cm));
+
+	vt_t base = 100000;
+	assert(base % gm->vruntime_mv->nvalues == 0);
+	grp_set_vruntime(ps, cs, base);
+	grp_set_vruntime(pm, cm, base);
+	assert(grp_get_vruntime(ps, cs) == base);
+	assert(grp_get_vruntime(pm, cm) == base);
+
+	for (int i = 0; i < 500; i++) {
+		grp_add_vruntime(ps, cs, 7);
+		grp_add_vruntime(pm, cm, 7);
+	}
+	assert(grp_get_vruntime(ps, cs) == grp_get_vruntime(pm, cm));
+
+	mh_free(mh_s);
+	mh_free(mh_m);
+	printf("-- test_mv_matches_single_value_sum ok\n");
+}
+
 void main(int argc, char *argv[]) {
 	test_preempt_t();
         test_preempt();
@@ -536,5 +697,11 @@ void main(int argc, char *argv[]) {
 	test_mheap_sleep(1, 1, GRP2);
 	test_mheap_sleep(1, 2, 3);
 	test_worst(112);
+
+	test_mv_sum_invariant();
+	test_mv_set_resets_all_slots();
+	test_mv_add_returns_scaled_old_total();
+	test_mv_add_unbiased_over_sequence();
+	test_mv_matches_single_value_sum();
 }
 

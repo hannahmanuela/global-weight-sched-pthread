@@ -45,7 +45,9 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 		return p;
 	}
 	p = gh_schedule_rr_gid(gh->mh1, c);
-	printf("%d: run low %d(%d) %p\n", c->cid, p->pid, p->group->gid, gh->mh1);
+	if (debug) {
+		printf("%d: run low %d(%d) %p\n", c->cid, p->pid, p->group->gid, gh->mh1);
+	}
 	return p;
 }
 
@@ -61,7 +63,7 @@ void gh_enqueue_rr(struct global_heap *gh, struct core *c, struct process *p) {
 
 	enq_proc_vt(gh, c, p, h);
 
-	if(1) {
+	if(debug) {
 		printf("%d(%d): enqueue_rr %p\n", p->pid, p->group->gid, p->group->mh);
 		//mh_print(p->group->mh);
 	}
@@ -83,7 +85,7 @@ void gh_yield_rr(struct global_heap *gh, struct core *c, struct process *p, t_t 
 
 // Process p is not runnable and yields core
 void gh_dequeue_rr(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
-	if(1) {
+	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
 		//mh_print(p->group->mh);
 	}

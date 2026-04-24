@@ -164,10 +164,13 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 }	
 
 void rr_sched_action(struct core *mycore) {
+	#define DELAY 100
 	if (mycore->cid > 0 || num_groups == 1) {
 		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-		if(time_work > 0) 
-			usleep(time_work);
+		if(num_groups > 1)  {
+			// give low procs a chance to run
+			usleep(DELAY);
+		}
 		action(gs->gh, mycore, RUN);
 	} else {
 		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 

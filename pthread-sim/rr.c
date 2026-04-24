@@ -18,10 +18,10 @@
 
 extern int debug;
 
-// Select next process to run from gid
-struct process *gh_schedule_rr_gid(struct mheap *mh, struct core *c) {
+// Select next process to run from mh
+struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
 	struct process *min_proc = NULL;
-	min_proc = mh_min_proc(mh, c);
+	min_proc = mh_min_proc(mh, c, all);
 	if (min_proc == NULL) {
 		c->process = NULL;
 		return NULL;
@@ -40,15 +40,15 @@ struct process *gh_schedule_rr_gid(struct mheap *mh, struct core *c) {
 
 // Select next process to run
 struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
-	struct process *p = gh_schedule_rr_gid(gh->mh, c);
+	struct process *p;
+	p = gh_schedule_mh(gh->mh, c, true);
 	if(p != NULL) {
 		return p;
 	}
-	p = gh_schedule_rr_gid(gh->mh1, c);
+	p = gh_schedule_mh(gh->mh1, c, false);
 	if(p == NULL) {
 		return p;
 	}
-	//assert(c->cid == 0);
 	if (debug) {
 		printf("%d: run low %d(%d) %p\n", c->cid, p->pid, p->group->gid, gh->mh1);
 	}

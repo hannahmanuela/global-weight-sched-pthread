@@ -15,6 +15,8 @@
 
 #define W_DUMMY 0
 
+#define MH_INC(mh, i) (((i)+1) % mh->nheap)
+
 extern bool do_affinity;
 
 struct mheap *mh_new(int n) {
@@ -194,10 +196,41 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, stru
 	return h_i;
 }
 
+// del min proc from h; may fail because some other core grabbed the min vt
+static struct process *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
+	int l = lock_try_acquire(&h->lk);
+	if (l != 0) {
+		return NULL;
+	}
+	vt_t vt0 = h->heap[0].vruntime;
+	// vt_t vt0 = h->min_vt;
+	if (vt != vt0) {
+		lock_release(&h->lk);
+		return NULL;
+	}
+	struct process *p = mh_del_min_process(c, h);
+	p->tsc = safe_read_tsc();
+	lock_release(&h->lk);
+	return p;
+}
+
+static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int i, int j) {
+	struct process *p = NULL;
+	for (int s = MH_INC(mh, i+1); s != i; s = MH_INC(mh, s)) {
+		struct heap *h = mh->h[s];
+		vt_t vt = atomic_load_explicit(&h->heap[s].vruntime, __ATOMIC_RELAXED);
+		if (vt != DUMMY) {
+			if ((p = mh_try_del_min(c, h, vt)) != NULL)
+				break;
+		}
+	}
+	return p;
+}
+
 // https://dl.acm.org/doi/10.1145/2755573.2755616
-static struct process *mh_sample_min_proc(struct mheap *mh, struct core *c) {
+static struct process *mh_sample_min_proc(struct mheap *mh, struct core *c, bool all) {
 	long r = 0;
-	long r_lock = 0;
+	long r_lock = 0;  // XXX delete?
 retry:
 	int i, j;
 	vt_t vt;
@@ -207,29 +240,19 @@ retry:
 	struct heap *h = mh_select(mh, c, i, j, &vt, &other_vt);
 	if (h == NULL) {
 		c->nsched_null += 1;
-		return NULL;
+		if(all) return mh_all_min_proc(mh, c, i, j);
+		else return NULL;
 	}
-
-	int l = lock_try_acquire(&h->lk);
-	if (l != 0) {
+	struct process *p = mh_try_del_min(c, h, vt);
+	if(p == NULL) {
 		r++;
 		goto retry;
 	}
-	vt_t vt0 = h->heap[0].vruntime;
-	// vt_t vt0 = h->min_vt;
-	if (vt != vt0) {
-		r_lock++;
-		lock_release(&h->lk);
-		goto retry;
-	}
-	struct process *p = mh_del_min_process(c, h);
-	p->tsc = safe_read_tsc();
-	lock_release(&h->lk);
 	mh_upd_stat(p, c, (h->id == i) ? j  : i, vt, other_vt, r, r_lock); 
 	return p;
 }
 
-struct process *mh_min_proc(struct mheap *mh, struct core *c) {
+struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
 	if (mh->nheap == 1) {
 		struct heap *h = mh->h[0];
 		lock_acquire(&h->lk);
@@ -245,7 +268,7 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c) {
 		lock_release(&h->lk);
 		return p;
 	}
-	return mh_sample_min_proc(mh, c);
+	return mh_sample_min_proc(mh, c, all);
 }
 
 

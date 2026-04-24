@@ -89,6 +89,7 @@ void gh_yield_rr(struct global_heap *gh, struct core *c, struct process *p, t_t 
 
 // Process p is not runnable and yields core
 void gh_dequeue_rr(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+	p->runtime += time_passed;
 	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
 		//mh_print(p->group->mh);

@@ -1,5 +1,6 @@
 #include "core.h"
 #include "group.h"
+#include "mpmc.h"
 
 struct global_heap {
 	struct core **cs;
@@ -7,6 +8,8 @@ struct global_heap {
 	int tick_length;
 	struct mheap *mh;
 	struct mheap *mh1;   // for low priority rr procs
+	queue_t q;
+	queue_t q1;
 	preempt_t preempt __calign__;
 };
 

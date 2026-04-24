@@ -219,9 +219,8 @@ static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int i, 
 	for (int s = MH_INC(mh, i+1); s != i; s = MH_INC(mh, s)) {
 		struct heap *h = mh->h[s];
 		vt_t vt = atomic_load_explicit(&h->heap[s].vruntime, __ATOMIC_RELAXED);
-		if (vt != DUMMY) {
-			if ((p = mh_try_del_min(c, h, vt)) != NULL)
-				break;
+		if (vt != DUMMY && ((p = mh_try_del_min(c, h, vt)) != NULL)) {
+			break;
 		}
 	}
 	return p;

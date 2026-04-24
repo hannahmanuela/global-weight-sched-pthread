@@ -29,6 +29,8 @@ struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int nc
 	gh->cs = cs;
 	gh->ncore = ncore;
 	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);
+	queue_init(&gh->q);
+	queue_init(&gh->q1);
 	return gh;
 }
 

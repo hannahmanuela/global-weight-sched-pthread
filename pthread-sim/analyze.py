@@ -92,6 +92,18 @@ def main():
                   marker='s', label='Overall Throughput', alpha=0.7, zorder=3)
     ax.plot(core_counts, [np.mean(data[cores]) for cores in core_counts], color='blue',
                linestyle='--', alpha=0.5, linewidth=1, zorder=2)
+
+    baseline_cores1 = core_counts[0] # TODO: do we use core 1 or core 2 here?
+    baseline_cores2 = core_counts[1] # TODO: do we use core 1 or core 2 here?
+    baseline_tp1 = np.mean(data[baseline_cores1])
+    baseline_tp2 = np.mean(data[baseline_cores2])
+    perfect_scaling1 = [baseline_tp1 * (cores / baseline_cores1) for cores in core_counts]
+    perfect_scaling2 = [baseline_tp2 * (cores / baseline_cores2) for cores in core_counts]
+    ax.plot(core_counts, perfect_scaling1, color='gray', linestyle='-',
+            alpha=0.4, linewidth=2, label='Perfect Scaling1', zorder=1)
+    ax.plot(core_counts, perfect_scaling2, color='blue', linestyle='-',
+            alpha=0.4, linewidth=2, label='Perfect Scaling2', zorder=1)
+    ax.legend()
     
     ax.set_xlabel('Number of Cores')
     ax.set_ylabel('Overall Throughput (ops/s)')

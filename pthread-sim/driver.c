@@ -164,25 +164,16 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 }	
 
 void rr_sched_action(struct core *mycore) {
-	#define DELAY 100
-	if (mycore->cid > 0 || num_groups == 1) {
 		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-		if(num_groups > 1)  {
-			// give low procs a chance to run
-			usleep(DELAY);
-		}
-		action(gs->gh, mycore, RUN);
-	} else {
-		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-		action(gs->gh, mycore, SLEEP);
+		usleep(1);  // give another core some time to find low proc
 
+		//action(gs->gh, mycore, SLEEP);
 
-		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+		//doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 		action(gs->gh, mycore, RUN);
 
 		
-		action(gs->gh, mycore, WAKEUP);
-	}
+		// action(gs->gh, mycore, WAKEUP);
 }
 
 void global_heap_groups(int num_groups, int num_threads_p_group) {

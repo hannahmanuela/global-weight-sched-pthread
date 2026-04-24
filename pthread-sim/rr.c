@@ -45,6 +45,10 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 		return p;
 	}
 	p = gh_schedule_rr_gid(gh->mh1, c);
+	if(p == NULL) {
+		return p;
+	}
+	//assert(c->cid == 0);
 	if (debug) {
 		printf("%d: run low %d(%d) %p\n", c->cid, p->pid, p->group->gid, gh->mh1);
 	}

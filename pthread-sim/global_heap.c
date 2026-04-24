@@ -25,7 +25,7 @@ struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int nc
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
 	gh->tick_length = tick_length;
 	gh->mh = mh_new(nheap);
-	if(rr && ncore > 1) gh->mh1 = mh_new(nheap);
+	if(rr) gh->mh1 = mh_new(nheap);
 	gh->cs = cs;
 	gh->ncore = ncore;
 	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);

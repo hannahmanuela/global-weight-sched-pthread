@@ -149,30 +149,37 @@ void action(struct global_heap *gh, struct core *mycore, int choice) {
 	}
 }
 
-void sleepwakeup(struct global_heap *gh, struct core *mycore) {
-	action(gh, mycore, SLEEP);
-	action(gh, mycore, WAKEUP);
-}
-
 void rr_groups(int num_groups, int num_threads_p_group) {
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
-	int n = num_threads_p_group;
-	if(num_groups > 1) {
-		n -= 1;
-	}
 	for (int i = 0; i < num_groups; i++) {
-		struct group *g = grp_new(gs->gh->mh, i, 0);
+		struct mheap *mh = gs->gh->mh;
+		if(i == RR_LOW) mh = gs->gh->mh1;
+		struct group *g = grp_new(mh, i, 10);
 		gs->grps[i] = g;
-		if(i == 0) {
-			for (int j = 0; j < n; j++) {
-				struct process *p = grp_new_process(gs->gh->mh, j, g);
-				gh_enqueue_rr(gs->gh, gs->cores[0], p);
-			}
-		} else {
-			struct process *p = grp_new_process(gs->gh->mh1, n+1, g);
+		for (int j = 0; j < num_threads_p_group; j++) {
+			struct process *p = grp_new_process(NULL, i*num_threads_p_group+j, g);
 			gh_enqueue_rr(gs->gh, gs->cores[0], p);
 		}
-	}	
+	}
+}	
+
+void rr_sched_action(struct core *mycore) {
+	if (mycore->cid > 0 || num_groups == 1) {
+		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+		if(time_work > 0) 
+			usleep(time_work);
+		action(gs->gh, mycore, RUN);
+	} else {
+		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+		action(gs->gh, mycore, SLEEP);
+
+
+		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+		action(gs->gh, mycore, RUN);
+
+		
+		action(gs->gh, mycore, WAKEUP);
+	}
 }
 
 void global_heap_groups(int num_groups, int num_threads_p_group) {
@@ -187,6 +194,14 @@ void global_heap_groups(int num_groups, int num_threads_p_group) {
 			gh_enqueue(gs->gh, gs->cores[0], p);
 		}
 	}
+}
+
+void global_heap_sched_action(struct core *mycore) {
+	doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+	if(time_work > 0) 
+		usleep(time_work);
+	action(gs->gh, mycore, RUN);
+	// action(gh, mycore, rand() % 3);
 }
 
 void *run_core(void* core) {
@@ -204,12 +219,8 @@ void *run_core(void* core) {
 	int cont = 1;
 	double start = now();
 	for (int i = 0; now() - start < time_to_run; i++) {
-		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-		if(time_work > 0) 
-			usleep(time_work);
-		action(gs->gh, mycore, RUN);
-		// sleepwakeup(gh, mycore);
-		// action(gh, mycore, rand() % 3);
+		if (rr) rr_sched_action(mycore);
+		else global_heap_sched_action(mycore);
 	}
 }
 

@@ -7,6 +7,7 @@
 #include "vt.h"
 #include "util.h"
 #include "driver.h"
+#include "mcounter.h"
 #include "global_heap.h"
 #include "core.h"
 #include "group.h"
@@ -31,6 +32,8 @@ struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int nc
 	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);
 	queue_init(&gh->q);
 	queue_init(&gh->q1);
+	gh->mc = mc_new();
+	gh->mc1 = mc_new();
 	return gh;
 }
 

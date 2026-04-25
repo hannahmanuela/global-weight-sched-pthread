@@ -6,10 +6,15 @@ struct global_heap {
 	struct core **cs;
 	int ncore;
 	int tick_length;
+
+	// XXX group array and stick these fields inside of group
 	struct mheap *mh;
 	struct mheap *mh1;   // for low priority rr procs
+	struct mcntr *mc;
+	struct mcntr *mc1;
 	queue_t q;
 	queue_t q1;
+
 	preempt_t preempt __calign__;
 };
 

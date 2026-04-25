@@ -25,9 +25,12 @@ struct core {
 	
 	int cid;
 	unsigned int seed;
-	struct process *process;
-	struct process *pool;
 
+	struct process *process;   // currently running process or last process ran
+	struct process *rqueue;    // local run queue
+	struct process *pool;   // pool of processes sleeping
+
+	// fields for tatistics:
 	t_t work;
 	t_t idle;
 	t_t total;

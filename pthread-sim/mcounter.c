@@ -4,7 +4,6 @@
 #include <stdatomic.h>
 
 #include "util.h"
-//#include "core.h"
 #include "mcounter.h"
 
 // XXX maybe use AADD or AOR

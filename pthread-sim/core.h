@@ -62,6 +62,8 @@ struct core {
 	long npreempt_set;
 	long npreempt_retry;
 
+	long nlocal;
+
 	int *hit;
 	int *miss;
 

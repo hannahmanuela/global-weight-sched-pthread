@@ -16,7 +16,8 @@ struct mcntr {
 
 struct mcntr *mc_new();
 bool mc_is_zero(struct mcntr *, struct core *c);
-void mc_inc(struct mcntr *, int cid);
-void mc_dec(struct mcntr *, int cid);
+void mc_inc(struct mcntr *, struct core *c);
+void mc_dec(struct mcntr *, struct core *c);
+long mc_val(struct mcntr *);
 
 #endif

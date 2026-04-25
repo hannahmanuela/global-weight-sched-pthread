@@ -29,7 +29,7 @@ struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
 
 	if(debug) {
 		printf("%d: schedule_rr %d(%d) vt %lld h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
-		mh_print(min_proc->mh);
+		// mh_print(min_proc->mh);
 	}
 	if(c->fd > 0) {
 		c_log_append(c, min_proc);
@@ -44,13 +44,15 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	if ((p = c->rqueue) != NULL) {
 		c->rqueue = NULL;
 		c->process = p;
+		c->nlocal += 1;
 		return p;
 	}
 	p = gh_schedule_mh(gh->mh, c, false);
 	if(p != NULL) {
-		mc_dec(gh->mc, c->cid);
+		mc_dec(gh->mc, c);
 		return p;
 	}
+	/*
 	p = gh_schedule_mh(gh->mh1, c, false);
 	if(p == NULL) {
 		mc_dec(gh->mc1, c->cid);
@@ -59,6 +61,7 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	if (debug) {
 		printf("%d: run low %d(%d) %p\n", c->cid, p->pid, p->group->gid, gh->mh1);
 	}
+	*/
 	return p;
 }
 
@@ -66,19 +69,21 @@ static bool enq_local(struct global_heap *gh, struct core *c, struct process *p)
 	bool high_empty = mc_is_zero(gh->mc, c);
 	if((c->rqueue == NULL) && (p->group->gid == RR_HIGH) && high_empty) {
 		c->rqueue = p;
+		// printf("%d: enq: local %d/%d\n", c->cid, p->pid, p->group->gid);
 		return true;
 	} 
 	if (high_empty && (c->rqueue == NULL) && mc_is_zero(gh->mc1, c)) {
 		c->rqueue = p;
 		return true;
 	}
+	if(0) printf("%d: enq: global pid %d/%d q %d empty %d\n", c->cid, p->pid, p->group->gid, c->rqueue != NULL, high_empty);
 	return false;
 }
 
 static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
 	p->he.vruntime = safe_read_tsc();
-	if(p->group->gid == RR_HIGH) mc_inc(gh->mc, c->cid);
-	else mc_inc(gh->mc1, c->cid);
+	if(p->group->gid == RR_HIGH) mc_inc(gh->mc, c);
+	else mc_inc(gh->mc1, c);
 	mh_add_process(c, p, h);
 }
 

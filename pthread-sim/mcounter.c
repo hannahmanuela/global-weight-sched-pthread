@@ -24,25 +24,36 @@ struct mcntr *mc_new() {
 bool mc_is_zero(struct mcntr *mc, struct core *c) {
 	int i = c_rand(c, mc->n);
 	long c0 = atomic_load_explicit(&(mc->c[i]->cntr), __ATOMIC_RELAXED);
-	if(c0 > 0) {
-		return false;
-	}
 	int j = c_rand(c, mc->n);
 	while (i == j) {
 		c->nrand++;
 		j = c_rand(c, mc->n);
 	}
-	c0 = atomic_load_explicit(&(mc->c[j]->cntr), __ATOMIC_RELAXED);
-	if(c0 > 0) {
-		return false;
+	long c1 = atomic_load_explicit(&(mc->c[j]->cntr), __ATOMIC_RELAXED);
+	float val0 = ((c0+c1) * mc->n)/2.0;
+	bool empty1 = val0 <= (num_cores/2);
+	//long val = mc_val(mc);
+	//bool empty = (val == 0);
+	//if (empty && !empty1)
+	// printf("core %d:%d %0.2f (%d,%d)\n", c->cid, val, val0, c0, c1);
+	return empty1;
+}
+
+void mc_inc(struct mcntr *mc, struct core *c) {
+	int i = c_rand(c, mc->n);
+	atomic_fetch_add_explicit(&(mc->c[i]->cntr), 1,  __ATOMIC_RELAXED);
+}
+
+void mc_dec(struct mcntr *mc, struct core *c) {
+	int i = c_rand(c, mc->n);
+	atomic_fetch_add_explicit(&(mc->c[i]->cntr), -1,  __ATOMIC_RELAXED);
+}
+
+long mc_val(struct mcntr *mc) {
+	long val = 0;
+	for (int i = 0; i < mc->n; i++) {
+		long v = atomic_load_explicit(&(mc->c[i]->cntr),  __ATOMIC_RELAXED);
+		val += v;
 	}
-	return true;
-}
-
-void mc_inc(struct mcntr *mc, int cid) {
-	atomic_fetch_add_explicit(&(mc->c[cid]->cntr), 1,  __ATOMIC_RELAXED);
-}
-
-void mc_dec(struct mcntr *mc, int cid) {
-	atomic_fetch_add_explicit(&(mc->c[cid]->cntr), -1,  __ATOMIC_RELAXED);
+	return val;
 }

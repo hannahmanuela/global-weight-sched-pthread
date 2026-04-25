@@ -14,12 +14,6 @@ int main() {
 	struct core *c[NC] = {c_new(0, GRP1, 0)};
 
 	assert(mc_is_zero(mc, c[0]));
-	mc_inc(mc, 0);
-	assert(mc->c[0]->cntr == 1);
-	assert(!mc_is_zero(mc, c[0]));
-	mc_dec(mc, 0);
-	assert(mc->c[0]->cntr == 0);
-	mc_inc(mc, 1);
-	assert(mc->c[1]->cntr == 1);
+	mc_inc(mc, c[0]);
 	assert(!mc_is_zero(mc, c[0]));
 }

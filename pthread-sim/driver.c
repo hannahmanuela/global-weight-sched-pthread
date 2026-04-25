@@ -165,7 +165,9 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 
 void rr_sched_action(struct core *mycore) {
 		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-		usleep(1);  // give another core some time to find low proc
+
+		if(time_work > 0) usleep(time_work);
+		//else usleep(1);  // give another core some time to find low proc
 
 		//action(gs->gh, mycore, SLEEP);
 
@@ -212,7 +214,8 @@ void *run_core(void* core) {
 
 	int cont = 1;
 	double start = now();
-	for (int i = 0; now() - start < time_to_run; i++) {
+	// for (int i = 0; i < 100; i++) {
+		for (int i = 0; now() - start < time_to_run; i++) {
 		if (rr) rr_sched_action(mycore);
 		else global_heap_sched_action(mycore);
 	}
@@ -313,6 +316,7 @@ void main(int argc, char *argv[]) {
 	long nyield = 0;
 	long hit = 0;
 	long miss = 0;
+	long nlocal = 0;
 	long nsched_null = 0;
 	long max_retry_del = 0;
 	long max_retry_del_lock = 0;
@@ -353,6 +357,7 @@ void main(int argc, char *argv[]) {
 		lag_sub_retry += c->lag_sub_retry;
 		npreempt_retry += c->npreempt_retry;
 		npreempt_set += c->npreempt_set;
+		nlocal += c->nlocal;
 
 		for (int j = 0; j < num_groups; j++) {
 			hit += c->hit[j];
@@ -368,7 +373,7 @@ void main(int argc, char *argv[]) {
 	}
 	printf("tp %0.2fM/s\n", AVG(nsched+nyield, time_to_run)/1000000);
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
-	printf("  sched #%ld min %0.2f avg %0.2f max %0.2f\n", nsched, s_l, AVG(s_c, nsched), s_h);
+	printf("  sched #%ld(l %ld, g %ld) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nsched_null-nlocal, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);

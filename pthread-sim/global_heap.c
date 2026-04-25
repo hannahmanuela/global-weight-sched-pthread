@@ -21,6 +21,7 @@ bool debug = false;
 bool do_affinity = false;
 bool do_preempt = false;
 bool rr = false;
+bool use_localq = false;
 
 struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int ncore) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));

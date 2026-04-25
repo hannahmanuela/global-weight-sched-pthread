@@ -9,6 +9,7 @@ pthread-sim/logmerge
 pthread-sim/rankerror
 pthread-sim/test-global
 pthread-sim/test-heap
+pthread-sim/test-mcntr
 
 # perf profiling output
 perf.data

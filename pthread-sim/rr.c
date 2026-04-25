@@ -64,6 +64,7 @@ struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	return p;
 }
 
+// enqueue locally if no processes in global run queues
 static bool enq_local(struct global_heap *gh, struct core *c, struct process *p) {
 	if(!use_localq)
 		return false;

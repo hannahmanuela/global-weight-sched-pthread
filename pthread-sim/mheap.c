@@ -18,6 +18,7 @@
 #define MH_INC(mh, i) (((i)+1) % mh->nheap)
 
 extern bool do_affinity;
+extern bool use_power2_insert;
 
 struct mheap *mh_new(int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
@@ -92,6 +93,18 @@ void mh_print(struct mheap *mh) {
 	printf("=\n");
 }
 
+void mh_two_heaps(struct mheap *mh, struct core *c, int *i, int *j, int *v1, int *v2) {
+	*i = c_rand(c, mh->nheap);
+	*j = c_rand(c, mh->nheap);
+	while (*i == *j) {
+		c->nrand++;
+		*j = c_rand(c, mh->nheap);
+	}
+	*v1 = atomic_load_explicit(&(mh->h[*i]->heap_size), __ATOMIC_ACQUIRE);
+	*v2 = atomic_load_explicit(&(mh->h[*j]->heap_size), __ATOMIC_ACQUIRE);
+}	
+
+
 struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
 	long r = 0;
 	if(mh->nheap == 1) {
@@ -100,8 +113,13 @@ struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
 		return h;
 	}
 retry:
-	int i = c_rand(c, mh->nheap);
+	int i, j, s1 = 0, s2 = 0;
+	if(use_power2_insert) mh_two_heaps(mh, c, &i, &j, &s1, &s2);
+	else i = c_rand(c, mh->nheap);
 	struct heap *h = mh->h[i];
+	if(s2 < s1)
+		h = mh->h[j];
+
 	if(lock_try_acquire(&h->lk) != 0) {
 		r++;
 		goto retry;

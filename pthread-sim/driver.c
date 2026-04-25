@@ -52,6 +52,7 @@ extern bool do_affinity;
 extern bool do_preempt;
 extern bool rr;
 extern bool use_localq;
+extern bool use_power2_insert;
 
 struct global_state {
 	struct global_heap *gh;
@@ -233,8 +234,10 @@ void main(int argc, char *argv[]) {
 	int nheap = 0;
 	int tick_length = 1000;
 
-	while ((opt = getopt(argc, argv, "adpqsg:w:h:r:l:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "2adpqsg:w:h:r:l:t:")) != -1) {
 		switch(opt) {
+		case '2':
+			use_power2_insert = true;
 		case 'a':
 			do_affinity = true;
 			break;
@@ -299,7 +302,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d localq %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_localq, time_to_run, ratio);
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d localq %d power2_insert %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_localq, use_power2_insert, time_to_run, ratio);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;

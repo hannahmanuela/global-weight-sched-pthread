@@ -238,6 +238,7 @@ void main(int argc, char *argv[]) {
 		switch(opt) {
 		case '2':
 			use_power2_insert = true;
+			break;
 		case 'a':
 			do_affinity = true;
 			break;

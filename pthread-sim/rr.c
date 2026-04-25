@@ -72,18 +72,19 @@ static bool enq_local(struct global_heap *gh, struct core *c, struct process *p)
 		// printf("%d: enq: local %d/%d\n", c->cid, p->pid, p->group->gid);
 		return true;
 	} 
-	if (high_empty && (c->rqueue == NULL) && mc_is_zero(gh->mc1, c)) {
-		c->rqueue = p;
-		return true;
-	}
+	//if (high_empty && (c->rqueue == NULL) && mc_is_zero(gh->mc1, c)) {
+		//c->rqueue = p;
+		//return true;
+	//}
 	if(0) printf("%d: enq: global pid %d/%d q %d empty %d\n", c->cid, p->pid, p->group->gid, c->rqueue != NULL, high_empty);
 	return false;
 }
 
 static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
 	p->he.vruntime = safe_read_tsc();
-	if(p->group->gid == RR_HIGH) mc_inc(gh->mc, c);
-	else mc_inc(gh->mc1, c);
+	mc_inc(gh->mc, c);
+	// if(p->group->gid == RR_HIGH) mc_inc(gh->mc, c);
+	// else mc_inc(gh->mc1, c);
 	mh_add_process(c, p, h);
 }
 

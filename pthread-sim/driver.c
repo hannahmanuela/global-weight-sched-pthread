@@ -33,20 +33,6 @@ int base_weight = 10;
 bool do_ts_op;
 int benchmark = 0;
 
-// Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
-//   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
-//   HT siblings: CPU N and CPU N+28 share a physical core.
-#define CORES_PER_NUMA 14
-#define NUMA_NODES     2
-#define HT_PER_CORE    2
-
-int calc_pin_cpu(int cid) {
-	int per_numa = CORES_PER_NUMA * HT_PER_CORE;
-	int node = cid / per_numa;
-	int slot = cid % per_numa;
-	return 2 * slot + node;
-}
-
 extern int num_groups;
 extern bool debug;
 extern bool do_affinity;

@@ -20,7 +20,7 @@ test-global: test_global.o $(OBJ)
 test-heap: test_heap.o heap.o lock.o
 	$(CC) -o $@ $^
 
-test-mcntr: test_mcntr.o mcounter.o lock.o core.o
+test-mcntr: test_mcntr.o mcounter.o lock.o core.o util.o
 	$(CC) -o $@ $^
 
 logmerge: logmerge.o

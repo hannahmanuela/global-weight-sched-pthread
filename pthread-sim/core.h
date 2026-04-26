@@ -64,6 +64,10 @@ struct core {
 
 	long nlocal;
 
+	long nmc_is_zero;
+	long nmc_dec;
+	long nmc_inc;
+
 	int *hit;
 	int *miss;
 
@@ -75,6 +79,7 @@ struct core {
 
 #define LOG_NENTRY  1000000
 
+int calc_pin_cpu(int cid);
 void core_print(struct core *c);
 void c_print(struct core *c, int ngrp);
 int c_rand(struct core *c, int n);

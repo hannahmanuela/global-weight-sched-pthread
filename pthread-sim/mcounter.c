@@ -58,6 +58,7 @@ bool mc_is_zero(struct mcntr *mc, struct core *c) {
 		mc_print(mc);
 	}
 	*/
+	c->nmc_is_zero += 1;
 	return empty1;
 }
 
@@ -68,6 +69,7 @@ void mc_inc(struct mcntr *mc, struct core *c) {
 	// add the lowest bin
 	if (c0 < c1) atomic_fetch_add_explicit(&(mc->c[i]->cntr), 1,  __ATOMIC_ACQUIRE);
 	else atomic_fetch_add_explicit(&(mc->c[j]->cntr), 1,  __ATOMIC_ACQUIRE);
+	c->nmc_inc += 1;
 }
 
 void mc_dec(struct mcntr *mc, struct core *c) {
@@ -77,6 +79,7 @@ void mc_dec(struct mcntr *mc, struct core *c) {
 	// remove from the highest bin
 	if (c0 < c1) atomic_fetch_add_explicit(&(mc->c[j]->cntr), -1,  __ATOMIC_ACQUIRE);
 	else atomic_fetch_add_explicit(&(mc->c[i]->cntr), -1,  __ATOMIC_ACQUIRE);
+	c->nmc_dec += 1;
 }
 
 long mc_val(struct mcntr *mc) {

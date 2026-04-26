@@ -15,6 +15,7 @@ struct mcntr {
 };
 
 struct mcntr *mc_new();
+float mc_approx_val(struct mcntr *, struct core *);
 bool mc_is_zero(struct mcntr *, struct core *c);
 void mc_inc(struct mcntr *, struct core *c);
 void mc_dec(struct mcntr *, struct core *c);

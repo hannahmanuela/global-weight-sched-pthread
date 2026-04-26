@@ -40,12 +40,17 @@ void mc_two_bins(struct mcntr *mc, struct core *c, int *i, int *j, long *v1, lon
 	*v2 = atomic_load_explicit(&(mc->c[*j]->cntr), __ATOMIC_ACQUIRE);
 }	
 
-bool mc_is_zero(struct mcntr *mc, struct core *c) {
+float mc_approx_val(struct mcntr *mc, struct core *c) {
 	int i, j;
 	long c0, c1;
 	mc_two_bins(mc, c, &i, &j, &c0, &c1);
-	float val0 = ((c0+c1) * mc->n)/2.0;
-	bool empty1 = val0 <= 0.1;   // XX maybe to strict?
+	float val = ((c0+c1) * mc->n)/2.0;
+	return val;
+}
+
+bool mc_is_zero(struct mcntr *mc, struct core *c) {
+	float val = mc_approx_val(mc, c);
+	bool empty1 = val <= 0.1;   // XX maybe to strict?
 	/*
 	if(!empty1) 
 		printf("val0 %0.2f\n", val0);

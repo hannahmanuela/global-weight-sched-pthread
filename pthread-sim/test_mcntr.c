@@ -17,10 +17,10 @@ struct core **cores;
 int time_to_run = 1;
 struct mcntr *mc;
 
-void usage(char *s) {
-	fprintf(stderr, "%s: <num_cores>, where num_cores > 1\n", s);
-	exit(1);
-
+void test_mc() {
+	mc_dec(mc, cores[0]);
+	long val = mc_val(mc);
+	printf("%d %f\n", val, mc_approx_val(mc, cores[0]));
 }
 
 void *run_core(void* core) {
@@ -44,20 +44,7 @@ void *run_core(void* core) {
 	}
 }
 
-int main(int argc, char *argv[]) {
-	if (argc != 2) {
-		usage(argv[0]);
-	}
-	num_cores = atoi(argv[1]);
-	if (num_cores < 2)
-		usage(argv[0]);
-	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
-	for (int i = 0; i < num_cores; i++) {
-		cores[i] = c_new(i, 1, i);
-	}
-	mc = mc_new();
-	assert(mc_is_zero(mc, cores[0]));
-
+void test_parallel() {
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(cores[i]));
@@ -74,4 +61,28 @@ int main(int argc, char *argv[]) {
 	}
 	long tot = nis_zero + ndec + ninc;
 	printf("tp %0.2fM/s\n", AVG(tot, time_to_run)/1000000);
+}
+
+void usage(char *s) {
+	fprintf(stderr, "%s: <num_cores>, where num_cores > 1\n", s);
+	exit(1);
+
+}
+
+int main(int argc, char *argv[]) {
+	if (argc != 2) {
+		usage(argv[0]);
+	}
+	num_cores = atoi(argv[1]);
+	if (num_cores < 2)
+		usage(argv[0]);
+	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
+	for (int i = 0; i < num_cores; i++) {
+		cores[i] = c_new(i, 1, i);
+	}
+	mc = mc_new();
+	assert(mc_is_zero(mc, cores[0]));
+
+	// test_mc();
+	test_parallel();
 }

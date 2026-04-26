@@ -31,6 +31,7 @@ char *logfile = NULL;
 int ratio = 1;
 int base_weight = 10;
 bool do_ts_op;
+int benchmark = 0;
 
 // Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
 //   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
@@ -167,17 +168,15 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 
 void rr_sched_action(struct core *mycore) {
 		doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-
 		if(time_work > 0) usleep(time_work);
-		//else usleep(1);  // give another core some time to find low proc
 
-		//action(gs->gh, mycore, SLEEP);
-
-		//doop(gs->gh, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-		action(gs->gh, mycore, RUN);
-
-		
-		// action(gs->gh, mycore, WAKEUP);
+		if(benchmark == 1 && (mycore->process != NULL) && mycore->process->pid == 0) {
+			// this proc should run after all other runnable procs
+			action(gs->gh, mycore, SLEEP);
+			action(gs->gh, mycore, WAKEUP);
+		} else {
+			action(gs->gh, mycore, RUN);
+		}
 }
 
 void global_heap_groups(int num_groups, int num_threads_p_group) {
@@ -216,8 +215,7 @@ void *run_core(void* core) {
 
 	int cont = 1;
 	double start = now();
-	// for (int i = 0; i < 100; i++) {
-		for (int i = 0; now() - start < time_to_run; i++) {
+	for (int i = 0; now() - start < time_to_run; i++) {
 		if (rr) rr_sched_action(mycore);
 		else global_heap_sched_action(mycore);
 	}
@@ -234,7 +232,7 @@ void main(int argc, char *argv[]) {
 	int nheap = 0;
 	int tick_length = 1000;
 
-	while ((opt = getopt(argc, argv, "2adpqsg:w:h:r:l:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "2adpqsb:g:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case '2':
 			use_power2_insert = true;
@@ -254,6 +252,9 @@ void main(int argc, char *argv[]) {
 		case 's':
 			num_groups = 1;
 			rr = true;
+			break;
+		case 'b':
+			benchmark = atoi(optarg);
 			break;
 		case 'g':
 			num_groups = atoi(optarg);
@@ -303,7 +304,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d localq %d power2_insert %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_localq, use_power2_insert, time_to_run, ratio);
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d localq %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_localq, use_power2_insert, benchmark, time_to_run, ratio);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;

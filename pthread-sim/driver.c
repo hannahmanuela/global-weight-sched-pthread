@@ -25,7 +25,6 @@
 #include "util.h"
 
 int time_to_run = 2;  // sec
-int num_groups = 4;
 int num_cores;
 int time_work; // in usec
 char *logfile = NULL;
@@ -47,6 +46,7 @@ int calc_pin_cpu(int cid) {
 	return 2 * slot + node;
 }
 
+extern int num_groups;
 extern bool debug;
 extern bool do_affinity;
 extern bool do_preempt;

@@ -23,6 +23,7 @@ bool do_preempt = false;
 bool rr = false;
 bool use_localq = false;
 bool use_power2_insert = false;
+int num_groups = 4;
 
 struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int ncore) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));

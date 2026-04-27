@@ -44,30 +44,30 @@ struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
 }
 
 // Select next process to run
-struct process *gh_schedule_rr(struct global_heap *gh, struct core *c) {
+bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	struct process *p;
 	if ((p = c->rqueue) != NULL) {
 		c->rqueue = NULL;
 		c->process = p;
 		c->nlocal += 1;
-		return p;
+		return true;
 	}
 	p = gh_schedule_mh(gh->mh, c, false);
 	if(p != NULL) {
 		mc_dec(gh->mc, c);
-		return p;
+		return true;
 	}
 	if (num_groups > 1) {
 		p = gh_schedule_mh(gh->mh1, c, false);
 		if(p == NULL) {
 			mc_dec(gh->mc1, c);
-			return p;
+			return true;
 		}
 		if (debug) {
 			printf("%d: run low %d(%d) %p\n", c->cid, p->pid, p->group->gid, gh->mh1);
 		}
 	}
-	return p;
+	return false;
 }
 
 // enqueue locally if no processes in global run queues

@@ -44,27 +44,24 @@ float mc_approx_val(struct mcntr *mc, struct core *c) {
 	int i, j;
 	long c0, c1;
 	mc_two_bins(mc, c, &i, &j, &c0, &c1);
-	float val = ((c0+c1) * mc->n)/2.0;
+	float val = ((c0+c1) * mc->n);
 	return val;
 }
 
+#define MC_INC(mc, i) (((i)+1) % mc->n)
+
 bool mc_is_zero(struct mcntr *mc, struct core *c) {
-	float val = mc_approx_val(mc, c);
-	bool empty1 = val <= 0.1;   // XX maybe to strict?
-	/*
-	if(!empty1) 
-		printf("val0 %0.2f\n", val0);
-	*/
-	/*
-	long val = mc_val(mc);
-	bool empty = (val == 0);
-	if (empty1 != empty) {
-		printf("core %d:%d %0.2f (%d,%d)\n", c->cid, val, val0, c0, c1);
-		mc_print(mc);
-	}
-	*/
 	c->nmc_is_zero += 1;
-	return empty1;
+	int s = c_rand(c, mc->n);
+	for (int i = 0; i < mc->n; i++) {
+		struct cntr *c = mc->c[MC_INC(mc,s+i)];
+		int v = atomic_load_explicit(&c->cntr, __ATOMIC_ACQUIRE);
+		if(v != 0) {
+			return false;
+		}
+
+	}
+	return true;
 }
 
 void mc_inc(struct mcntr *mc, struct core *c) {

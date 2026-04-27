@@ -19,8 +19,8 @@ struct mcntr *mc;
 
 void test_mc() {
 	mc_dec(mc, cores[0]);
-	long val = mc_val(mc);
-	printf("%d %f\n", val, mc_approx_val(mc, cores[0]));
+	bool b = mc_is_zero(mc, cores[0]);
+	printf("%d %d\n", b, mc_val(mc));
 }
 
 void *run_core(void* core) {

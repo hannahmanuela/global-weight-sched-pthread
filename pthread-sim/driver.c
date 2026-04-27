@@ -139,14 +139,24 @@ void action(struct global_heap *gh, struct core *mycore, int choice) {
 }
 
 void rr_groups(int num_groups, int num_threads_p_group) {
+	int ns[2];
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
+	assert(num_groups <= 2);
+	if(ratio == 1)  {
+		ns[0] = num_threads_p_group;
+		ns[1] = num_threads_p_group;
+	} else {
+		ns[0] = 1;
+		ns[1] = 2*num_threads_p_group-1;
+	}
+
 	for (int i = 0; i < num_groups; i++) {
 		struct mheap *mh = gs->gh->mh;
 		if(i == RR_LOW) mh = gs->gh->mh1;
 		struct group *g = grp_new(mh, i, 10);
 		gs->grps[i] = g;
-		for (int j = 0; j < num_threads_p_group; j++) {
-			struct process *p = grp_new_process(NULL, i*num_threads_p_group+j, g);
+		for (int j = 0; j < ns[i]; j++) {
+			struct process *p = grp_new_process(NULL, i*ns[0]+j, g);
 			gh_enqueue_rr(gs->gh, gs->cores[0], p);
 		}
 	}
@@ -237,6 +247,7 @@ void main(int argc, char *argv[]) {
 			break;
 		case 's':
 			num_groups = 1;
+			ratio = 1;
 			rr = true;
 			break;
 		case 'b':
@@ -290,7 +301,8 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d localq %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, num_threads_p_group, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_localq, use_power2_insert, benchmark, time_to_run, ratio);
+	int pg = (rr && (ratio == 0)) ? 1 : num_threads_p_group;
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d localq %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", rr ? "rr" : "gh", num_cores, num_groups, num_threads, pg, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_localq, use_power2_insert, benchmark, time_to_run, ratio);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;

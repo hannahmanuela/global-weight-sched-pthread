@@ -15,7 +15,7 @@
 
 #define W_DUMMY 0
 
-#define MH_INC(mh, i) (((i)+1) % mh->nheap)
+#define MH_IND(mh, i) ((i) % mh->nheap)
 
 extern bool do_affinity;
 extern bool use_power2_insert;
@@ -232,11 +232,11 @@ static struct process *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
 	return p;
 }
 
-static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int i, int j) {
+static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int s) {
 	struct process *p = NULL;
-	for (int s = MH_INC(mh, i+1); s != i; s = MH_INC(mh, s)) {
-		struct heap *h = mh->h[s];
-		vt_t vt = atomic_load_explicit(&h->heap[s].vruntime, __ATOMIC_RELAXED);
+	for (int i = 0; i < mh->nheap; i++) {
+		struct heap *h = mh->h[MH_IND(mh, i+s)];
+		vt_t vt = atomic_load_explicit(&h->heap[0].vruntime, __ATOMIC_RELAXED);
 		if (vt != DUMMY && ((p = mh_try_del_min(c, h, vt)) != NULL)) {
 			break;
 		}
@@ -257,7 +257,7 @@ retry:
 	struct heap *h = mh_select(mh, c, i, j, &vt, &other_vt);
 	if (h == NULL) {
 		c->nsched_null += 1;
-		if(all) return mh_all_min_proc(mh, c, i, j);
+		if(all) return mh_all_min_proc(mh, c, i);
 		else return NULL;
 	}
 	struct process *p = mh_try_del_min(c, h, vt);

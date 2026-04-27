@@ -48,13 +48,13 @@ float mc_approx_val(struct mcntr *mc, struct core *c) {
 	return val;
 }
 
-#define MC_INC(mc, i) (((i)+1) % mc->n)
+#define MC_IND(mc, i) ((i) % mc->n)
 
 bool mc_is_zero(struct mcntr *mc, struct core *c) {
 	c->nmc_is_zero += 1;
 	int s = c_rand(c, mc->n);
 	for (int i = 0; i < mc->n; i++) {
-		struct cntr *c = mc->c[MC_INC(mc,s+i)];
+		struct cntr *c = mc->c[MC_IND(mc,s+i)];
 		int v = atomic_load_explicit(&c->cntr, __ATOMIC_ACQUIRE);
 		if(v != 0) {
 			return false;

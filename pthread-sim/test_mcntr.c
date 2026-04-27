@@ -83,6 +83,6 @@ int main(int argc, char *argv[]) {
 	mc = mc_new();
 	assert(mc_is_zero(mc, cores[0]));
 
-	// test_mc();
+	test_mc();
 	test_parallel();
 }

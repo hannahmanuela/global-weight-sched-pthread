@@ -20,6 +20,9 @@ extern int debug;
 extern bool use_localq;
 extern int num_groups;
 
+static bool gh_select(struct mheap *mh, struct core *c) {
+}
+
 // Select next process to run from mh
 struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
 	struct process *min_proc = NULL;

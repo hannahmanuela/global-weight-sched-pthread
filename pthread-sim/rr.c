@@ -59,10 +59,28 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 		return true;
 	}
 	if (num_groups > 1) {
-		// check if gh->mh is empty
+		p = mh_min_proc(gh->mh, c, true);
+		if(p  != NULL) {
+			if(c->process != NULL) {
+				struct heap *h = mh_choose_heap(gh->mh, c);
+				// XXX low or high
+				enq_proc_vt(gh, c, p, h);
+			}
+			c->process = p;
+			return true;
+		}
+		// nothing in high heap; go for low
 		p = gh_schedule_mh(gh->mh1, c, false);
-		if(p == NULL) {
-			// add c->process
+		if(p != NULL) {
+			if(c->process != NULL) {
+				struct heap *h = mh_choose_heap(gh->mh1, c);
+				enq_proc_vt(gh, c, p, h);
+			}
+			c->process = p;
+			return true;
+		}
+		if (c->process != NULL) {
+			c->nlocal += 1;
 			return true;
 		}
 		if (debug) {

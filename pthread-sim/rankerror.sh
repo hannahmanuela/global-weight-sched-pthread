@@ -5,7 +5,6 @@ if [ "$#" -ne 3 ]; then
     exit 1
 fi
 
-./global-heap -s -l /tmp/$3 -h 8 -t 2 $1 $2
-#./global-heap -2 -s -q -b 1 -l /tmp/$3 -t 1 $1 $2
+./global-heap -2 -s -l /tmp/$3 -t 2 $1 $2
 ./logmerge $1 $3
 ./rankerror $3

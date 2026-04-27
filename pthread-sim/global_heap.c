@@ -96,6 +96,7 @@ bool gh_schedule(struct global_heap *gh, struct core *c) {
 	}
 	if (min_proc == NULL) {
 		c->process = NULL;
+		c->nsched_null += 1;
 		return false;
 	}
 

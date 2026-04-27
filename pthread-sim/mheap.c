@@ -256,7 +256,6 @@ retry:
 	mh_rand_heaps(mh, c, &i, &j);
 	struct heap *h = mh_select(mh, c, i, j, &vt, &other_vt);
 	if (h == NULL) {
-		c->nsched_null += 1;
 		if(all) return mh_all_min_proc(mh, c, i);
 		else return NULL;
 	}

@@ -85,6 +85,7 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 			printf("%d: run low %d(%d) %p\n", c->cid, p->pid, p->group->gid, gh->mh1);
 		}
 	}
+	c->nsched_null += 1;
 	return false;
 }
 

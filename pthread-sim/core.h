@@ -27,7 +27,6 @@ struct core {
 	unsigned int seed;
 
 	struct process *process;   // currently running process or last process ran
-	struct process *rqueue;    // local run queue
 	struct process *pool;   // pool of processes sleeping
 
 	// fields for tatistics:

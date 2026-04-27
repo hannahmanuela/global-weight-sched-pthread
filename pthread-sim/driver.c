@@ -368,7 +368,7 @@ void main(int argc, char *argv[]) {
 	}
 	printf("tp %0.2fM/s\n", AVG(nsched+nyield, time_to_run)/1000000);
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
-	printf("  sched #%ld(l %ld, g %ld) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nsched_null-nlocal, s_l, AVG(s_c, nsched), s_h);
+	printf("  sched #%ld(l %ld, g %ld) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);

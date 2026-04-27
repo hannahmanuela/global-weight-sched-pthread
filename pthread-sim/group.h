@@ -7,7 +7,6 @@
 
 #include "util.h"
 #include "vt.h"
-#include "mcounter.h"
 #include "heap_elem.h"
 #include "heap.h"
 

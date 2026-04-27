@@ -42,15 +42,20 @@ static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *
 	mh_add_process(c, p, h);
 }
 
+static void enq_proc(struct global_heap *gh, struct core *c) {
+	if(c->process != NULL) {
+		struct mheap *mh = (c->process->group->gid == RR_HIGH) ? gh->mh : gh->mh1;
+		struct heap *h = mh_choose_heap(gh->mh, c);
+		enq_proc_vt(gh, c, c->process, h);
+	}
+}
+
 // Select next process to run
 bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	struct process *p;
 	p = gh_schedule_mh(gh->mh, c, false);
 	if(p != NULL) {
-		if(c->process != NULL) {
-			struct heap *h = mh_choose_heap(gh->mh, c);
-			enq_proc_vt(gh, c, p, h);
-		}
+		enq_proc(gh, c);
 		c->process = p;
 		return true;
 	}
@@ -61,21 +66,14 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	if (num_groups > 1) {
 		p = mh_min_proc(gh->mh, c, true);
 		if(p  != NULL) {
-			if(c->process != NULL) {
-				struct heap *h = mh_choose_heap(gh->mh, c);
-				// XXX low or high
-				enq_proc_vt(gh, c, p, h);
-			}
+			enq_proc(gh, c);
 			c->process = p;
 			return true;
 		}
 		// nothing in high heap; go for low
 		p = gh_schedule_mh(gh->mh1, c, false);
 		if(p != NULL) {
-			if(c->process != NULL) {
-				struct heap *h = mh_choose_heap(gh->mh1, c);
-				enq_proc_vt(gh, c, p, h);
-			}
+			enq_proc(gh, c);
 			c->process = p;
 			return true;
 		}

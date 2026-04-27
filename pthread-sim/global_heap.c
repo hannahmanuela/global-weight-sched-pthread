@@ -86,7 +86,7 @@ static void reset_preempt(struct global_heap *gh, struct core *c, w_t w) {
 }
 
 // Select next process to run
-struct process *gh_schedule(struct global_heap *gh, struct core *c) {
+bool gh_schedule(struct global_heap *gh, struct core *c) {
 	struct process *min_proc = NULL;
 	if(do_affinity && gh->mh->nheap > 1 && c->process) {
 		min_proc = mh_min_affinity(c);
@@ -96,7 +96,7 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 	}
 	if (min_proc == NULL) {
 		c->process = NULL;
-		return NULL;
+		return false;
 	}
 
 	if(debug) {
@@ -110,7 +110,7 @@ struct process *gh_schedule(struct global_heap *gh, struct core *c) {
 		set_preempt(gh, c, min_proc);
 	}
 	c->process = min_proc;
-	return min_proc;
+	return true;
 }
 
 static vt_t sub_lag(struct core *c, struct process *p, vt_t wvt, vt_t *lag) {

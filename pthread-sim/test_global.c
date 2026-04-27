@@ -37,9 +37,8 @@ void ticks_getwork(t_t *ticks) {
 static struct process *schedule_retry(struct core *c, struct global_heap *gh) {
 	struct process *p;
 	for (int i = 0; i < 10; i++) {
-		p = gh_schedule(gh, c);
-		if(p != NULL)
-			return p;
+		if (gh_schedule(gh, c))
+			return c->process;
 	}
 	assert(0);
 }
@@ -94,7 +93,7 @@ void test_grp_sleep_wakeup() {
 	p0 = schedule_retry(c[0], gh);
 	gh_dequeue(gh, c[0], p0, tl);
 
-	assert(gh_schedule(gh, c[0]) == NULL);
+	assert(!gh_schedule(gh, c[0]));
 	assert(gh->mh->h[0]->heap_size == 1);
 
 	gh_enqueue(gh, c[0], p0);
@@ -490,7 +489,7 @@ void test_worst(int nheap) {
 		gh_enqueue(gh, c[0], p);
 
 		for (int i = 0; ; i++) {
-			if ((p = gh_schedule(gh, c[0])) != NULL) {
+			if (gh_schedule(gh, c[0])) {
 				sum += i;
 				bin[i]++;
 				if(i > worst)

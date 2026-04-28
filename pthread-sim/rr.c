@@ -27,10 +27,6 @@ struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
 	if (min_proc == NULL) {
 		return NULL;
 	}
-	if(debug) {
-		printf("%d: schedule_rr %d(%d) vt %lld h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
-		// mh_print(min_proc->mh);
-	}
 	if(c->fd > 0) {
 		c_log_append(c, min_proc);
 	}
@@ -45,7 +41,10 @@ static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *
 static void enq_proc(struct global_heap *gh, struct core *c) {
 	if(c->process != NULL) {
 		struct mheap *mh = (c->process->group->gid == RR_HIGH) ? gh->mh : gh->mh1;
-		struct heap *h = mh_choose_heap(gh->mh, c);
+		if(debug) {
+			printf("%d: enq_proc %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, mh);
+		}
+		struct heap *h = mh_choose_heap(mh, c);
 		enq_proc_vt(gh, c, c->process, h);
 	}
 }
@@ -60,12 +59,18 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 		return true;
 	}
 	if (c->process != NULL && c->process->group->gid == RR_HIGH) {
+		if (debug) {
+			printf("%d: gh_schedule_rr: locally run high %d\n", c->cid, c->process->pid);
+		}
 		c->nlocal += 1;
 		return true;
 	}
 	if (num_groups > 1) {
 		p = mh_min_proc(gh->mh, c, true);
-		if(p  != NULL) {
+		if(p != NULL) {
+			if(debug) {
+				printf("%d: gh_schedule_rr: high %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
+			}
 			enq_proc(gh, c);
 			c->process = p;
 			return true;
@@ -73,6 +78,9 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 		// nothing in high heap; go for low
 		p = gh_schedule_mh(gh->mh1, c, false);
 		if(p != NULL) {
+			if(debug) {
+				printf("%d: gh_schedule_rr: low %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
+			}
 			enq_proc(gh, c);
 			c->process = p;
 			return true;
@@ -82,7 +90,7 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 			return true;
 		}
 		if (debug) {
-			printf("%d: run low %d(%d) %p\n", c->cid, p->pid, p->group->gid, gh->mh1);
+			printf("%d: locally run low %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, gh->mh1);
 		}
 	}
 	c->nsched_null += 1;

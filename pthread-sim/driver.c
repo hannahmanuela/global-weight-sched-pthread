@@ -146,8 +146,8 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 		ns[0] = num_threads_p_group;
 		ns[1] = num_threads_p_group;
 	} else {
-		ns[0] = 1;
-		ns[1] = 2*num_threads_p_group-1;
+		ns[0] = 0;
+		ns[1] = 2*num_threads_p_group;
 	}
 
 	for (int i = 0; i < num_groups; i++) {
@@ -301,7 +301,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	int pg = (rr && (ratio == 0)) ? 1 : num_threads_p_group;
+	int pg = (rr && (ratio == 0)) ? 0 : num_threads_p_group;
 	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d localq %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", rr ? "rr" : "gw", num_cores, num_groups, num_threads, pg, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_localq, use_power2_insert, benchmark, time_to_run, ratio);
 
 	float s_h = 0.0;

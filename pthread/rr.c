@@ -21,7 +21,7 @@ extern bool use_localq;
 extern int num_groups;
 
 // Select next process to run from mh
-struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
+static struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
 	struct process *min_proc = NULL;
 	min_proc = mh_min_proc(mh, c, all);
 	if (min_proc == NULL) {
@@ -49,15 +49,28 @@ static void enq_proc(struct global_heap *gh, struct core *c) {
 	}
 }
 
+static struct process *gh_schedule_mh_enq(struct global_heap *gh, struct mheap *mh, struct core *c, bool all) {
+	struct process *p = gh_schedule_mh(mh, c, all);
+	if(p != NULL) {
+		if(debug) {
+			printf("%d: gh_schedule_mh_enq: %t %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
+		}
+		enq_proc(gh, c);
+		c->process = p;
+		return p;
+	}
+	return NULL;
+}
+
 // Select next process to run
 bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	struct process *p;
-	p = gh_schedule_mh(gh->mh, c, false);
-	if(p != NULL) {
-		enq_proc(gh, c);
-		c->process = p;
+
+	// try high priority mh first for runnable proc
+	if ((p = gh_schedule_mh_enq(gh, gh->mh, c, false)) != NULL)
 		return true;
-	}
+
+	// keep running high proc, if were running one
 	if (c->process != NULL && c->process->group->gid == RR_HIGH) {
 		if (debug) {
 			printf("%d: gh_schedule_rr: locally run high %d\n", c->cid, c->process->pid);
@@ -65,32 +78,24 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 		c->nlocal += 1;
 		return true;
 	}
+
 	if (num_groups > 1) {
-		p = mh_min_proc(gh->mh, c, true);
-		if(p != NULL) {
-			if(debug) {
-				printf("%d: gh_schedule_rr: high %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
-			}
-			enq_proc(gh, c);
-			c->process = p;
+
+		// check all high heaps for runnable proc
+		if ((p = gh_schedule_mh_enq(gh, gh->mh, c, true)) != NULL) 
 			return true;
-		}
-		// nothing in high heap; go for low
-		p = gh_schedule_mh(gh->mh1, c, false);
-		if(p != NULL) {
-			if(debug) {
-				printf("%d: gh_schedule_rr: low %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
-			}
-			enq_proc(gh, c);
-			c->process = p;
+		
+		// no proc in high heaps; go for low
+		if ((p = gh_schedule_mh_enq(gh, gh->mh1, c, false)) != NULL) 
 			return true;
-		}
+
+		// keep running low proc, if were running one
 		if (c->process != NULL) {
+			if (debug) {
+				printf("%d: locally run low %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, gh->mh1);
+			}
 			c->nlocal += 1;
 			return true;
-		}
-		if (debug) {
-			printf("%d: locally run low %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, gh->mh1);
 		}
 	}
 	c->nsched_null += 1;

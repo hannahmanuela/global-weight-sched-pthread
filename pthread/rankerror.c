@@ -8,7 +8,7 @@
 
 // run: ./rankerror vtlog
 
-#define N 200
+#define N 400
 
 char buf[32];
 

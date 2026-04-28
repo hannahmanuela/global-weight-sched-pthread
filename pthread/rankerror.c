@@ -23,21 +23,22 @@ int weight = 0;
 #define IDX(idx) ((idx) % N)
 
 void print(struct log_entry *r, int idx) {
-	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
-		printf("%d: ts %ld vt %lld cid %d pid %d(%d) hid %d ohid %d ovt %lld\n", i, ring[i].ts, ring[i].vt, ring[i].cid, ring[i].pid, ring[i].gid, ring[i].hid, ring[i].ohid, ring[i].ovt);
+	for(int i = idx; i < idx+N; i++) {
+		int j = IDX(i);
+		printf("%d: ts %ld vt %lld cid %d pid %d(%d) hid %d ohid %d ovt %lld\n", i, ring[j].ts, ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid, ring[j].hid, ring[j].ohid, ring[j].ovt);
 	}
 }
 
-int rank_error(struct log_entry *ring, int idx, vt_t *maxdiff) {
+int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff) {
 	int re = 0;
-	for(int i = idx; IDX(i+1) != idx; i = IDX(i+1)) {
-		if(weight > 0 && (ring[idx].w != weight))
+	for(int i = idx+1; i < idx+N; i++) {
+		if(weight > 0 && (ring[IDX(i)].w != weight))
 			continue;
-		if(ring[i].vt < ring[idx].vt) {
+		if(ring[IDX(i)].vt < ring[IDX(idx)].vt) {
 			re += 1; 
-			vt_t d = ring[idx].vt-ring[i].vt;
-			if(d > *maxdiff) *maxdiff = d;
-			// printf("re: idx %d %ld i %d %ld\n", idx, ring[idx].vt, i, ring[i].vt);
+			vt_t dt = ring[IDX(idx)].vt-ring[IDX(i)].vt;
+			if(dt > *maxdiff) *maxdiff = dt;
+			// printf("re: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
 			// print(ring, idx);
 		
 		}
@@ -45,17 +46,19 @@ int rank_error(struct log_entry *ring, int idx, vt_t *maxdiff) {
 	return re;
 }
 
-int delay(struct log_entry *ring, int idx, vt_t *maxdiff) {
+int delay(struct log_entry *ring, long idx, vt_t *maxdiff) {
 	int d = 0;
-	for(int i = idx; i > idx-N; i--) {
-		if(weight > 0 && (ring[IDX(idx)].w != weight))
+	for(long i = idx-1; i > idx-N; i--) {
+		if(weight > 0 && (ring[IDX(i)].w != weight))
 			continue;
 		if(ring[IDX(i)].vt > ring[IDX(idx)].vt) {
 			d += 1; 
-			vt_t d = ring[IDX(i)].vt-ring[IDX(idx)].vt;
-			if(d > *maxdiff) *maxdiff = d;
-			// printf("delay: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
-			// print(ring, idx);
+			vt_t dt = ring[IDX(i)].vt-ring[IDX(idx)].vt;
+			if(dt > *maxdiff) *maxdiff = dt;
+			if(d >= 199) {
+				printf("delay: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
+				// print(ring, idx);
+			}
 		
 		}
 	}
@@ -65,16 +68,16 @@ int delay(struct log_entry *ring, int idx, vt_t *maxdiff) {
 
 void process_log(int fd) {
 	// print(ring, 0);
-	int idx = 0;
+	long idx = 0;
 
-	int sum_re = 0;
+	long sum_re = 0;
 	int nentry = 0;
 	int max_re = 0;
 	long max_ts;
 	vt_t max_vt;
 	vt_t max_re_diff;
 
-	int sum_d = 0;
+	long sum_d = 0;
 	int max_d = 0;
 	long max_d_ts;
 	vt_t max_d_vt;
@@ -86,7 +89,7 @@ void process_log(int fd) {
 	}
 
 	while(1) {
-		if((weight == 0) || (ring[idx].w == weight)) {
+		if((weight == 0) || (ring[IDX(idx)].w == weight)) {
 			nentry += 1;
 			int re = rank_error(ring, idx, &max_re_diff);
 			if(re > 0) {
@@ -94,8 +97,8 @@ void process_log(int fd) {
 			}
 			if(re > max_re) {
 				max_re = re;
-				max_ts = ring[idx].ts;
-				max_vt = ring[idx].vt;
+				max_ts = ring[IDX(idx)].ts;
+				max_vt = ring[IDX(idx)].vt;
 			}
 			sum_re += re;
 			bin_re[(re%NBIN)]++;
@@ -106,13 +109,13 @@ void process_log(int fd) {
 			}
 			if(d > max_d) {
 				max_d = d;
-				max_d_ts = ring[idx].ts;
-				max_d_vt = ring[idx].vt;
+				max_d_ts = ring[IDX(idx)].ts;
+				max_d_vt = ring[IDX(idx)].vt;
 			}
 			sum_d += d;
 			bin_d[(d%NBIN)]++;
 		}
-		int n = read(fd, ring+idx, sizeof(struct log_entry));
+		int n = read(fd, ring+IDX(idx), sizeof(struct log_entry));
 		if (n < 0) {
 			perror("next ring read");
 			exit(1);
@@ -120,7 +123,7 @@ void process_log(int fd) {
 		// printf("%d: read ts %ld vt %d %d\n", idx, ring[idx].ts, ring[idx].vt, ring[idx].w);
 		if (n == 0)
 			break;
-		idx = IDX(idx + 1);
+		idx++;
 	}
 	printf("sum_re %d n %d %0.2f max %d (ts %ld, vt %lld, diff %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_ts, max_vt, max_re_diff, weight);
 	printf("distribution of rank errors:\n");

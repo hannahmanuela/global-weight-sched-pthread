@@ -3,13 +3,13 @@
 *.d
 
 # Compiled binaries
-pthread-sim/global-heap
-pthread-sim/logdump
-pthread-sim/logmerge
-pthread-sim/rankerror
-pthread-sim/test-global
-pthread-sim/test-heap
-pthread-sim/test-mcntr
+pthread/global-heap
+pthread/logdump
+pthread/logmerge
+pthread/rankerror
+pthread/test-global
+pthread/test-heap
+pthread/test-mcntr
 
 # perf profiling output
 perf.data
@@ -25,7 +25,7 @@ __pycache__/
 .vscode/
 
 # Large log
-pthread-sim/event_log.txt
+pthread/event_log.txt
 
 # Legacy output dir
-pthread-sim/out-onegrp-test/
+pthread/out-onegrp-test/

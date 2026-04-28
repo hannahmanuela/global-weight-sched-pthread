@@ -29,6 +29,13 @@ void print(struct log_entry *r, int idx) {
 	}
 }
 
+void print_back(struct log_entry *r, int idx) {
+	for(int i = idx; i > idx-N; i--) {
+		int j = IDX(i);
+		printf("%d: ts %ld vt %lld cid %d pid %d(%d) hid %d ohid %d ovt %lld\n", i, ring[j].ts, ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid, ring[j].hid, ring[j].ohid, ring[j].ovt);
+	}
+}
+
 int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff) {
 	int re = 0;
 	for(int i = idx+1; i < idx+N; i++) {
@@ -38,9 +45,10 @@ int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff) {
 			re += 1; 
 			vt_t dt = ring[IDX(idx)].vt-ring[IDX(i)].vt;
 			if(dt > *maxdiff) *maxdiff = dt;
-			// printf("re: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
-			// print(ring, idx);
-		
+			if(re >= N-1) {
+				printf("re: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
+				// print(ring, idx);
+			}
 		}
 	}
 	return re;
@@ -55,9 +63,9 @@ int delay(struct log_entry *ring, long idx, vt_t *maxdiff) {
 			d += 1; 
 			vt_t dt = ring[IDX(i)].vt-ring[IDX(idx)].vt;
 			if(dt > *maxdiff) *maxdiff = dt;
-			if(d >= 199) {
+			if(d >= N-1) {
 				printf("delay: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
-				// print(ring, idx);
+				// print_back(ring, idx);
 			}
 		
 		}

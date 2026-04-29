@@ -8,7 +8,7 @@
 
 // run: ./rankerror vtlog
 
-#define N 400
+#define N 200
 
 char buf[32];
 
@@ -47,10 +47,12 @@ int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff) {
 			if(dt > *maxdiff) {
 				*maxdiff = dt;
 			}
+			/*
 			if(re >= 55) { // N-1) {
 				printf("re: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
 				print(ring, idx);
 			}
+			*/
 		}
 	}
 	return re;

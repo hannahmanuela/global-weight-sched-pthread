@@ -17,7 +17,6 @@
 //
 
 extern int debug;
-extern bool use_localq;
 extern int num_groups;
 
 // Select next process to run from mh

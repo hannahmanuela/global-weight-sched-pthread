@@ -10,6 +10,7 @@
 #include "core.h"
 #include "group.h"
 #include "mheap.h"
+#include "gwfs.h"
 
 //
 // approximate global weighted fair sharing with multiheap
@@ -65,7 +66,7 @@ static void reset_preempt(struct global_heap *gh, struct core *c, w_t w) {
 }
 
 // Select next process to run
-bool gh_schedule(struct global_heap *gh, struct core *c) {
+bool gh_schedule_gwfs(struct global_heap *gh, struct core *c) {
 	struct process *min_proc = NULL;
 	if(do_affinity && gh->mh->nheap > 1 && c->process) {
 		min_proc = mh_min_affinity(c);
@@ -164,7 +165,7 @@ static bool gh_preempt_slow(struct global_heap *gh, struct core *c, struct proce
 }
 
 // Add p to group and make p runnable
-void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
+void gh_enqueue_gwfs(struct global_heap *gh, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(p->mh, c);
 	assert(p->h == NULL);
 
@@ -204,7 +205,7 @@ static void upd_lag(struct global_heap *gh, struct process *p, t_t time_passed) 
 }
 
 // Yield and enqueue
-void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void gh_yield_gwfs(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
 	if(do_preempt)
 		reset_preempt(gh, c, p->he.weight);
 
@@ -222,7 +223,7 @@ void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t tim
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void gh_dequeue_gwfs(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
 	if(do_preempt)
 		reset_preempt(gh, c, p->he.weight);
 

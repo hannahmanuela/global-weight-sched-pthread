@@ -23,6 +23,7 @@
 #include "mheap.h"
 #include "global_heap.h"
 #include "rr.h"
+#include "gwfs.h"
 #include "util.h"
 #include "scheduler.h"
 
@@ -78,28 +79,24 @@ void doop(struct global_heap *gh, struct core *mycore, int op, long *cycles, lon
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		if(rr) gh_schedule_rr(gh, mycore);
-		else gh_schedule(gh, mycore);
+		gh_schedule(gh, mycore);
 		break;
 	case YIELD:
 		mycore->total += gh->tick_length;
 		if(p) {
 			mycore->work += gh->tick_length;
-			if (rr) gh_yield_rr(gh, mycore, p, gh->tick_length);
-			else gh_yield(gh, mycore, p, gh->tick_length);
+			gh_yield(gh, mycore, p, gh->tick_length);
 		} else {
 			mycore->idle += gh->tick_length;
 		}
 		break;
 	case ENQ:
-		if (rr) gh_enqueue_rr(gh, mycore, p);
-		else gh_enqueue(gh, mycore, p);
+		gh_enqueue(gh, mycore, p);
 		break;
 	case DEQ:
 		mycore->total += gh->tick_length;
 		mycore->work += gh->tick_length/2;
-		if(rr) gh_dequeue_rr(gh, mycore, p, gh->tick_length/2);
-		else gh_dequeue(gh, mycore, p, gh->tick_length/2);
+		gh_dequeue(gh, mycore, p, gh->tick_length/2);
 		break;
 	}
 	long op_cycles = 0;
@@ -214,7 +211,7 @@ void *run_core(void* core) {
 	int cont = 1;
 	double start = now();
 	for (int i = 0; now() - start < time_to_run; i++) {
-		if (rr) rr_sched_action(mycore);
+		if (is_rr()) rr_sched_action(mycore);
 		else global_heap_sched_action(mycore);
 	}
 }
@@ -232,7 +229,6 @@ void set_scheduler(char *s) {
 		scheduler = RR;
 		num_groups = 1;
 		ratio = 1;
-		rr = true;
 	} else if (strcmp(s, "pcrq") == 0) {
 		scheduler = PCRQ;
 	} else {
@@ -302,7 +298,7 @@ void main(int argc, char *argv[]) {
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
 	gs->gh = gh_new(tick_length, nheap, gs->cores, num_cores);
-	if (rr) rr_groups(num_groups, num_threads_p_group);
+	if (is_rr()) rr_groups(num_groups, num_threads_p_group);
 	else global_heap_groups(num_groups, num_threads_p_group);
 
 	// printf("==="); mh_print(gs->gh->mh);
@@ -312,7 +308,7 @@ void main(int argc, char *argv[]) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	int pg = (rr && (ratio == 0)) ? 0 : num_threads_p_group;
+	int pg = (is_rr() && (ratio == 0)) ? 0 : num_threads_p_group;
 	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", argv[optind], num_cores, num_groups, num_threads, pg, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_power2_insert, benchmark, time_to_run, ratio);
 
 	float s_h = 0.0;

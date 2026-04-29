@@ -9,6 +9,7 @@
 #include "heap.h"
 #include "mheap.h"
 #include "global_heap.h"
+#include "scheduler.h"
 #include "util.h"
 
 #define GRP1 1

@@ -78,7 +78,7 @@ void test_load() {
 	
 	extern bool use_power2_insert;
 	
-	use_power2_insert = false;
+	use_power2_insert = true;
 	for (int nproc = 2; nproc < 2029; nproc += nproc) {
 		int max = 0;
 		float a = 0.0;

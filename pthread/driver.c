@@ -31,7 +31,6 @@ int time_to_run = 2;  // sec
 int num_cores;
 int time_work; // in usec
 char *logfile = NULL;
-int ratio = 1;
 int base_weight = 10;
 bool do_ts_op;
 int benchmark = 0;
@@ -43,6 +42,7 @@ extern bool do_preempt;
 extern bool rr;
 extern bool use_power2_insert;
 extern int scheduler;
+extern int ratio;
 
 struct global_state {
 	struct global_heap *gh;
@@ -220,21 +220,6 @@ void usage(char *s) {
 	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <sched: gwfs/rr/pcrq> <num_cores> <num_threads>\n", s);
 	exit(1);
 
-}
-
-void set_scheduler(char *s) {
-	if (strcmp(s, "gwfs") == 0) {
-		scheduler = GWFS;
-	} else if (strcmp(s, "rr") == 0) {
-		scheduler = RR;
-		num_groups = 1;
-		ratio = 1;
-	} else if (strcmp(s, "pcrq") == 0) {
-		scheduler = PCRQ;
-	} else {
-		fprintf(stderr, "unkown scheduler %s\n", s);
-		exit(1);
-	}
 }
 
 void main(int argc, char *argv[]) {

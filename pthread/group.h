@@ -10,6 +10,8 @@
 #include "heap_elem.h"
 #include "heap.h"
 
+#define DEF_NUM_GROUPS 4
+
 struct process {
 	struct heap_elem he;
 	struct heap *h;

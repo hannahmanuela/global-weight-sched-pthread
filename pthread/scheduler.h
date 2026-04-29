@@ -1,5 +1,7 @@
 #ifndef _SCHEDULER_H_
 
+#include <string.h>
+
 #include "core.h"
 #include "global_heap.h"
 
@@ -8,6 +10,8 @@
 #define GWFS 1
 #define RR   2
 #define PCRQ 3
+
+void set_scheduler(char *s);
 
 bool is_rr();
 

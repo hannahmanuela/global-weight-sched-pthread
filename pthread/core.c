@@ -56,6 +56,9 @@ void c_print(struct core *c, int num_groups) {
 }
 
 int c_rand(struct core *c, int n) {
+	//double dr;
+	//drand48_r(&c->randBuffer, &dr);
+	//int r = (int) (dr * n);
 	int r = rand_r(&c->seed) % n;
 	return r;
 }
@@ -66,6 +69,7 @@ struct core *c_new(int i, int n, int seed) {
 	lock_init(&c->lk);
 	c->cid = i;
 	c->seed = seed;
+	srand48_r(seed, &c->randBuffer);
 	c->hit = calloc(n, sizeof(int));
 	c->miss = calloc(n, sizeof(int));
 	return c;

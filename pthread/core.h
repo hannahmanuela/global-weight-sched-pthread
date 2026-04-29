@@ -2,6 +2,7 @@
 
 #define _CORE_H_
 
+#include <stdlib.h>
 #include <stdatomic.h>
 
 #include "vt.h"
@@ -25,6 +26,7 @@ struct core {
 	
 	int cid;
 	unsigned int seed;
+	struct drand48_data randBuffer;
 
 	struct process *process;   // currently running process or last process ran
 	struct process *pool;   // pool of processes sleeping

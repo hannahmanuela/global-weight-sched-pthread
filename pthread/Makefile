@@ -9,9 +9,9 @@ CFLAGS += -g -O2 -fno-omit-frame-pointer
 DEPS = $(wildcard *.d)
 -include $(DEPS)
 
-all: global-heap test-heap test-global test-mcntr logmerge logdump rankerror
+all: schedule test-heap test-global test-mcntr logmerge logdump rankerror
 
-global-heap: driver.o $(OBJ)
+schedule: driver.o $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 
 test-global: test_global.o $(OBJ)
@@ -39,4 +39,4 @@ rankerror: rankerror.o
 
 clean:
 	rm -rf *.o *.d
-	rm -rf global-heap test-heap test-global
+	rm -rf schedule test-heap test-global

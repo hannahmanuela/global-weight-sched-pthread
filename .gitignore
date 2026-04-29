@@ -3,7 +3,7 @@
 *.d
 
 # Compiled binaries
-pthread/global-heap
+pthread/schedule
 pthread/logdump
 pthread/logmerge
 pthread/rankerror

@@ -1,13 +1,11 @@
 #!/bin/bash
 
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <ncore> <nproc> <log>"
+if [ "$#" -ne 4 ]; then
+    echo "Usage: $0 <scheduler> <ncore> <nproc> <log>"
     exit 1
 fi
 
-./global-heap -s -l /tmp/$3 -t 2 $1 $2
-#./global-heap -s -b 1 -t 2 2 4
-#./global-heap -s -t 2 2 4
+./schedule $1 -l /tmp/$3 -t 2 $2 $3
 
-./logmerge $1 $3
-./rankerror $3
+./logmerge $2 $4
+./rankerror $4

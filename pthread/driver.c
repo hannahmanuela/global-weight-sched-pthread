@@ -231,7 +231,7 @@ void main(int argc, char *argv[]) {
 	while ((opt = getopt(argc, argv, "2adpqsb:g:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case '2':
-			use_power2_insert = true;
+			use_power2_insert = false;
 			break;
 		case 'a':
 			do_affinity = true;

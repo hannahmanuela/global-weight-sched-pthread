@@ -93,6 +93,17 @@ void mh_print(struct mheap *mh) {
 	printf("=\n");
 }
 
+float mh_load(struct mheap *mh, int *maxl) {
+	long tot = 0;
+	for (int i = 0; i < mh->nheap; i++) {
+		struct heap *h = mh->h[i];
+		tot += h->heap_size;
+		if(h->heap_size > *maxl)
+			*maxl = h->heap_size;
+	}
+	return ((float) tot)/mh->nheap;
+}
+
 void mh_two_heaps(struct mheap *mh, struct core *c, int *i, int *j, int *v1, int *v2) {
 	*i = c_rand(c, mh->nheap);
 	*j = c_rand(c, mh->nheap);

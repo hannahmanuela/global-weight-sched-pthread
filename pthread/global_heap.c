@@ -23,6 +23,7 @@ bool rr = false;
 bool use_localq = false;
 bool use_power2_insert = true;
 int num_groups = 4;
+int scheduler;
 
 struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int ncore) {
 	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
@@ -33,7 +34,6 @@ struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int nc
 	gh->ncore = ncore;
 	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);
 	queue_init(&gh->q);
-	queue_init(&gh->q1);
 	return gh;
 }
 

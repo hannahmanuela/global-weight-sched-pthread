@@ -10,8 +10,8 @@ struct global_heap {
 	// XXX group array and stick these fields inside of group
 	struct mheap *mh;
 	struct mheap *mh1;   // for low priority rr procs
+
 	queue_t q;
-	queue_t q1;
 
 	preempt_t preempt __calign__;
 };

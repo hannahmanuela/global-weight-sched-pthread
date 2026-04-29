@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <immintrin.h>
+#include <string.h>
 #include <stdint.h> 
 #include <sys/resource.h>
 #include <stdatomic.h>
@@ -23,6 +24,7 @@
 #include "global_heap.h"
 #include "rr.h"
 #include "util.h"
+#include "scheduler.h"
 
 int time_to_run = 2;  // sec
 int num_cores;
@@ -38,8 +40,8 @@ extern bool debug;
 extern bool do_affinity;
 extern bool do_preempt;
 extern bool rr;
-extern bool use_localq;
 extern bool use_power2_insert;
+extern int scheduler;
 
 struct global_state {
 	struct global_heap *gh;
@@ -218,9 +220,25 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <num_cores> <num_threads>\n", s);
+	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <sched: gwfs/rr/pcrq> <num_cores> <num_threads>\n", s);
 	exit(1);
 
+}
+
+void set_scheduler(char *s) {
+	if (strcmp(s, "gwfs") == 0) {
+		scheduler = GWFS;
+	} else if (strcmp(s, "rr") == 0) {
+		scheduler = RR;
+		num_groups = 1;
+		ratio = 1;
+		rr = true;
+	} else if (strcmp(s, "pcrq") == 0) {
+		scheduler = PCRQ;
+	} else {
+		fprintf(stderr, "unkown scheduler %s\n", s);
+		exit(1);
+	}
 }
 
 void main(int argc, char *argv[]) {
@@ -228,7 +246,7 @@ void main(int argc, char *argv[]) {
 	int nheap = 0;
 	int tick_length = 1000;
 
-	while ((opt = getopt(argc, argv, "2adpqsb:g:w:h:r:l:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "2adpqb:g:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case '2':
 			use_power2_insert = false;
@@ -239,16 +257,8 @@ void main(int argc, char *argv[]) {
 		case 'd':
 			debug = true;
 			break;
-		case 'q':
-			use_localq = true;
-			break;
 		case 'p':
 			do_preempt = true;
-			break;
-		case 's':
-			num_groups = 1;
-			ratio = 1;
-			rr = true;
 			break;
 		case 'b':
 			benchmark = atoi(optarg);
@@ -274,14 +284,15 @@ void main(int argc, char *argv[]) {
 		}
 	}
 
-	if (argc - optind != 2) {
+	if (argc - optind != 3) {
 		usage(argv[0]);
 	}
     
-	num_cores = atoi(argv[optind]);
+	set_scheduler(argv[optind]);
+	num_cores = atoi(argv[optind+1]);
 	if (nheap == 0)
 		nheap = num_cores * 2;
-	int num_threads = atoi(argv[optind+1]);
+	int num_threads = atoi(argv[optind+2]);
 	int num_threads_p_group = num_threads/num_groups;
 
 	gs = malloc(sizeof(struct global_state));
@@ -302,7 +313,7 @@ void main(int argc, char *argv[]) {
 	}
 
 	int pg = (rr && (ratio == 0)) ? 0 : num_threads_p_group;
-	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d localq %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", rr ? "rr" : "gw", num_cores, num_groups, num_threads, pg, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_localq, use_power2_insert, benchmark, time_to_run, ratio);
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", argv[optind], num_cores, num_groups, num_threads, pg, gs->gh->mh->nheap, time_work, do_affinity, do_preempt, use_power2_insert, benchmark, time_to_run, ratio);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;

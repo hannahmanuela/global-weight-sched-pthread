@@ -1,4 +1,4 @@
-OBJ = global_heap.o rr.o group.o mheap.o heap.o util.c ticks.o core.o lock.o mcounter.o
+OBJ = global_heap.o gwfs.o rr.o group.o mheap.o heap.o util.c ticks.o core.o lock.o mcounter.o
 
 CC=gcc
 

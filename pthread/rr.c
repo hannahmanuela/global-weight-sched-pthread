@@ -13,7 +13,7 @@
 #include "rr.h"
 
 //
-// rr with multiheap with 1 or two groups (i.e., priority levels)
+// approximate round robin with multiheap with 1 or two groups (i.e., priority levels)
 //
 
 extern int debug;

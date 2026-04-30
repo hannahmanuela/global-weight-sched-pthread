@@ -14,9 +14,11 @@ void set_scheduler(char *s) {
 		scheduler = GWFS;
 	} else if (strcmp(s, "rr") == 0) {
 		scheduler = RR;
-		if (num_groups == 4) num_groups = 1;
+		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
 	} else if (strcmp(s, "pcrq") == 0) {
 		scheduler = PCRQ;
+	} else if (strcmp(s, "gq") == 0) {
+		scheduler = GQ;
 	} else {
 		fprintf(stderr, "unkown scheduler %s\n", s);
 		exit(1);
@@ -26,6 +28,14 @@ void set_scheduler(char *s) {
 
 bool is_rr() {
 	return scheduler == RR;
+}
+
+bool is_pcrq() {
+	return scheduler == PCRQ;
+}
+
+bool is_gq() {
+	return scheduler == GQ;
 }
 
 bool gh_schedule(struct global_heap *gh, struct core *c) {

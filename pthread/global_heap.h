@@ -17,5 +17,6 @@ struct global_heap {
 };
 
 struct global_heap *gh_new(int tick_length, int n, struct core *cs[], int ncore);
+struct core *gh_choose_core(struct global_heap *gh, struct core *c);
 void gh_stats(struct global_heap *gh, struct group *gs[], int n);
 void gh_print(struct global_heap *gh, struct group *gs[], int n);

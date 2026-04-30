@@ -33,8 +33,14 @@ struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int nc
 	gh->cs = cs;
 	gh->ncore = ncore;
 	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);
-	queue_init(&gh->q);
+	if(is_gq()) 
+		queue_init(&gh->q);
 	return gh;
+}
+
+struct core *gh_choose_core(struct global_heap *gh, struct core *c) {
+	int i = c_rand(c, gh->ncore);
+	return gh->cs[i];
 }
 
 void gh_print(struct global_heap *gh, struct group *grps[], int n) {

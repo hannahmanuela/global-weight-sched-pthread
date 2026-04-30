@@ -10,10 +10,13 @@
 #define GWFS 1
 #define RR   2
 #define PCRQ 3
+#define GQ 4
 
 void set_scheduler(char *s);
 
 bool is_rr();
+bool is_pcrq();
+bool is_gq();
 
 bool gh_schedule(struct global_heap *gh, struct core *c);
 void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed);

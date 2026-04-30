@@ -26,9 +26,6 @@ static struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all
 	if (min_proc == NULL) {
 		return NULL;
 	}
-	if(c->fd > 0) {
-		c_log_append(c, min_proc);
-	}
 	return min_proc;
 }
 
@@ -75,18 +72,18 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 			printf("%d: gh_schedule_rr: locally run high %d\n", c->cid, c->process->pid);
 		}
 		c->nlocal += 1;
-		return true;
+		goto ok;
 	}
 
 	if (num_groups > 1) {
 
 		// check all high heaps for runnable proc
 		if ((p = gh_schedule_mh_enq(gh, gh->mh, c, true)) != NULL) 
-			return true;
+			goto ok;
 		
 		// no proc in high heaps; go for low
 		if ((p = gh_schedule_mh_enq(gh, gh->mh1, c, false)) != NULL) 
-			return true;
+			goto ok;
 
 		// keep running low proc, if were running one
 		if (c->process != NULL) {
@@ -94,11 +91,17 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 				printf("%d: locally run low %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, gh->mh1);
 			}
 			c->nlocal += 1;
-			return true;
+			goto ok;
 		}
 	}
 	c->nsched_null += 1;
 	return false;
+
+ok:
+	if(c->fd > 0) {
+		c_log_append(c, p);
+	}
+	return true;
 }
 
 

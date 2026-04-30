@@ -16,8 +16,10 @@
 // approximate round robin with multiheap with 1 or two groups (i.e., priority levels)
 //
 
-extern int debug;
+extern bool debug;
 extern int num_groups;
+
+static vt_t last_vt;
 
 // Select next process to run from mh
 static struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {

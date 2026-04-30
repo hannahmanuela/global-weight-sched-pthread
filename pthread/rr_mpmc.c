@@ -16,7 +16,7 @@
 // rr with multiheap with 1 or two groups (i.e., priority levels)
 //
 
-extern int debug;
+extern bool debug;
 
 // Select next process to run from mh
 struct process *gh_schedule_q(queue_t *q, struct core *c) {

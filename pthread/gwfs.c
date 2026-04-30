@@ -16,7 +16,7 @@
 // approximate global weighted fair sharing with multiheap
 //
 
-extern int debug;
+extern bool debug;
 extern int do_preempt;
 extern int do_affinity;
 

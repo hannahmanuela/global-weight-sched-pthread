@@ -19,8 +19,6 @@
 extern bool debug;
 extern int num_groups;
 
-static vt_t last_vt;
-
 // Select next process to run from mh
 static struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
 	struct process *min_proc = NULL;
@@ -51,7 +49,7 @@ static struct process *gh_schedule_mh_enq(struct global_heap *gh, struct mheap *
 	struct process *p = gh_schedule_mh(mh, c, all);
 	if(p != NULL) {
 		if(debug) {
-			printf("%d: gh_schedule_mh_enq: %t %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
+			printf("%d: gh_schedule_mh_enq: %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
 		}
 		enq_proc(gh, c);
 		c->process = p;
@@ -60,13 +58,13 @@ static struct process *gh_schedule_mh_enq(struct global_heap *gh, struct mheap *
 	return NULL;
 }
 
-// Select next process to run
+// Yield c->process, if any, and select new one, if there is a runnable one
 bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	struct process *p;
 
 	// try high priority mh first for runnable proc
 	if ((p = gh_schedule_mh_enq(gh, gh->mh, c, false)) != NULL)
-		return true;
+		goto ok; 
 
 	// keep running high proc, if were running one
 	if (c->process != NULL && c->process->group->gid == RR_HIGH) {
@@ -101,7 +99,7 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 
 ok:
 	if(c->fd > 0) {
-		c_log_append(c, p);
+		c_log_append(c, c->process);
 	}
 	return true;
 }

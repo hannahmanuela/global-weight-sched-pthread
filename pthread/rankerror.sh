@@ -5,7 +5,8 @@ if [ "$#" -ne 4 ]; then
     exit 1
 fi
 
-./schedule -h 1 -l /tmp/$4 $1 $2 $3
+# ./schedule -h 1 -l /tmp/$4 $1 $2 $3
+./schedule -l /tmp/$4 $1 $2 $3
 
 ./logmerge $2 $4
 ./rankerror $4

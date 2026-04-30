@@ -104,17 +104,28 @@ float mh_load(struct mheap *mh, int *maxl) {
 	return ((float) tot)/mh->nheap;
 }
 
-void mh_two_heaps(struct mheap *mh, struct core *c, int *i, int *j, int *v1, int *v2) {
+void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, struct core *c, int *i, int *j) {
 	*i = c_rand(c, mh->nheap);
 	*j = c_rand(c, mh->nheap);
 	while (*i == *j) {
 		c->nrand++;
 		*j = c_rand(c, mh->nheap);
 	}
+}
+
+static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, struct core *c, int i, int *j) {
+	*j = c_rand(c, mh->nheap);
+	while (i == *j) {
+		c->nrand++;
+		*j = c_rand(c, mh->nheap);
+	}
+}
+
+void mh_two_heaps(struct mheap *mh, struct core *c, int *i, int *j, int *v1, int *v2) {
+	mh_rand_heaps(mh, c, i, j);
 	*v1 = atomic_load_explicit(&(mh->h[*i]->heap_size), __ATOMIC_ACQUIRE);
 	*v2 = atomic_load_explicit(&(mh->h[*j]->heap_size), __ATOMIC_ACQUIRE);
 }	
-
 
 struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
 	long r = 0;
@@ -159,23 +170,6 @@ static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 	if(do_affinity)
 		atomic_store_explicit(&p->cid, c->cid, __ATOMIC_RELAXED);
 	return p;
-}
-
-static void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, struct core *c, int *i, int *j) {
-	*i = c_rand(c, mh->nheap);
-	*j = c_rand(c, mh->nheap);
-	while (*i == *j) {
-		c->nrand++;
-		*j = c_rand(c, mh->nheap);
-	}
-}
-
-static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, struct core *c, int i, int *j) {
-	*j = c_rand(c, mh->nheap);
-	while (i == *j) {
-		c->nrand++;
-		*j = c_rand(c, mh->nheap);
-	}
 }
 
 static void mh_upd_stat(struct process *p, struct core *c, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {

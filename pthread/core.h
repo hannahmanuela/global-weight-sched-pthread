@@ -24,8 +24,6 @@ struct log_entry {
 struct core {
 	struct spinlock lk __calign__;
 
-	struct heap *runq;
-	
 	int cid;
 	unsigned int seed;
 	struct drand48_data randBuffer;

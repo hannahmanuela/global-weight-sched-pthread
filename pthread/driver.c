@@ -273,8 +273,10 @@ void main(int argc, char *argv[]) {
     
 	set_scheduler(argv[optind]);
 	num_cores = atoi(argv[optind+1]);
-	if (nheap == 0)
-		nheap = num_cores * 2;
+	if (nheap == 0) {
+		if (is_pcrq()) nheap = num_cores;
+		else nheap = num_cores * 2;
+	}
 	int num_threads = atoi(argv[optind+2]);
 	int num_threads_p_group = num_threads/num_groups;
 
@@ -282,9 +284,6 @@ void main(int argc, char *argv[]) {
 	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
 	for (int i = 0; i < num_cores; i++) {
 		gs->cores[i] = c_new(i, num_groups, i);
-		if (is_pcrq) {
-			gs->cores[i]->runq = heap_new();
-		}
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
 	gs->gh = gh_new(tick_length, nheap, gs->cores, num_cores);

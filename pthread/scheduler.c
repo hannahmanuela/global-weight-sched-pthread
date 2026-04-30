@@ -17,6 +17,7 @@ void set_scheduler(char *s) {
 		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
 	} else if (strcmp(s, "pcrq") == 0) {
 		scheduler = PCRQ;
+		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
 	} else if (strcmp(s, "gq") == 0) {
 		scheduler = GQ;
 	} else {

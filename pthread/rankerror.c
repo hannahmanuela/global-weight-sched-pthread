@@ -36,7 +36,7 @@ void print_back(struct log_entry *r, int idx) {
 	}
 }
 
-int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff) {
+int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff, int *j) {
 	int re = 0;
 	for(int i = idx+1; i < idx+N; i++) {
 		if(weight > 0 && (ring[IDX(i)].w != weight))
@@ -46,6 +46,7 @@ int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff) {
 			vt_t dt = ring[IDX(idx)].vt - ring[IDX(i)].vt;
 			if(dt > *maxdiff) {
 				*maxdiff = dt;
+				*j = i;
 			}
 			if(re >=  N-1) {
 				printf("re: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
@@ -56,7 +57,7 @@ int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff) {
 	return re;
 }
 
-int delay(struct log_entry *ring, long idx, vt_t *maxdiff) {
+int delay(struct log_entry *ring, long idx, vt_t *maxdiff, int *j) {
 	int d = 0;
 	for(long i = idx-1; i > idx-N; i--) {
 		if(weight > 0 && (ring[IDX(i)].w != weight))
@@ -66,6 +67,7 @@ int delay(struct log_entry *ring, long idx, vt_t *maxdiff) {
 			vt_t dt = ring[IDX(i)].vt-ring[IDX(idx)].vt;
 			if(dt > *maxdiff) {
 				*maxdiff = dt;
+				*j = i;
 			}
 			if(d >= N-1) {
 				printf("delay: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
@@ -93,6 +95,7 @@ void process_log(int fd) {
 	vt_t max_re_diff_ts;
 	vt_t max_re_diff_vt;
 	long max_re_diff_idx;
+	long max_re_diff_i;
 	
 	long sum_d = 0;
 	int max_d = 0;
@@ -104,6 +107,7 @@ void process_log(int fd) {
 	vt_t max_d_diff_ts;
 	vt_t max_d_diff_vt;
 	long max_d_diff_idx;
+	long max_d_diff_i;
 
 	if(read(fd, ring, sizeof(struct log_entry) * N) <= 0) {
 		perror("init ring read");
@@ -114,7 +118,9 @@ void process_log(int fd) {
 		if((weight == 0) || (ring[IDX(idx)].w == weight)) {
 			nentry += 1;
 			vt_t max_re_vt = 0;
-			int re = rank_error(ring, idx, &max_re_vt);
+			int max_re_i;
+			int i = 0;
+			int re = rank_error(ring, idx, &max_re_vt, &i);
 			if(re > 0) {
 				// printf("%d: %ld rank_error %d\n", idx, ring[idx].ts, re);
 			}
@@ -129,13 +135,15 @@ void process_log(int fd) {
 				max_re_diff_idx = idx;
 				max_re_diff_ts = ring[IDX(idx)].ts;
 				max_re_diff_vt = ring[IDX(idx)].vt;
+				max_re_diff_i = i;
 				
 			}
 			sum_re += re;
 			bin_re[(re%NBIN)]++;
 
 			vt_t max_vt_d = 0;
-			int d = delay(ring, idx+N-1, &max_vt_d);
+			i = 0;
+			int d = delay(ring, idx+N-1, &max_vt_d, &i);
 			if(d > 0) {
 				// printf("%d: %ld delay %d\n", idx, ring[idx].ts, d);
 			}
@@ -150,6 +158,7 @@ void process_log(int fd) {
 				max_d_diff_idx = idx;
 				max_d_diff_ts = ring[IDX(idx)].ts;
 				max_d_diff_vt = ring[IDX(idx)].vt;
+				max_d_diff_i = i;
 			}
 					    
 			sum_d += d;
@@ -165,12 +174,12 @@ void process_log(int fd) {
 			break;
 		idx++;
 	}
-	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld) maxdiff %lld (idx %ld ts %ld vt %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_idx, max_ts, max_vt, max_re_diff, max_re_diff_idx, max_re_diff_ts, max_re_diff_vt, weight);
+	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld) maxdiff %lld (idx %ld ts %ld vt %lld i %d) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_idx, max_ts, max_vt, max_re_diff, max_re_diff_idx, max_re_diff_ts, max_re_diff_vt, max_re_diff_i, weight);
 	printf("distribution of rank errors:\n");
 	for(int i = 0; i < NBIN; i++)
 		if (bin_re[i] > 0) printf("  bin %d: %d\n", i, bin_re[i]);
 	printf("=\n");
-	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld) maxdiff %lld (idx %ld ts %ld vt %lld) \n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts, max_d_vt, max_d_diff, max_d_diff_idx, max_d_diff_ts, max_d_diff_vt);
+	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld) maxdiff %lld (idx %ld ts %ld vt %lld i %d) \n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts, max_d_vt, max_d_diff, max_d_diff_idx, max_d_diff_ts, max_d_diff_vt, max_d_diff_i);
 	printf("distribution of delay\n");
 	for(int i = 0; i < NBIN; i++)
 		if (bin_d[i] > 0) printf("  bin %d: %d\n", i, bin_d[i]);

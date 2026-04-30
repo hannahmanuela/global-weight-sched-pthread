@@ -17,6 +17,9 @@ bool gh_schedule_pcrq(struct global_heap *gh, struct core *c) {
 		printf("%d: schedule %d(%d)\n", c->cid, p->pid, p->group->gid);
 	}
 	c->process = p;
+	if(c->fd > 0) {
+		c_log_append(c, p);
+	}
 	return true;
 }
 

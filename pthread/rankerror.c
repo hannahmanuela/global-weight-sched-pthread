@@ -166,7 +166,7 @@ void process_log(int fd) {
 		if (bin_delay_error[i] > 0) printf("  bin %d: %d\n", i, bin_delay_error[i]);
 	printf("=\n");
 
-	printf("distribution of latency errors (bin is %ld cycles) avg %ld max %ld\n", Hz, sum_lat/nentry, max_lat);
+	printf("distribution of latency (bin is %ld cycles) avg %ld max %ld\n", Hz, sum_lat/nentry, max_lat);
 	for(int i = 0; i < NBIN_LAT; i++)
 		if (bin_latency[i] > 0) printf("  bin %d: %d\n", i, bin_latency[i]);
 	printf("=\n");

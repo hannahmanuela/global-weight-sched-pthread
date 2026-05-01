@@ -9,12 +9,17 @@
 // run: ./rankerror vtlog
 
 #define N 200
+#define Hz (3000 * 1000L) // cycles per us * usec
 
 char buf[32];
 
 #define NBIN 50
-int bin_re[NBIN];
-int bin_d[NBIN];
+#define NBIN_DELAY 100
+#define NBIN_LAT 1000
+
+int bin_rank_error[NBIN];
+int bin_delay_error[NBIN_DELAY];
+int bin_latency[NBIN_LAT];
 
 struct log_entry *ring; 
 
@@ -36,19 +41,13 @@ void print_back(struct log_entry *r, int idx) {
 	}
 }
 
-int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff, int *j, vt_t *vt) {
+int rank_error(struct log_entry *ring, long idx) {
 	int re = 0;
 	for(int i = idx+1; i < idx+N; i++) {
 		if(weight > 0 && (ring[IDX(i)].w != weight))
 			continue;
 		if(ring[IDX(i)].vt < ring[IDX(idx)].vt) {
 			re += 1; 
-			vt_t dt = ring[IDX(idx)].vt - ring[IDX(i)].vt;
-			if(dt > *maxdiff) {
-				*maxdiff = dt;
-				*j = i;
-				*vt = ring[IDX(i)].vt;
-			}
 			if(re >=  N-1) {
 				printf("re: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
 				// print(ring, idx);
@@ -58,19 +57,13 @@ int rank_error(struct log_entry *ring, long idx, vt_t *maxdiff, int *j, vt_t *vt
 	return re;
 }
 
-int delay(struct log_entry *ring, long idx, vt_t *maxdiff, int *j, vt_t *vt) {
+int delay(struct log_entry *ring, long idx) {
 	int d = 0;
 	for(long i = idx-1; i > idx-N; i--) {
 		if(weight > 0 && (ring[IDX(i)].w != weight))
 			continue;
 		if(ring[IDX(i)].vt > ring[IDX(idx)].vt) {
 			d += 1; 
-			vt_t dt = ring[IDX(i)].vt-ring[IDX(idx)].vt;
-			if(dt > *maxdiff) {
-				*maxdiff = dt;
-				*j = i;
-				*vt = ring[IDX(i)].vt;
-			}
 			if(d >= N-1) {
 				printf("delay: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
 				// print_back(ring, idx);
@@ -88,30 +81,19 @@ void process_log(int fd) {
 
 	long sum_re = 0;
 	int nentry = 0;
-	int max_re = 0;
-	vt_t max_ts;
-	vt_t max_vt;
-	long max_idx;
-
-	vt_t max_re_diff = 0;
-	vt_t max_re_diff_ts;
-	vt_t max_re_diff_vt;
-	long max_re_diff_idx;
-	long max_re_diff_i;
-	vt_t max_re_diff_i_vt;
-	
 	long sum_d = 0;
-	int max_d = 0;
-	vt_t max_d_ts;
-	vt_t max_d_vt;
-	long max_d_idx;
 
-	vt_t max_d_diff = 0;
-	vt_t max_d_diff_ts;
-	vt_t max_d_diff_vt;
-	long max_d_diff_idx;
-	long max_d_diff_i;
-	vt_t max_d_diff_i_vt;
+	long max_re = 0;
+	long max_re_idx;
+	t_t max_re_ts;
+	vt_t max_re_vt;
+
+	long max_d = 0;
+	long max_d_idx;
+	t_t max_d_ts;
+	vt_t max_d_vt;
+	
+	vt_t max_lat = 0;
 
 	if(read(fd, ring, sizeof(struct log_entry) * N) <= 0) {
 		perror("init ring read");
@@ -121,39 +103,21 @@ void process_log(int fd) {
 	while(1) {
 		if((weight == 0) || (ring[IDX(idx)].w == weight)) {
 			nentry += 1;
-			vt_t max_re_vt = 0;
-			int max_re_i;
-			int i = 0;
-			vt_t vt = 0;
-			int re = rank_error(ring, idx, &max_re_vt, &i, &vt);
+
+			int re = rank_error(ring, idx);
 			if(re > 0) {
 				// printf("%d: %ld rank_error %d\n", idx, ring[idx].ts, re);
 			}
 			if(re > max_re) {
 				max_re = re;
-				max_idx = idx;
-				max_ts = ring[IDX(idx)].ts;
-				max_vt = ring[IDX(idx)].vt;
-			}
-			if (max_re_vt > max_re_diff) {
-				max_re_diff = max_re_vt;
-				max_re_diff_idx = idx;
-				max_re_diff_ts = ring[IDX(idx)].ts;
-				max_re_diff_vt = ring[IDX(idx)].vt;
-				max_re_diff_i = i;
-				max_re_diff_i_vt = vt;
-				if (max_re_vt >= 10000000) {
-					printf("i %d idx %d\n", i, idx);
-					print(ring, idx);
-				}
+				max_re_idx = idx;
+				max_re_ts = ring[IDX(idx)].ts;
+				max_re_vt = ring[IDX(idx)].vt;
 			}
 			sum_re += re;
-			bin_re[(re%NBIN)]++;
+			bin_rank_error[(re%NBIN)]++;
 
-			vt_t max_vt_d = 0;
-			i = 0;
-			vt = 0;
-			int d = delay(ring, idx+N-1, &max_vt_d, &i, &vt);
+			int d = delay(ring, idx+N-1);
 			if(d > 0) {
 				// printf("%d: %ld delay %d\n", idx, ring[idx].ts, d);
 			}
@@ -163,17 +127,22 @@ void process_log(int fd) {
 				max_d_ts = ring[IDX(idx)].ts;
 				max_d_vt = ring[IDX(idx)].vt;
 			}
-			if (max_vt_d > max_d_diff) {
-				max_d_diff = max_vt_d;
-				max_d_diff_idx = idx;
-				max_d_diff_ts = ring[IDX(idx)].ts;
-				max_d_diff_vt = ring[IDX(idx)].vt;
-				max_d_diff_i = i;
-				max_d_diff_i_vt = vt;
-			}
-					    
 			sum_d += d;
-			bin_d[(d%NBIN)]++;
+			bin_delay_error[(d%NBIN_DELAY)]++;
+
+			// only makes sense if ts and vt are comparable, as in RR
+			t_t lat = ring[IDX(idx)].ts - ring[IDX(idx)].vt;
+			if (lat/Hz > NBIN_LAT) {
+				printf("adjust Hz or NBIN_LAT %d %d\n", lat/Hz, NBIN_LAT);
+				exit(1);
+			}
+
+			bin_latency[(lat / Hz)]++;
+			if(lat > max_lat) max_lat = lat;
+			if (lat > 20000000) {
+				vt_t diff = ring[IDX(idx)].ts-ring[IDX(idx)].vt;
+				printf("lat: idx %d insert %ld sched %ld = %ld cycles\n", idx, ring[IDX(idx)].vt, ring[IDX(idx)].ts, diff);
+			}
 		}
 		int n = read(fd, ring+IDX(idx), sizeof(struct log_entry));
 		if (n < 0) {
@@ -185,15 +154,20 @@ void process_log(int fd) {
 			break;
 		idx++;
 	}
-	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld) maxdiff %lld (idx %ld ts %ld vt %lld i %d i_vt %ld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_idx, max_ts, max_vt, max_re_diff, max_re_diff_idx, max_re_diff_ts, max_re_diff_vt, max_re_diff_i, max_re_diff_i_vt, weight);
+	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_re_idx, max_re_ts, max_re_vt, weight);
 	printf("distribution of rank errors:\n");
 	for(int i = 0; i < NBIN; i++)
-		if (bin_re[i] > 0) printf("  bin %d: %d\n", i, bin_re[i]);
+		if (bin_rank_error[i] > 0) printf("  bin %d: %d\n", i, bin_rank_error[i]);
 	printf("=\n");
-	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld) maxdiff %lld (idx %ld ts %ld vt %lld i %d i_vt %ld) \n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts, max_d_vt, max_d_diff, max_d_diff_idx, max_d_diff_ts, max_d_diff_vt, max_d_diff_i, max_d_diff_i_vt);
-	printf("distribution of delay\n");
-	for(int i = 0; i < NBIN; i++)
-		if (bin_d[i] > 0) printf("  bin %d: %d\n", i, bin_d[i]);
+	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld)\n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts, max_d_vt);
+	printf("distribution of delay errors\n");
+	for(int i = 0; i < NBIN_DELAY; i++)
+		if (bin_delay_error[i] > 0) printf("  bin %d: %d\n", i, bin_delay_error[i]);
+	printf("=\n");
+
+	printf("distribution of latency errors (bin is %ld cycles) max %ld\n", Hz, max_lat);
+	for(int i = 0; i < NBIN_LAT; i++)
+		if (bin_latency[i] > 0) printf("  bin %d: %d\n", i, bin_latency[i]);
 	printf("=\n");
 }
 

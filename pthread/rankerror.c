@@ -9,7 +9,7 @@
 // run: ./rankerror vtlog
 
 #define N 200
-#define Hz (3000 * 1000L) // cycles per us * usec
+#define Hz (3000 * 10L) // cycles per us * usec
 
 char buf[32];
 
@@ -94,6 +94,7 @@ void process_log(int fd) {
 	vt_t max_d_vt;
 	
 	vt_t max_lat = 0;
+	vt_t sum_lat = 0;
 
 	if(read(fd, ring, sizeof(struct log_entry) * N) <= 0) {
 		perror("init ring read");
@@ -132,16 +133,16 @@ void process_log(int fd) {
 
 			// only makes sense if ts and vt are comparable, as in RR
 			t_t lat = ring[IDX(idx)].ts - ring[IDX(idx)].vt;
+			sum_lat += lat;
 			if (lat/Hz > NBIN_LAT) {
 				printf("adjust Hz or NBIN_LAT %d %d\n", lat/Hz, NBIN_LAT);
-				exit(1);
-			}
-
-			bin_latency[(lat / Hz)]++;
-			if(lat > max_lat) max_lat = lat;
-			if (lat > 20000000) {
 				vt_t diff = ring[IDX(idx)].ts-ring[IDX(idx)].vt;
 				printf("lat: idx %d insert %ld sched %ld = %ld cycles\n", idx, ring[IDX(idx)].vt, ring[IDX(idx)].ts, diff);
+			} else {
+				bin_latency[(lat / Hz)]++;
+			}
+			if(lat > max_lat) {
+				max_lat = lat;
 			}
 		}
 		int n = read(fd, ring+IDX(idx), sizeof(struct log_entry));
@@ -165,7 +166,7 @@ void process_log(int fd) {
 		if (bin_delay_error[i] > 0) printf("  bin %d: %d\n", i, bin_delay_error[i]);
 	printf("=\n");
 
-	printf("distribution of latency errors (bin is %ld cycles) max %ld\n", Hz, max_lat);
+	printf("distribution of latency errors (bin is %ld cycles) avg %ld max %ld\n", Hz, sum_lat/nentry, max_lat);
 	for(int i = 0; i < NBIN_LAT; i++)
 		if (bin_latency[i] > 0) printf("  bin %d: %d\n", i, bin_latency[i]);
 	printf("=\n");

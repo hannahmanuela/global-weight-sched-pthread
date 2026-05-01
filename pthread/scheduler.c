@@ -4,6 +4,7 @@
 #include "gwfs.h"
 #include "rr.h"
 #include "pcrq.h"
+#include "gq.h"
 
 extern int scheduler;
 extern int num_groups;
@@ -19,6 +20,7 @@ void set_scheduler(char *s) {
 		scheduler = PCRQ;
 		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
 	} else if (strcmp(s, "gq") == 0) {
+		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
 		scheduler = GQ;
 	} else {
 		fprintf(stderr, "unkown scheduler %s\n", s);
@@ -47,6 +49,8 @@ bool gh_schedule(struct global_heap *gh, struct core *c) {
 		return gh_schedule_gwfs(gh, c);
 	case PCRQ:
 		return gh_schedule_pcrq(gh, c);
+	case GQ:
+		return gh_schedule_gq(gh, c);
 	}
 }	
 
@@ -60,6 +64,9 @@ void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t t){
 		break;
 	case PCRQ:
 		gh_yield_pcrq(gh, c, p, t);
+		break;
+	case GQ:
+		gh_yield_gq(gh, c, p, t);
 		break;
 	}
 }
@@ -75,6 +82,9 @@ void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
 	case PCRQ:
 		gh_enqueue_pcrq(gh, c, p);
 		break;
+	case GQ:
+		gh_enqueue_gq(gh, c, p);
+		break;
 	}
 }
 
@@ -88,6 +98,9 @@ void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t t
 		break;
 	case PCRQ:
 		gh_dequeue_pcrq(gh, c, p, t);
+		break;
+	case GQ:
+		gh_dequeue_gq(gh, c, p, t);
 		break;
 	}
 }

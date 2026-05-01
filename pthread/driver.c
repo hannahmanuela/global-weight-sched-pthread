@@ -25,6 +25,7 @@
 #include "rr.h"
 #include "gwfs.h"
 #include "pcrq.h"
+#include "gq.h"
 #include "util.h"
 #include "scheduler.h"
 
@@ -158,6 +159,7 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 		for (int j = 0; j < ns[i]; j++) {
 			struct process *p = grp_new_process(NULL, i*ns[0]+j, g);
 			if(is_pcrq()) gh_enqueue_pcrq(gs->gh, gs->cores[0], p);
+			else if (is_gq()) gh_enqueue_gq(gs->gh, gs->cores[0], p);
 			else gh_enqueue_rr(gs->gh, gs->cores[0], p);
 		}
 	}
@@ -213,7 +215,7 @@ void *run_core(void* core) {
 	int cont = 1;
 	double start = now();
 	for (int i = 0; now() - start < time_to_run; i++) {
-		if (is_rr() || is_pcrq()) rr_sched_action(mycore);
+		if (is_rr() || is_pcrq() || is_gq()) rr_sched_action(mycore);
 		else global_heap_sched_action(mycore);
 	}
 }
@@ -287,7 +289,7 @@ void main(int argc, char *argv[]) {
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
 	gs->gh = gh_new(tick_length, nheap, gs->cores, num_cores);
-	if (is_rr() || is_pcrq()) rr_groups(num_groups, num_threads_p_group);
+	if (is_rr() || is_pcrq() || is_gq()) rr_groups(num_groups, num_threads_p_group);
 	else global_heap_groups(num_groups, num_threads_p_group);
 
 	// printf("==="); mh_print(gs->gh->mh);

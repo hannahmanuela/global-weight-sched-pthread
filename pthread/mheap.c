@@ -173,7 +173,6 @@ static struct process *mh_del_min_process(struct core *c, struct heap *h) {
 }
 
 static void mh_upd_stat(struct process *p, struct core *c, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
-	p->my_vt = vt;
 	p->other_hid = other;
 	p->other_vt = other_vt;
 	c->nretry_del += (r + r_lock);
@@ -285,7 +284,6 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
 		struct process *p = mh_del_min_process(c, h);
 		assert(p->h == h);
 		p->tsc = safe_read_tsc();
-		p->my_vt = he->vruntime;
 		lock_release(&h->lk);
 		return p;
 	}

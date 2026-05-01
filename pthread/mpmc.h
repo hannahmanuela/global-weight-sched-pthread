@@ -1,80 +1,76 @@
 #pragma once
 #include <stdatomic.h>
-#include <stdlib.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdbool.h>
 
-// Lock-free MPMC queue (Michael-Scott, 1996).
-// Linearizable, ABA-safe via counted pointers.
+// Lock-free MPMC ring buffer (Vyukov, 2010).
+// Fixed capacity; no malloc. QUEUE_CAPACITY must be a power of 2.
 
-typedef struct queue_node {
-    void *val;
-    _Atomic(struct queue_node *) next;
-} queue_node_t;
+#ifndef QUEUE_CAPACITY
+#define QUEUE_CAPACITY 1024
+#endif
 
 typedef struct {
-    _Alignas(64) _Atomic(queue_node_t *) head;
-    _Alignas(64) _Atomic(queue_node_t *) tail;
+    _Atomic size_t  seq;
+    void           *val;
+} queue_slot_t;
+
+typedef struct {
+    _Alignas(64) _Atomic size_t head;
+    _Alignas(64) _Atomic size_t tail;
+    queue_slot_t slots[QUEUE_CAPACITY];
 } queue_t;
 
 static inline void queue_init(queue_t *q) {
-    queue_node_t *dummy = malloc(sizeof(*dummy));
-    dummy->val = NULL;
-    atomic_store(&dummy->next, NULL);
-    atomic_store(&q->head, dummy);
-    atomic_store(&q->tail, dummy);
+    atomic_store(&q->head, 0);
+    atomic_store(&q->tail, 0);
+    for (size_t i = 0; i < QUEUE_CAPACITY; i++)
+        atomic_store(&q->slots[i].seq, i);
 }
 
-static inline void queue_push(queue_t *q, void *val) {
-    queue_node_t *node = malloc(sizeof(*node));
-    node->val = val;
-    atomic_store_explicit(&node->next, NULL, memory_order_relaxed);
-
-    queue_node_t *tail, *next;
+// Returns false if queue is full.
+static inline bool queue_push(queue_t *q, void *val) {
+    size_t pos = atomic_load_explicit(&q->tail, memory_order_relaxed);
     for (;;) {
-        tail = atomic_load_explicit(&q->tail, memory_order_acquire);
-        next = atomic_load_explicit(&tail->next, memory_order_acquire);
-        if (tail != atomic_load_explicit(&q->tail, memory_order_acquire))
-            continue;
-        if (next == NULL) {
+        queue_slot_t *slot = &q->slots[pos & (QUEUE_CAPACITY - 1)];
+        size_t seq = atomic_load_explicit(&slot->seq, memory_order_acquire);
+        intptr_t diff = (intptr_t)seq - (intptr_t)pos;
+        if (diff == 0) {
             if (atomic_compare_exchange_weak_explicit(
-                    &tail->next, &next, node,
-                    memory_order_release, memory_order_relaxed))
-                break;
+                    &q->tail, &pos, pos + 1,
+                    memory_order_relaxed, memory_order_relaxed)) {
+                slot->val = val;
+                atomic_store_explicit(&slot->seq, pos + 1, memory_order_release);
+                return true;
+            }
+        } else if (diff < 0) {
+            return false;  // full
         } else {
-            // help swing tail forward
-            atomic_compare_exchange_weak_explicit(
-                &q->tail, &tail, next,
-                memory_order_release, memory_order_relaxed);
+            pos = atomic_load_explicit(&q->tail, memory_order_relaxed);
         }
     }
-    atomic_compare_exchange_weak_explicit(
-        &q->tail, &tail, node,
-        memory_order_release, memory_order_relaxed);
 }
 
 // Returns NULL if empty.
 static inline void *queue_pop(queue_t *q) {
-    queue_node_t *head, *tail, *next;
+    size_t pos = atomic_load_explicit(&q->head, memory_order_relaxed);
     for (;;) {
-        head = atomic_load_explicit(&q->head, memory_order_acquire);
-        tail = atomic_load_explicit(&q->tail, memory_order_acquire);
-        next = atomic_load_explicit(&head->next, memory_order_acquire);
-        if (head != atomic_load_explicit(&q->head, memory_order_acquire))
-            continue;
-        if (head == tail) {
-            if (next == NULL)
-                return NULL;  // empty
-            // tail is lagging; help it along
-            atomic_compare_exchange_weak_explicit(
-                &q->tail, &tail, next,
-                memory_order_release, memory_order_relaxed);
-        } else {
-            void *val = next->val;
+        queue_slot_t *slot = &q->slots[pos & (QUEUE_CAPACITY - 1)];
+        size_t seq = atomic_load_explicit(&slot->seq, memory_order_acquire);
+        intptr_t diff = (intptr_t)seq - (intptr_t)(pos + 1);
+        if (diff == 0) {
             if (atomic_compare_exchange_weak_explicit(
-                    &q->head, &head, next,
-                    memory_order_release, memory_order_relaxed)) {
-                free(head);  // old dummy
+                    &q->head, &pos, pos + 1,
+                    memory_order_relaxed, memory_order_relaxed)) {
+                void *val = slot->val;
+                atomic_store_explicit(&slot->seq, pos + QUEUE_CAPACITY, memory_order_release);
                 return val;
             }
+        } else if (diff < 0) {
+            return NULL;  // empty
+        } else {
+            pos = atomic_load_explicit(&q->head, memory_order_relaxed);
         }
     }
 }

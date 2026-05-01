@@ -374,7 +374,9 @@ void main(int argc, char *argv[]) {
 			max_retry_del_lock = c->max_retry_del_lock;
 		nnrand += c->nrand;
 	}
-	printf("tp %0.2fM/s\n", AVG(nsched+nyield, time_to_run)/1000000);
+	float tp = AVG(nsched+nyield, time_to_run)/1000000;
+	float tp_p_c = tp/num_cores;
+	printf("tp %0.2fM/s pe-core %0.2fM  lat sched %0.2fus\n", AVG(nsched+nyield, time_to_run)/1000000, tp_p_c, 1/tp_p_c);
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
 	printf("  sched #%ld(l %ld, g %ld) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);

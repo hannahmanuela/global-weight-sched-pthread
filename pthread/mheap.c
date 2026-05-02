@@ -23,6 +23,7 @@
 
 extern bool do_affinity;
 extern bool use_power2_insert;
+extern bool debug;
 
 struct mheap *mh_new(int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
@@ -162,6 +163,9 @@ retry:
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 	p->h = h;
 	heap_push(h, &p->he);
+	if (debug) {
+		printf("%d: add %d(%d) to heap %d\n", c->cid, p->pid, p->group->gid, h->id);
+	}
 	lock_release(&h->lk);
 }
 
@@ -259,24 +263,26 @@ static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int s) 
 static struct process *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, struct process *curp, bool all) {
 	long r = 0;
 	long r_lock = 0;  // XXX delete?
-retry:
+	struct process *p = NULL;
+	struct heap *h;
 	int i, j;
 	vt_t vt;
 	vt_t other_vt;
 
-	mh_rand_heaps(mh, c, &i, &j);
-	struct heap *h = mh_select(mh, c, i, j, &vt, &other_vt);
-	if (h == NULL) {
-		if(all) return mh_all_min_proc(mh, c, i);
-		else return NULL;
-	}
-	struct process *p = mh_try_del_min(c, h, vt);
-	if(p == NULL) {
+	printf("sample\n");
+	while(true) {
+		mh_rand_heaps(mh, c, &i, &j);
+		if ((h = mh_select(mh, c, i, j, &vt, &other_vt)) == NULL) {
+			if(all) p = mh_all_min_proc(mh, c, i);
+			break;
+		} 
+		if ((p = mh_try_del_min(c, h, vt)) != NULL)
+			break;
 		r++;
-		goto retry;
 	}
 
-	mh_upd_stat(p, c, (h->id == i) ? j  : i, vt, other_vt, r, r_lock); 
+	if(p != NULL)
+		mh_upd_stat(p, c, (h->id == i) ? j  : i, vt, other_vt, r, r_lock); 
 
 	if (curp != NULL) {
 		i = mh_least_loaded(mh, i, j);
@@ -289,24 +295,26 @@ retry:
 	return p;
 }
 
-struct process *mh_min_proc_one_heap(struct mheap *mh, struct core *c) {
+struct process *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struct process *curp) {
+	struct process *p = NULL;
 	struct heap *h = mh->h[0];
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
-	if(he->vruntime == DUMMY) {
-		lock_release(&h->lk);
-		return NULL;
-	}	
-	struct process *p = mh_del_min_process(c, h);
-	assert(p->h == h);
-	p->tsc = safe_read_tsc();
+	if(he->vruntime != DUMMY) {
+		p = mh_del_min_process(c, h);
+		assert(p->h == h);
+		p->tsc = safe_read_tsc();
+	}
+	if (curp != NULL) {
+		mh_add_process(c, curp, h);
+	}
 	lock_release(&h->lk);
 	return p;
 }
 
 struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
 	if (mh->nheap == 1) {
-		return mh_min_proc_one_heap(mh, c);
+		return mh_min_proc_one_heap(mh, c, NULL);
 	}
 	return mh_sample_min_proc_enq(mh, c, NULL, all);
 }
@@ -314,7 +322,7 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
 // if there is a min, grab it and enqueue p
 struct process *mh_min_proc_enq(struct mheap *mh, struct core *c, struct process *p, bool all) {
 	if (mh->nheap == 1) {
-		return mh_min_proc_one_heap(mh, c);
+		return mh_min_proc_one_heap(mh, c, p);
 	}
 	return mh_sample_min_proc_enq(mh, c, p, all);
 }

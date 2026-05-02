@@ -102,16 +102,21 @@ static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
 bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 	struct process *min_proc = NULL;
 	if(c->process != NULL) {
+		if(debug) {
+			printf("%d: schedule yield %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
+		}
 		c->process->he.vruntime = proc_vt(ss, c, c->process);
 	}
 
 	// XXX kill this case?  for light load we get
 	// get affinity by rescheduling c->process
 	if(do_affinity && ss->mh->nheap > 1 && c->process) {
+		assert(0);
 		min_proc = mh_min_affinity(c);
 	}
 
 	if (min_proc == NULL) {
+		printf("mh_min_proc\n");
 		min_proc = mh_min_proc_enq(ss->mh, c, c->process, false);
 	}
 	if (min_proc == NULL && c->process != NULL) {

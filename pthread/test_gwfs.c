@@ -47,6 +47,7 @@ static struct process *schedule_retry(struct core *c, struct sched_state *ss) {
 
 static struct sched_state *mk_mheap(struct core *cs[], int ncore, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
 	scheduler = GWFS;
+	debug = true;
 	struct sched_state *ss = ss_new(tl, nheap, cs, ncore);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(ss->mh, i, ws[i]);

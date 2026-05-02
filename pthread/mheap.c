@@ -311,11 +311,11 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
 }
 
 // if there is a min, grab it and enqueue p
-struct process *mh_min_proc_enq(struct mheap *mh, struct core *c, struct process *p) {
+struct process *mh_min_proc_enq(struct mheap *mh, struct core *c, struct process *p, bool all) {
 	if (mh->nheap == 1) {
 		return mh_min_proc_one_heap(mh, c);
 	}
-	return mh_sample_min_proc_enq(mh, c, p, false);
+	return mh_sample_min_proc_enq(mh, c, p, all);
 }
 
 //

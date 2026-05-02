@@ -112,7 +112,7 @@ bool gh_schedule_gwfs(struct global_heap *gh, struct core *c) {
 	}
 
 	if (min_proc == NULL) {
-		min_proc = mh_min_proc_enq(gh->mh, c, c->process);
+		min_proc = mh_min_proc_enq(gh->mh, c, c->process, false);
 	}
 	if (min_proc == NULL && c->process != NULL) {
 		c->nlocal  += 1;

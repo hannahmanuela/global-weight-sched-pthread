@@ -19,39 +19,15 @@
 extern bool debug;
 extern int num_groups;
 
-// Select next process to run from mh
-static struct process *gh_schedule_mh(struct mheap *mh, struct core *c, bool all) {
-	struct process *min_proc = NULL;
-	min_proc = mh_min_proc(mh, c, all);
-	if (min_proc == NULL) {
-		return NULL;
-	}
-	return min_proc;
-}
-
-static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
-	p->he.vruntime = safe_read_tsc();
-	mh_add_process(c, p, h);
-}
-
-static void enq_proc(struct global_heap *gh, struct core *c) {
-	if(c->process != NULL) {
-		struct mheap *mh = (c->process->group->gid == RR_HIGH) ? gh->mh : gh->mh1;
-		if(debug) {
-			printf("%d: enq_proc %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, mh);
-		}
-		struct heap *h = mh_choose_heap(mh, c);
-		enq_proc_vt(gh, c, c->process, h);
-	}
-}
-
 static struct process *gh_schedule_mh_enq(struct global_heap *gh, struct mheap *mh, struct core *c, bool all) {
-	struct process *p = gh_schedule_mh(mh, c, all);
+	if(c->process != NULL) {
+		c->process->he.vruntime = safe_read_tsc();
+	}
+	struct process *p = mh_min_proc_enq(mh, c, c->process, all);
 	if(p != NULL) {
 		if(debug) {
 			printf("%d: gh_schedule_mh_enq: %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
 		}
-		enq_proc(gh, c);
 		c->process = p;
 		return p;
 	}
@@ -113,7 +89,8 @@ void gh_enqueue_rr(struct global_heap *gh, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(p->group->mh, c);
 	assert(p->h == NULL);
 
-	enq_proc_vt(gh, c, p, h);
+	p->he.vruntime = safe_read_tsc();
+	mh_add_process(c, p, h);	
 
 	if(debug) {
 		printf("%d(%d): enqueue_rr %p\n", p->pid, p->group->gid, p->group->mh);

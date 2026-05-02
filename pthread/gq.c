@@ -13,7 +13,7 @@
 #include "rr.h"
 
 //
-// rr with global queue
+// rr with global mpmc queue
 //
 
 extern bool debug;

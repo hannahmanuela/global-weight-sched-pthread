@@ -6,6 +6,8 @@
 #include "mheap.h"
 #include "pcrq.h"
 
+// per-core runqueue scheduler
+
 extern bool debug;
 
 bool ss_schedule_pcrq(struct sched_state *ss, struct core *c) {

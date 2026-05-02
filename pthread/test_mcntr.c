@@ -13,6 +13,7 @@
 
 int num_cores = 2;
 bool do_affinity = false;
+bool do_latency = false;
 struct core **cores;
 int time_to_run = 1;
 struct mcntr *mc;

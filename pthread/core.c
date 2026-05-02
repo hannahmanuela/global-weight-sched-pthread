@@ -12,6 +12,7 @@
 #include "mheap.h"
 
 extern bool do_affinity;
+extern bool do_latency;
 
 // Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
 //   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
@@ -118,6 +119,8 @@ void c_log_done(struct core *c) {
 }
 
 void c_lat(struct core *c, struct process *p) {
+	if (!do_latency) return;
+
 	t_t lat = p->tsc - p->he.vruntime;
 	if (lat/Hz > NBIN_LAT) {
 		printf("adjust Hz or NBIN_LAT %d %d\n", lat/Hz, NBIN_LAT);

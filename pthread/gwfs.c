@@ -116,7 +116,6 @@ bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 	}
 
 	if (min_proc == NULL) {
-		printf("mh_min_proc\n");
 		min_proc = mh_min_proc_enq(ss->mh, c, c->process, false);
 	}
 	if (min_proc == NULL && c->process != NULL) {

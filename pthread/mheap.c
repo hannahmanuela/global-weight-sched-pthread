@@ -269,7 +269,6 @@ static struct process *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, 
 	vt_t vt;
 	vt_t other_vt;
 
-	printf("sample\n");
 	while(true) {
 		mh_rand_heaps(mh, c, &i, &j);
 		if ((h = mh_select(mh, c, i, j, &vt, &other_vt)) == NULL) {

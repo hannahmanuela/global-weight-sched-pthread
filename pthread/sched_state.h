@@ -2,7 +2,17 @@
 #include "group.h"
 #include "mpmc.h"
 
+struct sched_state;
+
+struct scheduler {
+	bool (*schedule)(struct sched_state *ss, struct core *c);
+	void (*yield)(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed);
+	void (*enqueue)(struct sched_state *ss, struct core *c, struct process *p);
+	void (*dequeue)(struct sched_state *ss, struct core *c, struct process *p, t_t time_gotten);
+};
+
 struct sched_state {
+	struct scheduler sched;
 	struct core **cs;
 	int ncore;
 	int tick_length;

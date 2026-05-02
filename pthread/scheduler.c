@@ -42,65 +42,17 @@ bool is_gq() {
 }
 
 bool ss_schedule(struct sched_state *ss, struct core *c) {
-	switch(scheduler) {
-	case RR:
-		return ss_schedule_rr(ss, c);
-	case GWFS:
-		return ss_schedule_gwfs(ss, c);
-	case PCRQ:
-		return ss_schedule_pcrq(ss, c);
-	case GQ:
-		return ss_schedule_gq(ss, c);
-	}
+	return ss->sched.schedule(ss, c);
 }	
 
 void ss_yield(struct sched_state *ss, struct core *c, struct process *p, t_t t){
-	switch(scheduler) {
-	case RR:
-		ss_yield_rr(ss, c, p, t);
-		break;
-	case GWFS:
-		ss_yield_gwfs(ss, c, p, t);
-		break;
-	case PCRQ:
-		ss_yield_pcrq(ss, c, p, t);
-		break;
-	case GQ:
-		ss_yield_gq(ss, c, p, t);
-		break;
-	}
+	return ss->sched.yield(ss, c, p, t);
 }
 
 void ss_enqueue(struct sched_state *ss, struct core *c, struct process *p) {
-	switch(scheduler) {
-	case RR:
-		ss_enqueue_rr(ss, c, p);
-		break;
-	case GWFS:
-		ss_enqueue_gwfs(ss, c, p);
-		break;
-	case PCRQ:
-		ss_enqueue_pcrq(ss, c, p);
-		break;
-	case GQ:
-		ss_enqueue_gq(ss, c, p);
-		break;
-	}
+	return ss->sched.enqueue(ss, c, p);
 }
 
 void ss_dequeue(struct sched_state *ss, struct core *c, struct process *p, t_t t) {
-	switch(scheduler) {
-	case RR:
-		ss_dequeue_rr(ss, c, p, t);
-		break;
-	case GWFS:
-		ss_dequeue_gwfs(ss, c, p, t);
-		break;
-	case PCRQ:
-		ss_dequeue_pcrq(ss, c, p, t);
-		break;
-	case GQ:
-		ss_dequeue_gq(ss, c, p, t);
-		break;
-	}
+	return ss->sched.dequeue(ss, c, p, t);
 }

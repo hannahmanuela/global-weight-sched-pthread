@@ -12,6 +12,10 @@
 #include "core.h"
 #include "group.h"
 #include "mheap.h"
+#include "gwfs.h"
+#include "rr.h"
+#include "pcrq.h"
+#include "gq.h"
 
 //
 // for sched_state schedulers (gwfs and rr)
@@ -22,9 +26,9 @@ bool do_affinity = false;
 bool do_preempt = false;
 bool use_power2_insert = true;
 int num_groups = DEF_NUM_GROUPS;
-int scheduler;
 int ratio = 1;
 bool do_latency = false;
+int scheduler;
 
 struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int ncore) {
 	struct sched_state *ss = aligned_alloc(CACHE_LINE_SZ, sizeof(struct sched_state));
@@ -36,6 +40,30 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	ss->preempt = PREEMPT(0, MAXWEIGHT, 0);
 	if(is_gq()) 
 		queue_init(&ss->q);
+
+	switch (scheduler) {
+	case GWFS:
+		ss->sched = (struct scheduler) {
+			ss_schedule_gwfs, ss_yield_gwfs, ss_enqueue_gwfs, ss_dequeue_gwfs
+		};
+		break;
+	case RR:
+		ss->sched = (struct scheduler) {
+			ss_schedule_rr, ss_yield_rr, ss_enqueue_rr, ss_dequeue_rr
+		};
+		break;
+	case PCRQ:
+		ss->sched = (struct scheduler) {
+			ss_schedule_pcrq, ss_yield_pcrq, ss_enqueue_pcrq, ss_dequeue_pcrq
+		};
+		break;
+	case GQ:
+		ss->sched = (struct scheduler) {
+			ss_schedule_gq, ss_yield_gq, ss_enqueue_gq, ss_dequeue_gq
+		};
+		break;
+	}
+
 	return ss;
 }
 

@@ -221,6 +221,7 @@ void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct process *p, t_
 	if(do_preempt)
 		reset_preempt(ss, c, p->he.weight);
 
+	assert(p == c->process);
 	upd_lag(ss, p, time_passed);
 }
 

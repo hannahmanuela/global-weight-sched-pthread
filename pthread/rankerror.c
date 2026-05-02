@@ -126,7 +126,8 @@ void process_log(int fd) {
 				max_d_vt = ring[IDX(idx)].vt;
 			}
 			sum_d += d;
-			bin_delay_error[(d%NBIN_DELAY)]++;
+			if(d < NBIN_DELAY)
+				bin_delay_error[(d%NBIN_DELAY)]++;
 		}
 		int n = read(fd, ring+IDX(idx), sizeof(struct log_entry));
 		if (n < 0) {
@@ -138,12 +139,12 @@ void process_log(int fd) {
 			break;
 		idx++;
 	}
-	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_re_idx, max_re_ts, max_re_vt, weight);
+	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld, diff %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_re_idx, max_re_ts, max_re_vt, max_re_ts-max_re_vt, weight);
 	printf("distribution of rank errors:\n");
 	for(int i = 0; i < NBIN; i++)
 		if (bin_rank_error[i] > 0) printf("  bin %d: %d\n", i, bin_rank_error[i]);
 	printf("=\n");
-	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld)\n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts, max_d_vt);
+	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld, diff %lld)\n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts, max_d_vt, max_d_ts - max_d_vt);
 	printf("distribution of delay errors\n");
 	for(int i = 0; i < NBIN_DELAY; i++)
 		if (bin_delay_error[i] > 0) printf("  bin %d: %d\n", i, bin_delay_error[i]);

@@ -83,12 +83,10 @@ void c_log_init(struct core *c, char *name) {
 		perror("c_log_init: open");
 		exit(1);
 	}
+	c->log = malloc(sizeof(struct log_entry) * LOG_NENTRY);
 }
 
 void c_log_append(struct core *c, struct process *p) {
-	if(c->log_nentry == 0) {
-		c->log = malloc(sizeof(struct log_entry) * LOG_NENTRY);
-	}
 	if(c->log_nentry == LOG_NENTRY) {
 		int n = write(c->fd, c->log, sizeof(struct log_entry) * LOG_NENTRY);
 		if (n <= 0) {
@@ -116,5 +114,14 @@ void c_log_done(struct core *c) {
 			exit(1);
 		}
 		close(c->fd);
+	}
+}
+
+void c_lat(struct core *c, struct process *p) {
+	t_t lat = p->tsc - p->he.vruntime;
+	if (lat/Hz > NBIN_LAT) {
+		printf("adjust Hz or NBIN_LAT %d %d\n", lat/Hz, NBIN_LAT);
+	} else {
+		c->bin_latency[(lat / Hz)]++;
 	}
 }

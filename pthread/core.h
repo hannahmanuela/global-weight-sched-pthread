@@ -9,6 +9,9 @@
 #include "util.h"
 #include "lock.h"
 
+#define Hz (3000 * 1L) // cycles per us * usec
+#define NBIN_LAT 1000
+
 struct log_entry {
 	long ts;
 	vt_t vt;
@@ -76,6 +79,7 @@ struct core {
 	int log_nentry;
 	int fd;
 
+	int bin_latency[NBIN_LAT];
 } __calign__;
 
 #define LOG_NENTRY  1000000
@@ -88,5 +92,6 @@ struct core *c_new(int i, int n, int seed);
 void c_log_init(struct core *c, char *name);
 void c_log_append(struct core *c, struct process *p);
 void c_log_done(struct core *c);
+void c_lat(struct core *c, struct process *p);
 
 #endif

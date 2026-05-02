@@ -396,6 +396,19 @@ void main(int argc, char *argv[]) {
 	}
 	     
 	gh_stats(gs->gh, gs->grps, num_groups);
+
+	printf("lat distribution:\n");
+	for (int b = 0; b < NBIN_LAT; b++) {
+		int n = 0;
+		for (int i = 0; i < num_cores; i++) {
+			struct core *c = gs->cores[i];
+			n += c->bin_latency[b];
+		}
+		if(n > 0)
+			printf("bin %d: %d\n", b, n);
+	}
+	printf("==");
+
 }
 
 

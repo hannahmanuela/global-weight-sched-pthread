@@ -65,35 +65,6 @@ static void reset_preempt(struct global_heap *gh, struct core *c, w_t w) {
 	}
 }
 
-// Select next process to run
-bool gh_schedule_gwfs(struct global_heap *gh, struct core *c) {
-	struct process *min_proc = NULL;
-	if(do_affinity && gh->mh->nheap > 1 && c->process) {
-		min_proc = mh_min_affinity(c);
-	}
-	if (min_proc == NULL) {
-		min_proc = mh_min_proc(gh->mh, c, false);
-	}
-	if (min_proc == NULL) {
-		c->process = NULL;
-		c->nsched_null += 1;
-		return false;
-	}
-
-	if(debug) {
-		printf("%d: schedule %d(%d) vt %lld h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
-		mh_print(min_proc->mh);
-	}
-	if(c->fd > 0) {
-		c_log_append(c, min_proc);
-	}
-	if(do_preempt) {
-		set_preempt(gh, c, min_proc);
-	}
-	c->process = min_proc;
-	return true;
-}
-
 static vt_t sub_lag(struct core *c, struct process *p, vt_t wvt, vt_t *lag) {
 	vt_t vt = wvt;
 	*lag = 0;
@@ -130,6 +101,44 @@ static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *
 	p->he.vruntime = proc_vt(gh, c, p);
 	mh_add_process(c, p, h);
 }
+
+// Select next process to run
+bool gh_schedule_gwfs(struct global_heap *gh, struct core *c) {
+	struct process *min_proc = NULL;
+	if(do_affinity && gh->mh->nheap > 1 && c->process) {
+		min_proc = mh_min_affinity(c);
+	}
+	if (min_proc == NULL) {
+		min_proc = mh_min_proc(gh->mh, c, false);
+	}
+	if (min_proc == NULL && c->process != NULL) {
+		c->process->he.vruntime = proc_vt(gh, c, c->process);
+		c->nlocal  += 1;
+	} else if (min_proc == NULL) {
+		c->nsched_null += 1;
+		return false;
+	} else {
+		if (c->process != NULL) {
+			struct heap *h = mh_choose_heap(gh->mh, c);
+			enq_proc_vt(gh, c, c->process, h);
+		}
+		c->process = min_proc;
+	}
+
+	if(debug) {
+		printf("%d: schedule %d(%d) vt %lld h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
+		mh_print(min_proc->mh);
+	}
+	if(c->fd > 0) {
+		c_log_append(c, min_proc);
+	}
+	if(do_preempt) {
+		set_preempt(gh, c, min_proc);
+	}
+	return true;
+}
+
+
 
 static bool gh_preempt(struct global_heap *gh, struct core *c, struct process *p) {
 	if(!do_preempt)
@@ -210,15 +219,6 @@ void gh_yield_gwfs(struct global_heap *gh, struct core *c, struct process *p, t_
 		reset_preempt(gh, c, p->he.weight);
 
 	upd_lag(gh, p, time_passed);
-
-	struct heap *h = mh_choose_heap(p->mh, c);
-
-	enq_proc_vt(gh, c, p, h);
-
-	if(debug) {
-		printf("%d(%d): yield time_passed %ld nt %d w %d vt %lld h %d\n", p->pid, p->group->gid, time_passed, p->group->nthread, p->he.weight, p->he.vruntime, h->id);
-		mh_print(p->group->mh);
-	}
 }
 
 // Process p is not runnable and yields core, which may make
@@ -245,6 +245,7 @@ void gh_dequeue_gwfs(struct global_heap *gh, struct core *c, struct process *p, 
 	}
 
 	p->h = NULL;
+	c->process = NULL;
 
 	lock_release(&h->lk);
 }

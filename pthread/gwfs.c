@@ -97,31 +97,29 @@ static vt_t proc_vt(struct global_heap *gh, struct core *c, struct process *p) {
 	return my_vt;
 }	
 
-static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p, struct heap *h) {
-	p->he.vruntime = proc_vt(gh, c, p);
-	mh_add_process(c, p, h);
-}
 
 // Select next process to run
 bool gh_schedule_gwfs(struct global_heap *gh, struct core *c) {
 	struct process *min_proc = NULL;
+	if(c->process != NULL) {
+		c->process->he.vruntime = proc_vt(gh, c, c->process);
+	}
+
+	// XXX kill this case?  for light load we get
+	// get affinity by rescheduling c->process
 	if(do_affinity && gh->mh->nheap > 1 && c->process) {
 		min_proc = mh_min_affinity(c);
 	}
+
 	if (min_proc == NULL) {
-		min_proc = mh_min_proc(gh->mh, c, false);
+		min_proc = mh_min_proc_enq(gh->mh, c, c->process);
 	}
 	if (min_proc == NULL && c->process != NULL) {
-		c->process->he.vruntime = proc_vt(gh, c, c->process);
 		c->nlocal  += 1;
 	} else if (min_proc == NULL) {
 		c->nsched_null += 1;
 		return false;
 	} else {
-		if (c->process != NULL) {
-			struct heap *h = mh_choose_heap(gh->mh, c);
-			enq_proc_vt(gh, c, c->process, h);
-		}
 		c->process = min_proc;
 	}
 
@@ -193,7 +191,8 @@ void gh_enqueue_gwfs(struct global_heap *gh, struct core *c, struct process *p) 
 	}
 
 	if(!gh_preempt(gh, c, p)) {
-		enq_proc_vt(gh, c, p, h);
+		p->he.vruntime = proc_vt(gh, c, p);
+		mh_add_process(c, p, h);
 
 		if(debug) {
 			printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);

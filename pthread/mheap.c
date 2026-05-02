@@ -13,6 +13,10 @@
 #include "mheap.h"
 #include "util.h"
 
+//
+// concurrent multiheap inspired by https://dl.acm.org/doi/10.1145/2755573.2755616
+//
+
 #define W_DUMMY 0
 
 #define MH_IND(mh, i) ((i) % mh->nheap)
@@ -121,11 +125,12 @@ static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, struct cor
 	}
 }
 
-void mh_two_heaps(struct mheap *mh, struct core *c, int *i, int *j, int *v1, int *v2) {
-	mh_rand_heaps(mh, c, i, j);
-	*v1 = atomic_load_explicit(&(mh->h[*i]->heap_size), __ATOMIC_ACQUIRE);
-	*v2 = atomic_load_explicit(&(mh->h[*j]->heap_size), __ATOMIC_ACQUIRE);
-}	
+static int mh_least_loaded(struct mheap *mh, int i, int j) {
+	int s1 = atomic_load_explicit(&(mh->h[i]->heap_size), __ATOMIC_ACQUIRE);
+	int s2 = atomic_load_explicit(&(mh->h[j]->heap_size), __ATOMIC_ACQUIRE);
+	if(s2 < s1) return j;
+	else return i;
+}
 
 struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
 	long r = 0;
@@ -135,13 +140,16 @@ struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
 		return h;
 	}
 retry:
-	int i, j, s1 = 0, s2 = 0;
-	if(use_power2_insert) mh_two_heaps(mh, c, &i, &j, &s1, &s2);
-	else i = c_rand(c, mh->nheap);
-	struct heap *h = mh->h[i];
-	if(s2 < s1)
-		h = mh->h[j];
+	int i;
+	if(use_power2_insert) {
+		int j;
+		mh_rand_heaps(mh, c, &i, &j);
+		i = mh_least_loaded(mh, i, j);
+	} else {
+		i = c_rand(c, mh->nheap);
+	}
 
+	struct heap *h = mh->h[i];
 	if(lock_try_acquire(&h->lk) != 0) {
 		r++;
 		goto retry;
@@ -248,8 +256,7 @@ static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int s) 
 	return p;
 }
 
-// https://dl.acm.org/doi/10.1145/2755573.2755616
-static struct process *mh_sample_min_proc(struct mheap *mh, struct core *c, bool all) {
+static struct process *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, struct process *curp, bool all) {
 	long r = 0;
 	long r_lock = 0;  // XXX delete?
 retry:
@@ -269,27 +276,47 @@ retry:
 		goto retry;
 	}
 	mh_upd_stat(p, c, (h->id == i) ? j  : i, vt, other_vt, r, r_lock); 
+
+	if (curp != NULL) {
+		i = mh_least_loaded(mh, i, j);
+		struct heap *h = mh->h[i];
+		if(lock_try_acquire(&h->lk) != 0) {
+			h = mh_choose_heap(mh, c);
+		}
+		mh_add_process(c, curp, h);
+	}
+	return p;
+}
+
+struct process *mh_min_proc_one_heap(struct mheap *mh, struct core *c) {
+	struct heap *h = mh->h[0];
+	lock_acquire(&h->lk);
+	struct heap_elem *he = mh_min(h);
+	if(he->vruntime == DUMMY) {
+		lock_release(&h->lk);
+		return NULL;
+	}	
+	struct process *p = mh_del_min_process(c, h);
+	assert(p->h == h);
+	p->tsc = safe_read_tsc();
+	lock_release(&h->lk);
 	return p;
 }
 
 struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
 	if (mh->nheap == 1) {
-		struct heap *h = mh->h[0];
-		lock_acquire(&h->lk);
-		struct heap_elem *he = mh_min(h);
-		if(he->vruntime == DUMMY) {
-			lock_release(&h->lk);
-			return NULL;
-		}	
-		struct process *p = mh_del_min_process(c, h);
-		assert(p->h == h);
-		p->tsc = safe_read_tsc();
-		lock_release(&h->lk);
-		return p;
+		return mh_min_proc_one_heap(mh, c);
 	}
-	return mh_sample_min_proc(mh, c, all);
+	return mh_sample_min_proc_enq(mh, c, NULL, all);
 }
 
+// if there is a min, grab it and enqueue p
+struct process *mh_min_proc_enq(struct mheap *mh, struct core *c, struct process *p) {
+	if (mh->nheap == 1) {
+		return mh_min_proc_one_heap(mh, c);
+	}
+	return mh_sample_min_proc_enq(mh, c, p, false);
+}
 
 //
 // schedule with affinity: remember last process run on a core; if the core

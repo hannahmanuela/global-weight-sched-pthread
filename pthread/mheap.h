@@ -18,6 +18,7 @@ void mh_free(struct mheap *mh);
 void mh_print(struct mheap *mh);
 vt_t mh_min_vt(struct heap *h);
 struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all);
+struct process *mh_min_proc_enq(struct mheap *mh, struct core *c, struct process *p);
 struct heap *mh_choose_heap( struct mheap *mh, struct core *c);
 void mh_add_process(struct core *c, struct process *p, struct heap *h);
 struct process *mh_min_affinity(struct core *c);

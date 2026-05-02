@@ -67,7 +67,6 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 			if (debug) {
 				printf("%d: locally run low %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, gh->mh1);
 			}
-			c->process->he.vruntime = safe_read_tsc();
 			c->nlocal += 1;
 			goto ok;
 		}

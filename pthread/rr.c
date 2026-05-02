@@ -67,7 +67,7 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 		goto ok; 
 
 	// keep running high proc, if were running one
-	if (false && c->process != NULL && c->process->group->gid == RR_HIGH) {
+	if (c->process != NULL && c->process->group->gid == RR_HIGH) {
 		if (debug) {
 			printf("%d: gh_schedule_rr: locally run high %d\n", c->cid, c->process->pid);
 		}

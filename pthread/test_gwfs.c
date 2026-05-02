@@ -25,6 +25,7 @@
 
 int num_cores;
 extern bool debug;
+extern int scheduler;
 
 void ticks_gettime(t_t *ticks) {
 }
@@ -45,6 +46,7 @@ static struct process *schedule_retry(struct core *c, struct sched_state *ss) {
 }
 
 static struct sched_state *mk_mheap(struct core *cs[], int ncore, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
+	scheduler = GWFS;
 	struct sched_state *ss = ss_new(tl, nheap, cs, ncore);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(ss->mh, i, ws[i]);
@@ -547,7 +549,6 @@ void test_worst(int nheap) {
 
 void main(int argc, char *argv[]) {
 	test_load();
-	exit(1);
 	test_preempt_t();
         test_preempt();
 	//exit(1);

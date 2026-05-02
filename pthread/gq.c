@@ -19,7 +19,7 @@
 extern bool debug;
 
 // Select next process to run from mh
-struct process *gh_schedule_q(queue_t *q, struct core *c) {
+struct process *ss_schedule_q(queue_t *q, struct core *c) {
 	struct process *min_proc = NULL;
 	min_proc = queue_pop(q);
 	if (min_proc == NULL) {
@@ -39,20 +39,20 @@ struct process *gh_schedule_q(queue_t *q, struct core *c) {
 }
 
 // Select next process to run
-struct process *gh_schedule_gq(struct global_heap *gh, struct core *c) {
+struct process *ss_schedule_gq(struct sched_state *ss, struct core *c) {
 	struct process *p;
-	p = gh_schedule_q(&gh->q, c);
+	p = ss_schedule_q(&ss->q, c);
 	return p;
 }
 
-static void enq_proc_vt(struct global_heap *gh, struct core *c, struct process *p) {
+static void enq_proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
 	p->he.vruntime = safe_read_tsc();
-	queue_push(&gh->q, p);
+	queue_push(&ss->q, p);
 }
 
 // Enqueue p at the ends of its group's queue
-void gh_enqueue_gq(struct global_heap *gh, struct core *c, struct process *p) {
-	enq_proc_vt(gh, c, p);
+void ss_enqueue_gq(struct sched_state *ss, struct core *c, struct process *p) {
+	enq_proc_vt(ss, c, p);
 
 	if(debug) {
 		printf("%d(%d): enqueue_gq %p\n", p->pid, p->group->gid, p->group->mh);
@@ -60,9 +60,9 @@ void gh_enqueue_gq(struct global_heap *gh, struct core *c, struct process *p) {
 }
 
 // Process p yields after it ran for a tick, append it to the end of its queue
-void gh_yield_gq(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void ss_yield_gq(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
 	p->runtime += time_passed;
-	enq_proc_vt(gh, c, p);
+	enq_proc_vt(ss, c, p);
 
 	if(debug) {
 		printf("%d(%d): yield_gq time_passed %ld\n", p->pid, p->group->gid, time_passed);
@@ -70,7 +70,7 @@ void gh_yield_gq(struct global_heap *gh, struct core *c, struct process *p, t_t 
 }
 
 // Process p is not runnable and yields core
-void gh_dequeue_gq(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void ss_dequeue_gq(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {
 		printf("%d(%d): dequeue_gq %ld\n", p->pid, p->group->gid, time_passed);

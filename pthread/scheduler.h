@@ -18,9 +18,9 @@ bool is_rr();
 bool is_pcrq();
 bool is_gq();
 
-bool gh_schedule(struct global_heap *gh, struct core *c);
-void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed);
-void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p);
-void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t time_gotten);
+bool ss_schedule(struct sched_state *ss, struct core *c);
+void ss_yield(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed);
+void ss_enqueue(struct sched_state *ss, struct core *c, struct process *p);
+void ss_dequeue(struct sched_state *ss, struct core *c, struct process *p, t_t time_gotten);
 
 #endif

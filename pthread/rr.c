@@ -19,11 +19,11 @@
 extern bool debug;
 extern int num_groups;
 
-static struct process *gh_schedule_mh_enq(struct global_heap *gh, struct mheap *mh, struct core *c, bool all) {
+static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {
 	struct process *p = mh_min_proc_enq(mh, c, c->process, all);
 	if(p != NULL) {
 		if(debug) {
-			printf("%d: gh_schedule_mh_enq: %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
+			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
 		}
 		c->process = p;
 		return p;
@@ -32,7 +32,7 @@ static struct process *gh_schedule_mh_enq(struct global_heap *gh, struct mheap *
 }
 
 // Yield c->process, if any, and select new one, if there is a runnable one
-bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
+bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 	struct process *p;
 
 	if(c->process != NULL) {
@@ -40,13 +40,13 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	}
 
 	// try high priority mh first for runnable proc
-	if ((p = gh_schedule_mh_enq(gh, gh->mh, c, false)) != NULL)
+	if ((p = ss_schedule_mh_enq(ss, ss->mh, c, false)) != NULL)
 		goto ok; 
 
 	// keep running high proc, if were running one
 	if (c->process != NULL && c->process->group->gid == RR_HIGH) {
 		if (debug) {
-			printf("%d: gh_schedule_rr: locally run high %d\n", c->cid, c->process->pid);
+			printf("%d: ss_schedule_rr: locally run high %d\n", c->cid, c->process->pid);
 		}
 		c->nlocal += 1;
 		goto ok;
@@ -55,17 +55,17 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	if (num_groups > 1) {
 
 		// check all high heaps for runnable proc
-		if ((p = gh_schedule_mh_enq(gh, gh->mh, c, true)) != NULL) 
+		if ((p = ss_schedule_mh_enq(ss, ss->mh, c, true)) != NULL) 
 			goto ok;
 		
 		// no proc in high heaps; go for low
-		if ((p = gh_schedule_mh_enq(gh, gh->mh1, c, false)) != NULL) 
+		if ((p = ss_schedule_mh_enq(ss, ss->mh1, c, false)) != NULL) 
 			goto ok;
 
 		// keep running low proc, if were running one
 		if (c->process != NULL) {
 			if (debug) {
-				printf("%d: locally run low %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, gh->mh1);
+				printf("%d: locally run low %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, ss->mh1);
 			}
 			c->nlocal += 1;
 			goto ok;
@@ -84,7 +84,7 @@ ok:
 
 
 // p wokeup: enqueue p at the ends of its group's queue
-void gh_enqueue_rr(struct global_heap *gh, struct core *c, struct process *p) {
+void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(p->group->mh, c);
 	assert(p->h == NULL);
 
@@ -97,13 +97,13 @@ void gh_enqueue_rr(struct global_heap *gh, struct core *c, struct process *p) {
 	}
 }
 
-// p yields after it ran for a tick, do nothing until gh_schedule()
-void gh_yield_rr(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+// p yields after it ran for a tick, do nothing until ss_schedule()
+void ss_yield_rr(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
 	p->runtime += time_passed;
 }
 
 // process p goes to sleep
-void gh_dequeue_rr(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void ss_dequeue_rr(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);

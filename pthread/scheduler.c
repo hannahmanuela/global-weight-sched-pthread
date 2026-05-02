@@ -41,66 +41,66 @@ bool is_gq() {
 	return scheduler == GQ;
 }
 
-bool gh_schedule(struct global_heap *gh, struct core *c) {
+bool ss_schedule(struct sched_state *ss, struct core *c) {
 	switch(scheduler) {
 	case RR:
-		return gh_schedule_rr(gh, c);
+		return ss_schedule_rr(ss, c);
 	case GWFS:
-		return gh_schedule_gwfs(gh, c);
+		return ss_schedule_gwfs(ss, c);
 	case PCRQ:
-		return gh_schedule_pcrq(gh, c);
+		return ss_schedule_pcrq(ss, c);
 	case GQ:
-		return gh_schedule_gq(gh, c);
+		return ss_schedule_gq(ss, c);
 	}
 }	
 
-void gh_yield(struct global_heap *gh, struct core *c, struct process *p, t_t t){
+void ss_yield(struct sched_state *ss, struct core *c, struct process *p, t_t t){
 	switch(scheduler) {
 	case RR:
-		gh_yield_rr(gh, c, p, t);
+		ss_yield_rr(ss, c, p, t);
 		break;
 	case GWFS:
-		gh_yield_gwfs(gh, c, p, t);
+		ss_yield_gwfs(ss, c, p, t);
 		break;
 	case PCRQ:
-		gh_yield_pcrq(gh, c, p, t);
+		ss_yield_pcrq(ss, c, p, t);
 		break;
 	case GQ:
-		gh_yield_gq(gh, c, p, t);
+		ss_yield_gq(ss, c, p, t);
 		break;
 	}
 }
 
-void gh_enqueue(struct global_heap *gh, struct core *c, struct process *p) {
+void ss_enqueue(struct sched_state *ss, struct core *c, struct process *p) {
 	switch(scheduler) {
 	case RR:
-		gh_enqueue_rr(gh, c, p);
+		ss_enqueue_rr(ss, c, p);
 		break;
 	case GWFS:
-		gh_enqueue_gwfs(gh, c, p);
+		ss_enqueue_gwfs(ss, c, p);
 		break;
 	case PCRQ:
-		gh_enqueue_pcrq(gh, c, p);
+		ss_enqueue_pcrq(ss, c, p);
 		break;
 	case GQ:
-		gh_enqueue_gq(gh, c, p);
+		ss_enqueue_gq(ss, c, p);
 		break;
 	}
 }
 
-void gh_dequeue(struct global_heap *gh, struct core *c, struct process *p, t_t t) {
+void ss_dequeue(struct sched_state *ss, struct core *c, struct process *p, t_t t) {
 	switch(scheduler) {
 	case RR:
-		gh_dequeue_rr(gh, c, p, t);
+		ss_dequeue_rr(ss, c, p, t);
 		break;
 	case GWFS:
-		gh_dequeue_gwfs(gh, c, p, t);
+		ss_dequeue_gwfs(ss, c, p, t);
 		break;
 	case PCRQ:
-		gh_dequeue_pcrq(gh, c, p, t);
+		ss_dequeue_pcrq(ss, c, p, t);
 		break;
 	case GQ:
-		gh_dequeue_gq(gh, c, p, t);
+		ss_dequeue_gq(ss, c, p, t);
 		break;
 	}
 }

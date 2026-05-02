@@ -20,9 +20,9 @@ extern bool debug;
 extern int do_preempt;
 extern int do_affinity;
 
-static void set_preempt(struct global_heap *gh, struct core *c, struct process *p) {
+static void set_preempt(struct sched_state *ss, struct core *c, struct process *p) {
 	while(1) {
-		preempt_t pre = atomic_load(&gh->preempt);
+		preempt_t pre = atomic_load(&ss->preempt);
 		if(WEIGHT(pre) < p->he.weight)
 			return;
 
@@ -39,16 +39,16 @@ static void set_preempt(struct global_heap *gh, struct core *c, struct process *
 		}
 		npre = PREEMPT(n, w, c->cid);
 		//printf("set_preempt: %d %lx (%d, %d, %d)\n", cid, npre, n, w, c->cid);
-		if (__atomic_compare_exchange_n(&gh->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+		if (__atomic_compare_exchange_n(&ss->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 			break;
 		}
 		c->npreempt_retry++;
 	}
 }
 
-static void reset_preempt(struct global_heap *gh, struct core *c, w_t w) {
+static void reset_preempt(struct sched_state *ss, struct core *c, w_t w) {
 	while(1) {
-		preempt_t pre = atomic_load(&gh->preempt);
+		preempt_t pre = atomic_load(&ss->preempt);
 		if(WEIGHT(pre) != w)
 			return;
 		int n = NCORE(pre);
@@ -58,7 +58,7 @@ static void reset_preempt(struct global_heap *gh, struct core *c, w_t w) {
 		if(n == 1) w = MAXWEIGHT;
 		preempt_t npre = PREEMPT(n-1, w, cid);
 		//printf("reset_preempt: %d %lx (%d, %d, %d)\n", c->cid, npre, n-1, w, cid);
-		if (__atomic_compare_exchange_n(&gh->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+		if (__atomic_compare_exchange_n(&ss->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 			break;
 		}
 		c->npreempt_retry;		
@@ -88,8 +88,8 @@ static vt_t sub_lag(struct core *c, struct process *p, vt_t wvt, vt_t *lag) {
 	return vt;
 }
 
-static vt_t proc_vt(struct global_heap *gh, struct core *c, struct process *p) {
-	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
+static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
+	vt_t wvt = calc_delta(ss->tick_length, p->he.weight);
 	vt_t lag;
 	vt_t vt = sub_lag(c, p, wvt, &lag);
 	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
@@ -99,20 +99,20 @@ static vt_t proc_vt(struct global_heap *gh, struct core *c, struct process *p) {
 
 
 // Select next process to run
-bool gh_schedule_gwfs(struct global_heap *gh, struct core *c) {
+bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 	struct process *min_proc = NULL;
 	if(c->process != NULL) {
-		c->process->he.vruntime = proc_vt(gh, c, c->process);
+		c->process->he.vruntime = proc_vt(ss, c, c->process);
 	}
 
 	// XXX kill this case?  for light load we get
 	// get affinity by rescheduling c->process
-	if(do_affinity && gh->mh->nheap > 1 && c->process) {
+	if(do_affinity && ss->mh->nheap > 1 && c->process) {
 		min_proc = mh_min_affinity(c);
 	}
 
 	if (min_proc == NULL) {
-		min_proc = mh_min_proc_enq(gh->mh, c, c->process, false);
+		min_proc = mh_min_proc_enq(ss->mh, c, c->process, false);
 	}
 	if (min_proc == NULL && c->process != NULL) {
 		c->nlocal  += 1;
@@ -131,21 +131,21 @@ bool gh_schedule_gwfs(struct global_heap *gh, struct core *c) {
 		c_log_append(c, min_proc);
 	}
 	if(do_preempt) {
-		set_preempt(gh, c, min_proc);
+		set_preempt(ss, c, min_proc);
 	}
 	return true;
 }
 
 
 
-static bool gh_preempt(struct global_heap *gh, struct core *c, struct process *p) {
+static bool ss_preempt(struct sched_state *ss, struct core *c, struct process *p) {
 	if(!do_preempt)
 		return false;
-	preempt_t pre = atomic_load(&gh->preempt);
+	preempt_t pre = atomic_load(&ss->preempt);
 	w_t w = WEIGHT(pre);
 	if(p->he.weight > w) {
 		cid_t cid = CORE(pre);
-		struct core *c1 = gh->cs[cid];
+		struct core *c1 = ss->cs[cid];
 		lock_acquire(&c1->lk);
 		struct process *p1 = c1->process;
 		if(p1->he.weight == w) {
@@ -156,10 +156,10 @@ static bool gh_preempt(struct global_heap *gh, struct core *c, struct process *p
 	return false;
 }
 
-static bool gh_preempt_slow(struct global_heap *gh, struct core *c, struct process *p) {
-	// vt_t vt = proc_vt(gh, c, p);
-	for (int i = 0; i < gh->ncore; i++) {
-		struct process *p1 = gh->cs[i]->process;
+static bool ss_preempt_slow(struct sched_state *ss, struct core *c, struct process *p) {
+	// vt_t vt = proc_vt(ss, c, p);
+	for (int i = 0; i < ss->ncore; i++) {
+		struct process *p1 = ss->cs[i]->process;
 		if(p1 == NULL) {
 			continue;
 		}
@@ -172,7 +172,7 @@ static bool gh_preempt_slow(struct global_heap *gh, struct core *c, struct proce
 }
 
 // Add p to group and make p runnable
-void gh_enqueue_gwfs(struct global_heap *gh, struct core *c, struct process *p) {
+void ss_enqueue_gwfs(struct sched_state *ss, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(p->mh, c);
 	assert(p->h == NULL);
 
@@ -190,8 +190,8 @@ void gh_enqueue_gwfs(struct global_heap *gh, struct core *c, struct process *p) 
 		grp_set_vruntime(p, vt);
 	}
 
-	if(!gh_preempt(gh, c, p)) {
-		p->he.vruntime = proc_vt(gh, c, p);
+	if(!ss_preempt(ss, c, p)) {
+		p->he.vruntime = proc_vt(ss, c, p);
 		mh_add_process(c, p, h);
 
 		if(debug) {
@@ -203,28 +203,28 @@ void gh_enqueue_gwfs(struct global_heap *gh, struct core *c, struct process *p) 
 
 // proc may have run for less than its allocated time; in that
 // case adjust the proc's group vruntime.
-static void upd_lag(struct global_heap *gh, struct process *p, t_t time_passed) {
+static void upd_lag(struct sched_state *ss, struct process *p, t_t time_passed) {
 	p->runtime += time_passed;
 	vt_t vt = calc_delta(time_passed, p->he.weight);
-	vt_t wvt = calc_delta(gh->tick_length, p->he.weight);
+	vt_t wvt = calc_delta(ss->tick_length, p->he.weight);
 	if (wvt > vt) {
 		grp_add_lag(p, -(wvt-vt));
 	}
 }
 
 // Yield and enqueue
-void gh_yield_gwfs(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
 	if(do_preempt)
-		reset_preempt(gh, c, p->he.weight);
+		reset_preempt(ss, c, p->he.weight);
 
-	upd_lag(gh, p, time_passed);
+	upd_lag(ss, p, time_passed);
 }
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void gh_dequeue_gwfs(struct global_heap *gh, struct core *c, struct process *p, t_t time_passed) {
+void ss_dequeue_gwfs(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
 	if(do_preempt)
-		reset_preempt(gh, c, p->he.weight);
+		reset_preempt(ss, c, p->he.weight);
 
 	struct heap *h = p->h;
 	lock_acquire(&h->lk);
@@ -234,7 +234,7 @@ void gh_dequeue_gwfs(struct global_heap *gh, struct core *c, struct process *p, 
 		mh_print(p->group->mh);
 	}
 
-	upd_lag(gh, p, time_passed);
+	upd_lag(ss, p, time_passed);
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {

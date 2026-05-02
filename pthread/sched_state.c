@@ -14,7 +14,7 @@
 #include "mheap.h"
 
 //
-// for global_heap schedulers (gwfs and rr)
+// for sched_state schedulers (gwfs and rr)
 //
 
 bool debug = false;
@@ -26,39 +26,39 @@ int scheduler;
 int ratio = 1;
 bool do_latency = false;
 
-struct global_heap *gh_new(int tick_length, int nheap, struct core *cs[], int ncore) {
-	struct global_heap *gh = aligned_alloc(CACHE_LINE_SZ, sizeof(struct global_heap));
-	gh->tick_length = tick_length;
-	gh->mh = mh_new(nheap);
-	if(is_rr()) gh->mh1 = mh_new(nheap);
-	gh->cs = cs;
-	gh->ncore = ncore;
-	gh->preempt = PREEMPT(0, MAXWEIGHT, 0);
+struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int ncore) {
+	struct sched_state *ss = aligned_alloc(CACHE_LINE_SZ, sizeof(struct sched_state));
+	ss->tick_length = tick_length;
+	ss->mh = mh_new(nheap);
+	if(is_rr()) ss->mh1 = mh_new(nheap);
+	ss->cs = cs;
+	ss->ncore = ncore;
+	ss->preempt = PREEMPT(0, MAXWEIGHT, 0);
 	if(is_gq()) 
-		queue_init(&gh->q);
-	return gh;
+		queue_init(&ss->q);
+	return ss;
 }
 
-struct core *gh_choose_core(struct global_heap *gh, struct core *c) {
-	int i = c_rand(c, gh->ncore);
-	return gh->cs[i];
+struct core *ss_choose_core(struct sched_state *ss, struct core *c) {
+	int i = c_rand(c, ss->ncore);
+	return ss->cs[i];
 }
 
-void gh_print(struct global_heap *gh, struct group *grps[], int n) {
-	mh_print(gh->mh);
+void ss_print(struct sched_state *ss, struct group *grps[], int n) {
+	mh_print(ss->mh);
 	printf("= groups %d:\n", n);
 	for(int i = 0; i < n; i++) {
 		printf("  "); grp_print(grps[i]); printf("\n");
 	}
 	printf("=\n");
-	printf("= cores %d:\n", gh->ncore);
-	for(int i = 0; i < gh->ncore; i++) {
-		printf("  %d: ", i); core_print(gh->cs[i]); printf("\n");
+	printf("= cores %d:\n", ss->ncore);
+	for(int i = 0; i < ss->ncore; i++) {
+		printf("  %d: ", i); core_print(ss->cs[i]); printf("\n");
 	}
 	printf("=\n");
 }
 
-void gh_stats(struct global_heap *gh, struct group *grps[], int n) {
+void ss_stats(struct sched_state *ss, struct group *grps[], int n) {
 	t_t *ticks = new_ticks();
 	ticks_gettime(ticks);
 	t_t tot = ticks_sum(ticks);

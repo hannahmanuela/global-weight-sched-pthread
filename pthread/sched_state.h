@@ -2,7 +2,7 @@
 #include "group.h"
 #include "mpmc.h"
 
-struct global_heap {
+struct sched_state {
 	struct core **cs;
 	int ncore;
 	int tick_length;
@@ -16,7 +16,7 @@ struct global_heap {
 	preempt_t preempt __calign__;
 };
 
-struct global_heap *gh_new(int tick_length, int n, struct core *cs[], int ncore);
-struct core *gh_choose_core(struct global_heap *gh, struct core *c);
-void gh_stats(struct global_heap *gh, struct group *gs[], int n);
-void gh_print(struct global_heap *gh, struct group *gs[], int n);
+struct sched_state *ss_new(int tick_length, int n, struct core *cs[], int ncore);
+struct core *ss_choose_core(struct sched_state *ss, struct core *c);
+void ss_stats(struct sched_state *ss, struct group *gs[], int n);
+void ss_print(struct sched_state *ss, struct group *gs[], int n);

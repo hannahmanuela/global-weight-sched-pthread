@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "core.h"
-#include "global_heap.h"
+#include "sched_state.h"
 
 #define _SCHEDULER_H_
 

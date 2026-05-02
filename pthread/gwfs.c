@@ -6,7 +6,7 @@
 #include "vt.h"
 #include "util.h"
 #include "driver.h"
-#include "global_heap.h"
+#include "sched_state.h"
 #include "core.h"
 #include "group.h"
 #include "mheap.h"

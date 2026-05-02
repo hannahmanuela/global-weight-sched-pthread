@@ -21,7 +21,7 @@
 #include "group.h"
 #include "heap.h"
 #include "mheap.h"
-#include "global_heap.h"
+#include "sched_state.h"
 #include "rr.h"
 #include "gwfs.h"
 #include "pcrq.h"

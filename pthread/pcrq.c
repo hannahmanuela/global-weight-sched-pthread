@@ -2,7 +2,7 @@
 #include <assert.h>
 
 #include "core.h"
-#include "global_heap.h"
+#include "sched_state.h"
 #include "mheap.h"
 #include "pcrq.h"
 

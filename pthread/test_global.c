@@ -8,7 +8,7 @@
 #include "group.h"
 #include "heap.h"
 #include "mheap.h"
-#include "global_heap.h"
+#include "sched_state.h"
 #include "scheduler.h"
 #include "util.h"
 

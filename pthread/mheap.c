@@ -275,6 +275,7 @@ retry:
 		r++;
 		goto retry;
 	}
+
 	mh_upd_stat(p, c, (h->id == i) ? j  : i, vt, other_vt, r, r_lock); 
 
 	if (curp != NULL) {

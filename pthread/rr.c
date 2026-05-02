@@ -20,9 +20,6 @@ extern bool debug;
 extern int num_groups;
 
 static struct process *gh_schedule_mh_enq(struct global_heap *gh, struct mheap *mh, struct core *c, bool all) {
-	if(c->process != NULL) {
-		c->process->he.vruntime = safe_read_tsc();
-	}
 	struct process *p = mh_min_proc_enq(mh, c, c->process, all);
 	if(p != NULL) {
 		if(debug) {
@@ -38,6 +35,10 @@ static struct process *gh_schedule_mh_enq(struct global_heap *gh, struct mheap *
 bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 	struct process *p;
 
+	if(c->process != NULL) {
+		c->process->he.vruntime = safe_read_tsc();
+	}
+
 	// try high priority mh first for runnable proc
 	if ((p = gh_schedule_mh_enq(gh, gh->mh, c, false)) != NULL)
 		goto ok; 
@@ -47,7 +48,6 @@ bool gh_schedule_rr(struct global_heap *gh, struct core *c) {
 		if (debug) {
 			printf("%d: gh_schedule_rr: locally run high %d\n", c->cid, c->process->pid);
 		}
-		c->process->he.vruntime = safe_read_tsc();
 		c->nlocal += 1;
 		goto ok;
 	}

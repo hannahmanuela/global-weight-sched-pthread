@@ -34,21 +34,21 @@ static void enqueue(struct sched_state *ss, struct core *c, struct process *p) {
 
 static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {
 	bool deq = (c->process != NULL) && c->process->mh == mh;
+	assert(!c->process || c->process->mh != NULL);
 	struct process *p = mh_min_proc_enq(mh, c, deq ? c->process : NULL, all);
 	if(p != NULL) {
+		assert(p->mh == mh);
 		if(debug) {
-			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld h %d %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id, mh, deq);
+			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, mh, deq);
 		}
-		p->h = NULL;
 		if (do_preempt && (c->process != NULL) && !deq) {
 			assert(c->process->group->gid == RR_LOW);
 			preemptable_clear(ss->preemptable, c->cid, c);
 			enqueue(ss, c, c->process);
 		}
 		c->process = p;
-		return p;
-	}
-	return NULL;
+	} 
+	return p;
 }
 
 // Yield c->process, if any, and select new one, if there is a runnable one
@@ -75,7 +75,7 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 	// keep running high proc, if were running one
 	if (c->process != NULL && c->process->group->gid == RR_HIGH) {
 		if (debug) {
-			printf("%d: ss_schedule_rr: locally run high %d\n", c->cid, c->process->pid);
+			printf("%d: ss_schedule_rr: locally run high %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
 		}
 		c->nlocal += 1;
 		goto ok;
@@ -112,7 +112,11 @@ ok:
 	if(debug) {
 		printf("%d: running %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
 	}
-	assert(c->process->h == NULL);
+	if(c->process->h != NULL) {
+		printf("%d: c->process->h %p\n", c->cid, c->process->h);
+		assert(0);
+	}
+	assert(c->process->mh != NULL);
 	if (do_preempt && c->process->group->gid == RR_LOW)
 		preemptable_set(ss->preemptable, c->cid, c);
 		
@@ -126,6 +130,7 @@ ok:
 // p wokeup: enqueue p at the ends of its group's queue
 void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
 	int cid = -1;
+	assert(p->mh != NULL);
 	if (do_preempt && p->group->gid == RR_HIGH) {
 		cid = preemptable_find_and_clear(ss->preemptable, c);
 	}
@@ -150,10 +155,10 @@ void ss_dequeue_rr(struct sched_state *ss, struct core *c, struct process *p, t_
 	assert(c->process == p);
 	p->runtime += time_passed;
 	if(debug) {
-		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
+		printf("%d: %d(%d): dequeue %ld\n", c->cid, p->pid, p->group->gid, time_passed);
 		//mh_print(p->group->mh);
 	}
-	p->h = NULL;
+	assert(p->h == NULL);
 	c->process = NULL;
 }
 

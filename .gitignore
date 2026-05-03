@@ -7,7 +7,7 @@ pthread/schedule
 pthread/logdump
 pthread/logmerge
 pthread/rankerror
-pthread/test-global
+pthread/test-heap
 pthread/test-gwfs
 pthread/test-mcntr
 pthread/test-preempt

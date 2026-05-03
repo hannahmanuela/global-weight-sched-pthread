@@ -157,14 +157,15 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 		ns[1] = 2*num_threads_p_group;
 	}
 
-	printf("%d high %d lows %d\n", num_groups, ns[0], ns[1]);
+	printf("%d high %d lows %d %p %p\n", num_groups, ns[0], ns[1], gs->ss->mh, gs->ss->mh1);
 	for (int i = 0; i < num_groups; i++) {
 		struct mheap *mh = gs->ss->mh;
 		if(i == RR_LOW) mh = gs->ss->mh1;
 		struct group *g = grp_new(mh, i, 10);
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
-			struct process *p = grp_new_process(NULL, i*ns[0]+j, g);
+			struct process *p = grp_new_process(mh, i*ns[0]+j, g);
+			assert(p->mh != NULL);
 			if(is_pcrq()) ss_enqueue_pcrq(gs->ss, gs->cores[0], p);
 			else if (is_gq()) ss_enqueue_gq(gs->ss, gs->cores[0], p);
 			else ss_enqueue_rr(gs->ss, gs->cores[0], p);
@@ -184,6 +185,8 @@ void rr_sched_action(struct core *mycore) {
 			bool high = (mycore->process != NULL) && (mycore->process->group->gid == RR_HIGH);
 			if(high) {
 				action(gs->ss, mycore, SLEEP);
+				doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+				if(time_work > 0) usleep(time_work);
 				action(gs->ss, mycore, RUN);
 				action(gs->ss, mycore, WAKEUP);
 			} else {

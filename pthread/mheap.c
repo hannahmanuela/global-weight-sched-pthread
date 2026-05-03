@@ -162,6 +162,7 @@ retry:
 // caller must hold heap lock
 void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 	p->h = h;
+	assert(p->mh != NULL);
 	heap_push(h, &p->he);
 	if (debug) {
 		printf("%d: add %d(%d) to heap %d\n", c->cid, p->pid, p->group->gid, h->id);
@@ -244,6 +245,7 @@ static struct process *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
 	}
 	struct process *p = mh_del_min_process(c, h);
 	p->tsc = safe_read_tsc();
+	p->h = NULL;
 	lock_release(&h->lk);
 	return p;
 }
@@ -282,6 +284,7 @@ static struct process *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, 
 	}
 
 	if(p != NULL) {
+		// h could be NULL after mh_all_min_proc
 		mh_upd_stat(p, c, (h && (h->id == i)) ? j  : i, vt, other_vt, r, r_lock); 
 	}
 
@@ -304,9 +307,11 @@ struct process *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struct pr
 	if(he->vruntime != DUMMY) {
 		p = mh_del_min_process(c, h);
 		assert(p->h == h);
+		assert(p->mh == mh);
 		p->tsc = safe_read_tsc();
+		p->h = NULL;
 	}
-	if (curp != NULL) {
+	if ((p != NULL) && (curp != NULL)) {
 		mh_add_process(c, curp, h);
 	}
 	lock_release(&h->lk);

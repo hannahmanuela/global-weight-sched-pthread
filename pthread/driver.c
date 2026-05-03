@@ -86,9 +86,10 @@ void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, lon
 		break;
 	case YIELD:
 		int tl = ss->tick_length;
-		if (mycore->preempted)
+		if (mycore->preempted) {
+			mycore->preempted = false;
 			tl = tl / 2;
-		mycore->preempted = false;
+		}
 		mycore->total += tl;
 		if(p) {
 			mycore->work += tl;
@@ -156,7 +157,7 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 		ns[1] = 2*num_threads_p_group;
 	}
 
-	printf("high %d lows %d\n", ns[0], ns[1]);
+	printf("%d high %d lows %d\n", num_groups, ns[0], ns[1]);
 	for (int i = 0; i < num_groups; i++) {
 		struct mheap *mh = gs->ss->mh;
 		if(i == RR_LOW) mh = gs->ss->mh1;
@@ -179,6 +180,15 @@ void rr_sched_action(struct core *mycore) {
 			// this proc should run after all other runnable procs
 			action(gs->ss, mycore, SLEEP);
 			action(gs->ss, mycore, WAKEUP);
+		} else if (benchmark == 2) {
+			bool high = (mycore->process != NULL) && (mycore->process->group->gid == RR_HIGH);
+			if(high) {
+				action(gs->ss, mycore, SLEEP);
+				action(gs->ss, mycore, RUN);
+				action(gs->ss, mycore, WAKEUP);
+			} else {
+				action(gs->ss, mycore, RUN);
+			}
 		} else {
 			action(gs->ss, mycore, RUN);
 		}

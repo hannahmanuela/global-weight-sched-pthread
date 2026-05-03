@@ -35,6 +35,7 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	ss->tick_length = tick_length;
 	ss->mh = mh_new(nheap);
 	if(is_rr()) ss->mh1 = mh_new(nheap);
+	printf("ss_new high %p low %p\n", ss->mh, ss->mh1);
 	ss->cs = cs;
 	ss->ncore = ncore;
 	ss->preempt = PREEMPT(0, MAXWEIGHT, 0);

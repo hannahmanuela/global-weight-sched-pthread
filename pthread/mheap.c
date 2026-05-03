@@ -263,13 +263,14 @@ static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int s) 
 static struct process *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, struct process *curp, bool all) {
 	long r = 0;
 	long r_lock = 0;  // XXX delete?
-	struct process *p = NULL;
+	struct process *p;
 	struct heap *h;
 	int i, j;
 	vt_t vt;
 	vt_t other_vt;
 
 	while(true) {
+		p = NULL;
 		mh_rand_heaps(mh, c, &i, &j);
 		if ((h = mh_select(mh, c, i, j, &vt, &other_vt)) == NULL) {
 			if(all) p = mh_all_min_proc(mh, c, i);

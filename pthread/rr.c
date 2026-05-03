@@ -21,15 +21,29 @@ extern bool debug;
 extern bool do_preempt;
 extern int num_groups;
 
-static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, struct process *curp, bool all) {
-	struct process *p = mh_min_proc_enq(mh, c, curp, all);
+static void enqueue(struct sched_state *ss, struct core *c, struct process *p) {
+	if(debug) {
+		printf("%d: enqueue_rr %d(%d) %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
+		//mh_print(p->group->mh);
+	}
+	struct heap *h = mh_choose_heap(p->group->mh, c);
+	assert(p->h == NULL);
+	p->he.vruntime = safe_read_tsc();
+	mh_add_process(c, p, h);	
+}
+
+static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {
+	bool deq = (c->process != NULL) && c->process->mh == mh;
+	struct process *p = mh_min_proc_enq(mh, c, deq ? c->process : NULL, all);
 	if(p != NULL) {
 		if(debug) {
-			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld h %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id);
+			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld h %d %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->h->id, mh, deq);
 		}
-		if (do_preempt && (c->process != NULL) && (c->process->group->gid == RR_LOW) && (p->group->gid == RR_HIGH)) {
-			printf("%d: clear preemptable",  c->cid);
+		p->h = NULL;
+		if (do_preempt && (c->process != NULL) && !deq) {
+			assert(c->process->group->gid == RR_LOW);
 			preemptable_clear(ss->preemptable, c->cid, c);
+			enqueue(ss, c, c->process);
 		}
 		c->process = p;
 		return p;
@@ -45,10 +59,15 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 	if(c->process != NULL) {
 		c->process->he.vruntime = safe_read_tsc();
 		low = (c->process->group->gid == RR_LOW);
+		if (debug)
+			printf("%d: ss_schedule_rr: curp %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
+	} else {
+		if (debug)
+			printf("%d: ss_schedule_rr: idle\n", c->cid);
 	}
 
 	// try high priority mh first for runnable proc
-	if ((p = ss_schedule_mh_enq(ss, ss->mh, c, low ? NULL : c->process, false)) != NULL) {
+	if ((p = ss_schedule_mh_enq(ss, ss->mh, c, false)) != NULL) {
 		assert(p->group->gid == RR_HIGH);
 		goto ok; 
 	}
@@ -65,13 +84,13 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 	if (num_groups > 1) {
 
 		// check all high heaps for runnable proc
-		if (!do_preempt && (p = ss_schedule_mh_enq(ss, ss->mh, c, low ? NULL : c->process, true)) != NULL) { 
+		if (!do_preempt && (p = ss_schedule_mh_enq(ss, ss->mh, c, true)) != NULL) { 
 			assert(p->group->gid == RR_HIGH);
 			goto ok;
 		}
 		
 		// no proc in high heaps; go for low
-		if ((p = ss_schedule_mh_enq(ss, ss->mh1, c, low ? c->process : NULL , false)) != NULL) {
+		if ((p = ss_schedule_mh_enq(ss, ss->mh1, c, false)) != NULL) {
 			assert(p->group->gid == RR_LOW);
 			goto ok;
 		}
@@ -90,6 +109,10 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 	return false;
 
 ok:
+	if(debug) {
+		printf("%d: running %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
+	}
+	assert(c->process->h == NULL);
 	if (do_preempt && c->process->group->gid == RR_LOW)
 		preemptable_set(ss->preemptable, c->cid, c);
 		
@@ -100,29 +123,19 @@ ok:
 	return true;
 }
 
-static void enqueue(struct sched_state *ss, struct core *c, struct process *p) {
-	struct heap *h = mh_choose_heap(p->group->mh, c);
-	assert(p->h == NULL);
-	p->he.vruntime = safe_read_tsc();
-	mh_add_process(c, p, h);	
-	if(debug) {
-		printf("%d(%d): enqueue_rr %p\n", p->pid, p->group->gid, p->group->mh);
-		//mh_print(p->group->mh);
-	}
-}
-
 // p wokeup: enqueue p at the ends of its group's queue
 void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
 	int cid = -1;
 	if (do_preempt && p->group->gid == RR_HIGH) {
 		cid = preemptable_find_and_clear(ss->preemptable, c);
 	}
-	if (cid != -1) {
-		printf("p");
-		if (debug) {
-			printf("%d: ss_enqueue_rr preempt  %d for %d(%d)\n", c->cid, cid, p->pid, p->group->gid);
-		}
-		// c_preempt->preempted = true;
+	if (debug) {
+		printf("%d: ss_enqueue_rr preempt %d for %d(%d)\n", c->cid, cid, p->pid, p->group->gid);
+	}
+	if ((cid != -1) && (cid != c->cid)) {
+		// printf("%d: preempt %d\n", c->cid, cid);
+		// XXX use atomics
+		ss->cs[cid]->preempted = true;
 	}
 	enqueue(ss, c, p);
 }

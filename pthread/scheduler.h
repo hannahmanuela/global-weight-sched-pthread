@@ -1,11 +1,11 @@
 #ifndef _SCHEDULER_H_
 
+#define _SCHEDULER_H_
+
 #include <string.h>
 
 #include "core.h"
 #include "sched_state.h"
-
-#define _SCHEDULER_H_
 
 #define GWFS 1
 #define RR   2

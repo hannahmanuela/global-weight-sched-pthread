@@ -280,10 +280,11 @@ static struct process *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, 
 		r++;
 	}
 
-	if(p != NULL)
-		mh_upd_stat(p, c, (h->id == i) ? j  : i, vt, other_vt, r, r_lock); 
+	if(p != NULL) {
+		mh_upd_stat(p, c, (h && (h->id == i)) ? j  : i, vt, other_vt, r, r_lock); 
+	}
 
-	if (curp != NULL) {
+	if ((p != NULL) && (curp != NULL)) {
 		i = mh_least_loaded(mh, i, j);
 		struct heap *h = mh->h[i];
 		if(lock_try_acquire(&h->lk) != 0) {

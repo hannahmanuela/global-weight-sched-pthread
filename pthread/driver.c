@@ -156,6 +156,7 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 		ns[1] = 2*num_threads_p_group;
 	}
 
+	printf("high %d lows %d\n", ns[0], ns[1]);
 	for (int i = 0; i < num_groups; i++) {
 		struct mheap *mh = gs->ss->mh;
 		if(i == RR_LOW) mh = gs->ss->mh1;
@@ -334,6 +335,9 @@ void main(int argc, char *argv[]) {
 	long lag_sub_retry = 0;
 	long npreempt_retry = 0;
 	long npreempt_set = 0;
+	long npreempt_clear = 0;
+	long npreempt_find_ok = 0;
+	long npreempt_find_fail = 0;
 
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = gs->cores[i];
@@ -367,6 +371,9 @@ void main(int argc, char *argv[]) {
 		lag_sub_retry += c->lag_sub_retry;
 		npreempt_retry += c->npreempt_retry;
 		npreempt_set += c->npreempt_set;
+		npreempt_clear += c->npreempt_clear;
+		npreempt_find_ok += c->npreempt_find_ok;
+		npreempt_find_fail += c->npreempt_find_fail;
 		nlocal += c->nlocal;
 
 		for (int j = 0; j < num_groups; j++) {
@@ -391,7 +398,7 @@ void main(int argc, char *argv[]) {
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
 	printf("    max retry locked %ld stale %ld avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
 	printf("  retry lag sub %ld\n", lag_sub_retry);
-	printf("  preempt set %ld retry %ld\n", npreempt_set, npreempt_retry);
+	printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry);
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
 	if(do_affinity)
 		printf("  hit %ld miss %ld hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));

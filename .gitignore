@@ -10,6 +10,7 @@ pthread/rankerror
 pthread/test-global
 pthread/test-gwfs
 pthread/test-mcntr
+pthread/test-preempt
 
 # perf profiling output
 perf.data

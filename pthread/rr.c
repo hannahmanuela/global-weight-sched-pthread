@@ -9,6 +9,7 @@
 #include "driver.h"
 #include "sched_state.h"
 #include "core.h"
+#include "preempt.h"
 #include "mheap.h"
 #include "rr.h"
 
@@ -17,9 +18,11 @@
 //
 
 extern bool debug;
+extern bool do_preempt;
 extern int num_groups;
 
 static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {
+	int low = c->process->group->gid == RR_LOW;
 	struct process *p = mh_min_proc_enq(mh, c, c->process, all);
 	if(p != NULL) {
 		if(debug) {
@@ -75,6 +78,9 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 	return false;
 
 ok:
+	if (c->process->group->gid == RR_LOW)
+		preemptable_set(ss->preemptable, c->cid, c);
+		
 	c_lat(c, p);
 	if(c->fd > 0) {
 		c_log_append(c, c->process);
@@ -82,19 +88,30 @@ ok:
 	return true;
 }
 
-
-// p wokeup: enqueue p at the ends of its group's queue
-void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
+static void enqueue(struct sched_state *ss, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(p->group->mh, c);
 	assert(p->h == NULL);
-
 	p->he.vruntime = safe_read_tsc();
 	mh_add_process(c, p, h);	
-
 	if(debug) {
 		printf("%d(%d): enqueue_rr %p\n", p->pid, p->group->gid, p->group->mh);
 		//mh_print(p->group->mh);
 	}
+}
+
+// p wokeup: enqueue p at the ends of its group's queue
+void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
+	struct core *c_preempt = NULL;
+	if (do_preempt && p->group->gid == RR_HIGH) {
+		c_preempt = queue_pop(&ss->q);
+	}
+	if (c_preempt != NULL) {
+		if (debug) {
+			printf("%d: ss_enqueue_rr preempt  %d for %d(%d)\n", c->cid, c_preempt->cid, p->pid, p->group->gid);
+		}
+		c_preempt->preempted = true;
+	}
+	enqueue(ss, c, p);
 }
 
 // p yields after it ran for a tick, do nothing until ss_schedule()
@@ -104,6 +121,7 @@ void ss_yield_rr(struct sched_state *ss, struct core *c, struct process *p, t_t 
 
 // process p goes to sleep
 void ss_dequeue_rr(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
+	assert(c->process == p);
 	p->runtime += time_passed;
 	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);

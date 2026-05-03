@@ -85,10 +85,14 @@ void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, lon
 		ss_schedule(ss, mycore);
 		break;
 	case YIELD:
-		mycore->total += ss->tick_length;
+		int tl = ss->tick_length;
+		if (mycore->preempted)
+			tl = tl / 2;
+		mycore->preempted = false;
+		mycore->total += tl;
 		if(p) {
-			mycore->work += ss->tick_length;
-			ss_yield(ss, mycore, p, ss->tick_length);
+			mycore->work += tl;
+			ss_yield(ss, mycore, p, tl);
 		} else {
 			mycore->idle += ss->tick_length;
 		}

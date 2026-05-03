@@ -34,6 +34,8 @@ struct core {
 	struct process *process;   // currently running process or last process ran
 	struct process *pool;   // pool of processes sleeping
 
+	bool preempted;
+
 	// fields for tatistics:
 	t_t work;
 	t_t idle;
@@ -64,6 +66,9 @@ struct core {
 	long lag_sub_retry;
 
 	long npreempt_set;
+	long npreempt_clear;
+	long npreempt_find_ok;
+	long npreempt_find_fail;
 	long npreempt_retry;
 
 	long nlocal;

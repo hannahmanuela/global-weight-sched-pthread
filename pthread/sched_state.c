@@ -38,8 +38,7 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	ss->cs = cs;
 	ss->ncore = ncore;
 	ss->preempt = PREEMPT(0, MAXWEIGHT, 0);
-	if(is_gq()) 
-		queue_init(&ss->q);
+	if(is_gq()) queue_init(&ss->q);
 
 	switch (scheduler) {
 	case GWFS:

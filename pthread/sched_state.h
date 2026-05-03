@@ -1,6 +1,11 @@
+#ifndef _SCHED_STATE_H_
+
+#define _SCHED_STATE_H_
+
 #include "core.h"
 #include "group.h"
 #include "mpmc.h"
+#include "preempt.h"
 
 struct sched_state;
 
@@ -24,9 +29,13 @@ struct sched_state {
 	queue_t q;
 
 	preempt_t preempt __calign__;
+
+	bitarray_t preemptable __calign__;
 };
 
 struct sched_state *ss_new(int tick_length, int n, struct core *cs[], int ncore);
 struct core *ss_choose_core(struct sched_state *ss, struct core *c);
 void ss_stats(struct sched_state *ss, struct group *gs[], int n);
 void ss_print(struct sched_state *ss, struct group *gs[], int n);
+
+#endif

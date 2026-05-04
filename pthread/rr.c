@@ -95,6 +95,8 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 		if (check && (p = ss_schedule_mh_enq(ss, ss->mh, c, true)) != NULL) { 
 			assert(p->group->gid == RR_HIGH);
 			goto ok;
+		} else {
+			c->nrr_skip_high++;
 		}
 		
 		// no proc in high heaps; go for low

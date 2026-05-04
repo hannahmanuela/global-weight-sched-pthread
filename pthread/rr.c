@@ -54,26 +54,23 @@ static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *
 bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 	struct process *p;
 	bool low = false;
+	bool preempted = atomic_load(&c->preempted);
+
+	if (do_preempt && preempted) {
+		c->npreempted += 1;
+		atomic_store(&c->preempted, false);
+	}
 
 	if(c->process != NULL) {
 		c->process->he.vruntime = safe_read_tsc();
 		low = (c->process->group->gid == RR_LOW);
 		if (debug)
-			printf("%d: ss_schedule_rr: curp %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
+			printf("%d: ss_schedule_rr: low %d prempted %d curp %d(%d)\n", c->cid, low, preempted, c->process->pid, c->process->group->gid);
 	} else {
 		if (debug)
-			printf("%d: ss_schedule_rr: idle\n", c->cid);
+			printf("%d: ss_schedule_rr: low %d preempted %d idle\n", c->cid, low, preempted);
 	}
 
-	if (low && !c->preempted) {
-		preemptable_clear(ss->preemptable, c->cid, c);
-	}
-			 
-	bool skip_high = do_preempt && low && !c->preempted;
-	if (skip_high) {
-		c->nrr_skip_high++;
-	}
-	atomic_store(&c->preempted, false);
 
 	// try high priority mh first for runnable proc
 	if ((p = ss_schedule_mh_enq(ss, ss->mh, c, false)) != NULL) {
@@ -126,8 +123,12 @@ ok:
 		assert(0);
 	}
 	assert(c->process->mh != NULL);
-	if (do_preempt && c->process->group->gid == RR_LOW)
-		preemptable_set(ss->preemptable, c->cid, c);
+	if (do_preempt && (c->process->group->gid == RR_LOW)) {
+		// reset preemtable if switching from high to
+		// a low proc, or if were prempted
+		if(!low || preempted) 
+			preemptable_set(ss->preemptable, c->cid, c);
+	}
 		
 	c_lat(c, p);
 	if(c->fd > 0) {
@@ -144,11 +145,10 @@ void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
 		cid = preemptable_find_and_clear(ss->preemptable, c);
 	}
 	if (debug) {
-		printf("%d: ss_enqueue_rr %d(%d) preempt? %d\n", c->cid, p->pid, p->group->gid, cid);
+		printf("%d: ss_enqueue_rr %d(%d) dopreempt? %d\n", c->cid, p->pid, p->group->gid, cid);
 	}
 	if (cid != -1) {
-		atomic_store(&c->preempted, true);
-		ss->cs[cid]->preempted = true;
+		atomic_store(&ss->cs[cid]->preempted, true);
 	}
 	enqueue(ss, c, p);
 }

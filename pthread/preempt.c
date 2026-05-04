@@ -9,9 +9,9 @@
 // XXX implement with new reduction instructions (AOR)?
 //
 
-#define CID(i, bit)  ((i) * (sizeof(unsigned int) * 8) + bit - 1)
+#define CID(i, bit)  ((i) * (sizeof(unsigned long) * 8) + bit - 1)
 #define BAINDEX(cid) ((cid) / 8)
-#define BAOFFSET(cid) ((cid) % sizeof(unsigned int))
+#define BAOFFSET(cid) ((cid) % sizeof(unsigned long))
 
 bool preemptable_set(bitarray_t ba, int cid, struct core *c) {
 	unsigned long r = atomic_fetch_or(&ba[0], (1 << cid));

@@ -88,9 +88,11 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 	}
 
 	if (num_groups > 1) {
-
-		// check all high heaps for runnable proc
-		if (!do_preempt && (p = ss_schedule_mh_enq(ss, ss->mh, c, true)) != NULL) { 
+		// check all high heaps for runnable proc if we were runnining
+		// high (and didn't sample a new high) or we were running low
+		// and were preempted
+		bool check = !low || (low && preempted);
+		if (check && (p = ss_schedule_mh_enq(ss, ss->mh, c, true)) != NULL) { 
 			assert(p->group->gid == RR_HIGH);
 			goto ok;
 		}

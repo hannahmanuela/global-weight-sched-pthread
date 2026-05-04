@@ -1,4 +1,4 @@
-OBJ = sched_state.o gwfs.o rr.o pcrq.o gq.o group.o mheap.o heap.o util.c ticks.o core.o lock.o mcounter.o scheduler.o preempt.o
+OBJ = sched_state.o gwfs.o rr.o pcrq.o gq.o group.o mheap.o heap.o util.c ticks.o core.o lock.o mcounter.o scheduler.o preempt.o dllist.o
 
 CC=gcc
 
@@ -9,7 +9,7 @@ CFLAGS += -g -O2 -fno-omit-frame-pointer
 DEPS = $(wildcard *.d)
 -include $(DEPS)
 
-all: schedule test-heap test-gwfs test-mcntr test-preempt logmerge logdump rankerror
+all: schedule test-heap test-gwfs test-mcntr test-preempt test-dllist logmerge logdump rankerror
 
 schedule: driver.o $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -24,6 +24,9 @@ test-mcntr: test_mcntr.o mcounter.o lock.o core.o util.o
 	$(CC) -o $@ $^
 
 test-preempt: test_preempt.o preempt.o lock.o core.o util.o
+	$(CC) -o $@ $^
+
+test-dllist: test_dllist.o dllist.o lock.o core.o util.o
 	$(CC) -o $@ $^
 
 logmerge: logmerge.o

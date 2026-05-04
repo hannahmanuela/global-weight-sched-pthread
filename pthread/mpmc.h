@@ -1,4 +1,7 @@
-#pragma once
+#ifndef _MPMC_H_
+
+#define _MPMC_H_
+
 #include <stdatomic.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -74,3 +77,5 @@ static inline void *queue_pop(queue_t *q) {
         }
     }
 }
+
+#endif

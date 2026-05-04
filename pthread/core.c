@@ -10,6 +10,7 @@
 #include "util.h"
 #include "group.h"
 #include "mheap.h"
+#include "dllist.h"
 
 extern bool do_affinity;
 extern bool do_latency;

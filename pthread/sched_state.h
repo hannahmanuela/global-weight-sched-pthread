@@ -6,6 +6,7 @@
 #include "group.h"
 #include "mpmc.h"
 #include "preempt.h"
+#include "dllist.h"
 
 struct sched_state;
 
@@ -26,7 +27,9 @@ struct sched_state {
 	struct mheap *mh;
 	struct mheap *mh1;   // for low priority rr procs
 
-	queue_t q;
+	queue_t q __calign__;
+
+	dllist_t preemptq __calign__;
 
 	preempt_t preempt __calign__;
 

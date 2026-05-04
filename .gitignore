@@ -11,6 +11,7 @@ pthread/test-heap
 pthread/test-gwfs
 pthread/test-mcntr
 pthread/test-preempt
+pthread/test-dllist
 
 # perf profiling output
 perf.data

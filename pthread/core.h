@@ -8,6 +8,7 @@
 #include "vt.h"
 #include "util.h"
 #include "lock.h"
+#include "dllist.h"
 
 #define Hz (3000 * 1L) // cycles per us * usec
 #define NBIN_LAT 1000
@@ -28,6 +29,8 @@ struct core {
 	struct spinlock lk __calign__;
 
 	atomic_bool preempted __calign__;
+
+	dlnode_t preempt_node __calign__;
 
 	int cid __calign__;
 

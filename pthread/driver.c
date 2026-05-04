@@ -87,7 +87,6 @@ void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, lon
 	case YIELD:
 		int tl = ss->tick_length;
 		if (mycore->preempted) {
-			mycore->preempted = false;
 			tl = tl / 2;
 		}
 		mycore->total += tl;
@@ -341,6 +340,8 @@ void main(int argc, char *argv[]) {
 	long hit = 0;
 	long miss = 0;
 	long nlocal = 0;
+	long nrr_skip_high = 0;
+	long npreempted = 0;
 	long nsched_null = 0;
 	long max_retry_del = 0;
 	long max_retry_del_lock = 0;
@@ -388,6 +389,8 @@ void main(int argc, char *argv[]) {
 		npreempt_find_ok += c->npreempt_find_ok;
 		npreempt_find_fail += c->npreempt_find_fail;
 		nlocal += c->nlocal;
+		nrr_skip_high += c->nrr_skip_high;
+		npreempted += c->npreempted;
 
 		for (int j = 0; j < num_groups; j++) {
 			hit += c->hit[j];
@@ -405,13 +408,13 @@ void main(int argc, char *argv[]) {
 	float tp_p_c = tp/num_cores;
 	printf("tp %0.2fM/s per-core %0.2fM  lat sched %0.2fus\n", AVG(nsched+nyield, time_to_run)/1000000, tp_p_c, 1/tp_p_c);
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
-	printf("  sched #%ld(l %ld, g %ld) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, s_l, AVG(s_c, nsched), s_h);
+	printf("  sched #%ld(l %ld, g %ld, sh %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, nrr_skip_high, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
 	printf("    max retry locked %ld stale %ld avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
 	printf("  retry lag sub %ld\n", lag_sub_retry);
-	printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry);
+	printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld preempted %d\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry, npreempted);
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
 	if(do_affinity)
 		printf("  hit %ld miss %ld hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));

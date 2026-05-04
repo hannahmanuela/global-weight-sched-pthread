@@ -65,6 +65,11 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 		if (debug)
 			printf("%d: ss_schedule_rr: idle\n", c->cid);
 	}
+	bool skip_high = do_preempt && low && !c->preempted;
+	if (skip_high) {
+		c->nrr_skip_high++;
+	}
+	c->preempted = false;
 
 	// try high priority mh first for runnable proc
 	if ((p = ss_schedule_mh_enq(ss, ss->mh, c, false)) != NULL) {
@@ -135,11 +140,11 @@ void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
 		cid = preemptable_find_and_clear(ss->preemptable, c);
 	}
 	if (debug) {
-		printf("%d: ss_enqueue_rr preempt %d for %d(%d)\n", c->cid, cid, p->pid, p->group->gid);
+		printf("%d: ss_enqueue_rr %d(%d) preempt? %d\n", c->cid, p->pid, p->group->gid, cid);
 	}
 	if ((cid != -1) && (cid != c->cid)) {
-		// printf("%d: preempt %d\n", c->cid, cid);
 		// XXX use atomics
+		c->npreempted++;
 		ss->cs[cid]->preempted = true;
 	}
 	enqueue(ss, c, p);

@@ -71,6 +71,8 @@ struct core {
 	long npreempt_find_fail;
 	long npreempt_retry;
 
+	long nrr_skip_high;
+	long npreempted;
 	long nlocal;
 
 	long nmc_is_zero;

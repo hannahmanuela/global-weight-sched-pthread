@@ -14,7 +14,7 @@
 #define BAOFFSET(cid) ((cid) % sizeof(unsigned int))
 
 bool preemptable_set(bitarray_t ba, int cid, struct core *c) {
-	unsigned int r = atomic_fetch_or(&ba[0], (1 << cid));
+	unsigned long r = atomic_fetch_or(&ba[0], (1 << cid));
 	bool set = r & (1 << cid);
 	if (!set) {
 		c->npreempt_set++;
@@ -23,8 +23,8 @@ bool preemptable_set(bitarray_t ba, int cid, struct core *c) {
 }
 
 bool preemptable_clear(bitarray_t ba, int cid, struct core *c) {
-	unsigned int mask = ~(1U << cid);
-	unsigned int r = atomic_fetch_and(&ba[0], mask);
+	unsigned long mask = ~(1U << cid);
+	unsigned long r = atomic_fetch_and(&ba[0], mask);
 	bool ok = r & (1 << cid);
 	if(ok) {
 		c->npreempt_clear++;
@@ -37,8 +37,8 @@ int preemptable_find_and_clear(bitarray_t ba, struct core *c) {
 	bool ok = false;
 	while (!ok) {
 		for (int i = 0; i < NBITARRAY; i++) {
-			unsigned int word = atomic_load(&ba[i]);
-			int bit = __builtin_ffs(word);
+			unsigned long word = atomic_load(&ba[i]);
+			int bit = __builtin_ffsl(word);
 			cid = CID(i, bit);
 			if (bit != 0 && cid != c->cid) {
 				break;

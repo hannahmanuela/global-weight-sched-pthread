@@ -8,7 +8,7 @@
 
 #define NBITARRAY 1
 
-typedef atomic_uint bitarray_t[NBITARRAY];
+typedef atomic_long bitarray_t[NBITARRAY];
 
 bool preemptable_set(bitarray_t, int cid, struct core *c);
 bool preemptable_clear(bitarray_t, int cid, struct core *c);

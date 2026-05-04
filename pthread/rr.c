@@ -43,7 +43,6 @@ static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *
 		}
 		if (do_preempt && (c->process != NULL) && !deq) {
 			assert(c->process->group->gid == RR_LOW);
-			preemptable_clear(ss->preemptable, c->cid, c);
 			enqueue(ss, c, c->process);
 		}
 		c->process = p;
@@ -65,6 +64,11 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 		if (debug)
 			printf("%d: ss_schedule_rr: idle\n", c->cid);
 	}
+
+	if (low && !c->preempted) {
+		preemptable_clear(ss->preemptable, c->cid, c);
+	}
+			 
 	bool skip_high = do_preempt && low && !c->preempted;
 	if (skip_high) {
 		c->nrr_skip_high++;
@@ -142,7 +146,7 @@ void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
 	if (debug) {
 		printf("%d: ss_enqueue_rr %d(%d) preempt? %d\n", c->cid, p->pid, p->group->gid, cid);
 	}
-	if ((cid != -1) && (cid != c->cid)) {
+	if (cid != -1) {
 		// XXX use atomics
 		c->npreempted++;
 		ss->cs[cid]->preempted = true;

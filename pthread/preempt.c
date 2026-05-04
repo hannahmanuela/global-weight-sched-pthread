@@ -39,8 +39,8 @@ int preemptable_find_and_clear(bitarray_t ba, struct core *c) {
 		for (int i = 0; i < NBITARRAY; i++) {
 			unsigned int word = atomic_load(&ba[i]);
 			int bit = __builtin_ffs(word);
-			if (bit != 0) {
-				cid = CID(i, bit);
+			cid = CID(i, bit);
+			if (bit != 0 && cid != c->cid) {
 				break;
 			}
 		}

@@ -27,14 +27,16 @@ struct log_entry {
 struct core {
 	struct spinlock lk __calign__;
 
-	int cid;
+	atomic_bool preempted __calign__;
+
+	int cid __calign__;
+
 	unsigned int seed;
 	struct drand48_data randBuffer;
 
 	struct process *process;   // currently running process or last process ran
 	struct process *pool;   // pool of processes sleeping
 
-	bool preempted;
 
 	// fields for tatistics:
 	t_t work;

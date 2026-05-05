@@ -51,6 +51,9 @@ static void reset_preempt(struct sched_state *ss, struct core *c, w_t w) {
 		preempt_t pre = atomic_load(&ss->preempt);
 		if(WEIGHT(pre) != w)
 			return;
+
+		c->npreempt_clear++;
+		
 		int n = NCORE(pre);
 		w_t w = WEIGHT(pre);
 		cid_t cid = CORE(pre);
@@ -157,7 +160,8 @@ static bool ss_preempt(struct sched_state *ss, struct core *c, struct process *p
 		struct process *p1 = c1->process;
 		if(p1->he.weight == w) {
 			printf("preempt c %d to replace pid %d with pid %d(%d)\n", cid, p1->pid, p->pid, p->he.weight);
-		}
+			c1->npreempted += 1;
+		}	
 		lock_release(&c1->lk);
 	}
 	return false;
@@ -172,6 +176,7 @@ static bool ss_preempt_slow(struct sched_state *ss, struct core *c, struct proce
 		}
 		if(p1->he.weight < p->he.weight) {
 			printf("kick c %d to replace pid %d with pid %d\n", i, p1->pid, p->pid);
+			ss->cs[i]->npreempted += 1;
 			break;
 		}
 	}

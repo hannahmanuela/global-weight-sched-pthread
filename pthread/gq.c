@@ -9,7 +9,7 @@
 #include "driver.h"
 #include "sched_state.h"
 #include "core.h"
-#include "mpmc.h"
+#include "mpmcv1.h"
 #include "rr.h"
 
 //
@@ -48,12 +48,8 @@ struct process *ss_schedule_gq(struct sched_state *ss, struct core *c) {
 static void enq_proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
 	bool done = false;
 	p->he.vruntime = safe_read_tsc();
-	while(!done) {
-		// mpmc cannot return false, even if there is space
-		// in the queue; retry, which is ok for a workload
-		// that never fills the queue.  XXX 
-		done = queue_push(&ss->q, p);
-	}
+	bool ok = queue_push(&ss->q, p);
+	assert(ok);
 	c->process = NULL;
 }
 

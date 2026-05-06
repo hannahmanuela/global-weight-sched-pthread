@@ -9,7 +9,7 @@ CFLAGS += -g -O2 -fno-omit-frame-pointer
 DEPS = $(wildcard *.d)
 -include $(DEPS)
 
-all: schedule test-heap test-gwfs test-mcntr test-preempt test-dllist logmerge logdump rankerror
+all: schedule test-heap test-gwfs test-mcntr test-preempt test-dllist test-gq logmerge logdump rankerror
 
 schedule: driver.o $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
@@ -27,6 +27,9 @@ test-preempt: test_preempt.o preempt.o lock.o core.o util.o
 	$(CC) -o $@ $^
 
 test-dllist: test_dllist.o dllist.o lock.o core.o util.o
+	$(CC) -o $@ $^
+
+test-gq: test_gq.o  lock.o core.o util.o
 	$(CC) -o $@ $^
 
 logmerge: logmerge.o

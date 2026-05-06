@@ -12,6 +12,7 @@ pthread/test-gwfs
 pthread/test-mcntr
 pthread/test-preempt
 pthread/test-dllist
+pthread/test-gq
 
 # perf profiling output
 perf.data

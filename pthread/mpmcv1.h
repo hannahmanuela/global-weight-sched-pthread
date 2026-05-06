@@ -79,7 +79,7 @@ static inline void *queue_pop(queue_t *q) {
 			size_t prev_head = pos;
 			pos = atomic_load_explicit(&q->head, memory_order_acquire);
 			if (pos == prev_head) {
-				return false;
+				return NULL;
 			}
 		}
 	}

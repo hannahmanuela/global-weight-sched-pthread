@@ -46,8 +46,15 @@ struct process *ss_schedule_gq(struct sched_state *ss, struct core *c) {
 }
 
 static void enq_proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
+	bool done = false;
 	p->he.vruntime = safe_read_tsc();
-	queue_push(&ss->q, p);
+	while(!done) {
+		// mpmc cannot return false, even if there is space
+		// in the queue; retry, which is ok for a workload
+		// that never fills the queue.  XXX 
+		done = queue_push(&ss->q, p);
+	}
+	c->process = NULL;
 }
 
 // Enqueue p at the ends of its group's queue

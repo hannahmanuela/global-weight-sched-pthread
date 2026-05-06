@@ -72,12 +72,22 @@ void *run_core(void* core) {
 	double start = now();
 
 	for (int i = 0; now() - start < time_to_run; i++) {
+		void *val = queue_pop(&q);
+		printf("val %d\n", (long) val);
+		assert(val != NULL);
+		bool ok = queue_push(&q, val);
+		assert(ok);
 	}
 }
 
 void test_parallel() {
 
+	#define N 16
+
 	queue_init(&q);
+	for (long i = 0; i < N; i++) {
+		queue_push(&q, (void *) (i+1));
+	}
 
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
@@ -119,5 +129,5 @@ int main(int argc, char *argv[]) {
 		cores[i] = c_new(i, 1, i);
 	}
 	test_queue();
-	// test_parallel();
+	test_parallel();
 }

@@ -122,11 +122,11 @@ ok:
 	if(debug) {
 		printf("%d: running %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
 	}
-	if(c->process->h != NULL) {
+	if(debug && (c->process->h != NULL)) {
 		printf("%d: c->process->h %p\n", c->cid, c->process->h);
+		assert(c->process->mh != NULL);
 		assert(0);
 	}
-	assert(c->process->mh != NULL);
 	if (do_preempt && (c->process->group->gid == RR_LOW)) {
 		// reset preemtable if switching from high to
 		// a low proc, or if were prempted

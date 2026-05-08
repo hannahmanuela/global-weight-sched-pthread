@@ -232,7 +232,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, stru
 }
 
 // del min proc from h; may fail because some other core grabbed the min vt
-static struct process *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
+static struct process  __attribute__ ((noinline)) *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
@@ -250,7 +250,7 @@ static struct process *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
 	return p;
 }
 
-static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int s) {
+static struct process  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, struct core *c, int s) {
 	struct process *p = NULL;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[MH_IND(mh, i+s)];
@@ -262,7 +262,7 @@ static struct process *mh_all_min_proc(struct mheap *mh, struct core *c, int s) 
 	return p;
 }
 
-static struct process *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, struct process *curp, bool all) {
+static struct process  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, struct process *curp, bool all) {
 	long r = 0;
 	long r_lock = 0;  // XXX delete?
 	struct process *p;

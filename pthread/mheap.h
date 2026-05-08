@@ -9,7 +9,7 @@
 #include "heap.h"
 
 struct mheap {
-	struct heap **h;
+	struct heap **h __calign__;
 	int nheap;
 };
 

@@ -53,7 +53,7 @@ static inline bool queue_push(queue_t *q, void *val) {
 			pos = atomic_load_explicit(&q->tail, memory_order_acquire);
 			if (pos == prev_tail) {
 				size_t head = atomic_load_explicit(&q->head, memory_order_acquire);
-				printf("push: %d %d %d %d\n", pos, prev_tail, head, pos-head);
+				// printf("push: %d %d %d %d\n", pos, prev_tail, head, pos-head);
 				
 				return false;
 			}

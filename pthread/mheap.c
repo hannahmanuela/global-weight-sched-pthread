@@ -250,6 +250,28 @@ static struct process  __attribute__ ((noinline)) *mh_try_del_min(struct core *c
 	return p;
 }
 
+static struct process  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struct core *c, struct heap *h, vt_t vt, struct process *to_add) {
+	int l = lock_try_acquire(&h->lk);
+	if (l != 0) {
+		return NULL;
+	}
+	vt_t vt0 = h->heap[0].vruntime;
+	// vt_t vt0 = h->min_vt;
+	if (vt != vt0) {
+		lock_release(&h->lk);
+		return NULL;
+	}
+	struct process *p = mh_del_min_process(c, h);
+	p->tsc = safe_read_tsc();
+	p->h = NULL;
+	if (to_add) {
+		mh_add_process(c, to_add, h);
+	} else {
+		lock_release(&h->lk);
+	}
+	return p;
+}
+
 static struct process  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, struct core *c, int s) {
 	struct process *p = NULL;
 	for (int i = 0; i < mh->nheap; i++) {
@@ -278,8 +300,10 @@ static struct process  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct
 			if(all) p = mh_all_min_proc(mh, c, i);
 			break;
 		} 
-		if ((p = mh_try_del_min(c, h, vt)) != NULL)
+		if ((p = mh_try_del_min_enq_prev(c, h, vt, curp)) != NULL) {
+			curp = NULL;
 			break;
+		}
 		r++;
 	}
 

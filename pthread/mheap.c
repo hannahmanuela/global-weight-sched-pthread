@@ -245,7 +245,6 @@ static struct process  __attribute__ ((noinline)) *mh_try_del_min(struct core *c
 	}
 	struct process *p = mh_del_min_process(c, h);
 	p->tsc = safe_read_tsc();
-	p->h = NULL;
 	lock_release(&h->lk);
 	return p;
 }
@@ -333,7 +332,6 @@ struct process *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struct pr
 		assert(p->h == h);
 		assert(p->mh == mh);
 		p->tsc = safe_read_tsc();
-		p->h = NULL;
 	}
 	if ((p != NULL) && (curp != NULL)) {
 		mh_add_process(c, curp, h);

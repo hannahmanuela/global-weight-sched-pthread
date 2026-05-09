@@ -130,11 +130,8 @@ bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 		c->process = min_proc;
 	}
 
-	if (min_proc != NULL)
-		min_proc->h = NULL;
-
 	if(debug) {
-		printf("%d: schedule %d(%d) vt %lld h %d\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime, min_proc->h->id);
+		printf("%d: schedule %d(%d) vt %lld\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 		mh_print(min_proc->mh);
 	}
 	if(c->fd > 0) {

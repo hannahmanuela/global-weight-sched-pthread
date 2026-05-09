@@ -110,7 +110,7 @@ void test_grp_sleep_wakeup() {
 	struct group *gs[GRP1];
 	int ws[GRP1] = {1};
 
-	struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
 	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP1, PROC2, tl, gs, ws);
 	struct process *p0;
 	struct process *p1;
@@ -118,13 +118,14 @@ void test_grp_sleep_wakeup() {
 	assert(gs[0]->vruntime == 2 * tl);
 
 	p0 = schedule_retry(c[0], ss);
-	p1 = schedule_retry(c[0], ss);
-	ss_dequeue(ss, c[0], p1, tl);
+	p1 = schedule_retry(c[1], ss);
+	ss_dequeue(ss, c[1], p1, tl);
 
 	ss_yield(ss, c[0], p0, tl);
+	
+	p0 = schedule_retry(c[0], ss);
 	assert(gs[0]->vruntime == 3 * tl);
 
-	p0 = schedule_retry(c[0], ss);
 	ss_dequeue(ss, c[0], p0, tl);
 
 	assert(!ss_schedule(ss, c[0]));
@@ -136,17 +137,19 @@ void test_grp_sleep_wakeup() {
 
 	assert(ss->mh->h[0]->heap_size == 2);
 	p0 = schedule_retry(c[0], ss);
-	ss_enqueue(ss, c[0], p1);
+	ss_enqueue(ss, c[1], p1);
 
 	assert(gs[0]->vruntime == 5 * tl);
 
 	ss_yield(ss, c[0], p0, tl);
 
-	assert(gs[0]->vruntime == 6 * tl);
-
 	p1 = schedule_retry(c[0], ss);
 
+	assert(gs[0]->vruntime == 6 * tl);
+
 	ss_yield(ss, c[0], p1, tl/2);
+
+	schedule_retry(c[0], ss);
 
 	assert(gs[0]->vruntime == 6 * tl + tl/2);
 

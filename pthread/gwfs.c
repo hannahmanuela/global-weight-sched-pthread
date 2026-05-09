@@ -105,10 +105,10 @@ static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
 bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 	struct process *min_proc = NULL;
 	if(c->process != NULL) {
-		if(debug) {
-			printf("%d: schedule yield %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
-		}
 		c->process->he.vruntime = proc_vt(ss, c, c->process);
+		if(debug) {
+			printf("%d: schedule yield %d(%d) gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->group->vruntime);
+		}
 	}
 
 	// XXX kill this case?  for light load we get
@@ -123,6 +123,7 @@ bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 	}
 	if (min_proc == NULL && c->process != NULL) {
 		c->nlocal  += 1;
+		min_proc = c->process;  // for debug
 	} else if (min_proc == NULL) {
 		c->nsched_null += 1;
 		return false;

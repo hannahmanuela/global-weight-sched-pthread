@@ -88,7 +88,7 @@ void test_load() {
 		for (int t = 0; t < ntrial; t++) {
 			struct sched_state *ss = mk_mheap(c, NCORE1, nheap, GRP1, PROC2, 0, gs, ws);
 			for (int i = 0; i < nproc; i++) {
-				struct process *p = grp_new_process(NULL, i, gs[0]);
+				struct process *p = grp_new_process(ss->mh, i, gs[0]);
 				struct heap *h = mh_choose_heap(ss->mh, c[0]);
 				p->he.vruntime = safe_read_tsc();
 				mh_add_process(c[0], p, h);
@@ -166,7 +166,7 @@ void test_grp_fair_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
 	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -179,11 +179,11 @@ void test_grp_fair_lag() {
         ss_print(ss, gs, GRP1);
 
 	struct process *p0 = schedule_retry(c[0], ss);
-	struct process *p1 = schedule_retry(c[0], ss);
+	struct process *p1 = schedule_retry(c[1], ss);
 
 	ss_yield(ss, c[0], p0, tl/10);
 
-	ss_yield(ss, c[0], p1, tl/10);
+	ss_yield(ss, c[1], p1, tl/10);
 
         ss_print(ss, gs, GRP1);
 	assert(p0->he.vruntime > 300);
@@ -552,7 +552,6 @@ void test_worst(int nheap) {
 void main(int argc, char *argv[]) {
 	debug = true;
 	test_grp_sleep_wakeup();
-	exit(1);
 	test_load();
 	test_preempt_t();
         test_preempt();

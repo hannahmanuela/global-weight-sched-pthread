@@ -91,21 +91,11 @@ static vt_t sub_lag(struct core *c, struct process *p, vt_t wvt, vt_t *lag) {
 	return vt;
 }
 
-static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
-	vt_t wvt = calc_delta(ss->tick_length, p->he.weight);
-	vt_t lag;
-	vt_t vt = sub_lag(c, p, wvt, &lag);
-	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
-	assert(my_vt >= p->he.vruntime);  // overflow?
-	return my_vt;
-}	
-
 
 // Select next process to run
 bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 	struct process *min_proc = NULL;
 	if(c->process != NULL) {
-		c->process->he.vruntime = proc_vt(ss, c, c->process);
 		if(debug) {
 			printf("%d: schedule yield %d(%d) gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->group->vruntime);
 		}
@@ -181,6 +171,15 @@ static bool ss_preempt_slow(struct sched_state *ss, struct core *c, struct proce
 	return false;
 }
 
+static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
+	vt_t wvt = calc_delta(ss->tick_length, p->he.weight);
+	vt_t lag;
+	vt_t vt = sub_lag(c, p, wvt, &lag);
+	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
+	assert(my_vt >= p->he.vruntime);  // overflow?
+	return my_vt;
+}	
+
 // Add p to group and make p runnable
 void ss_enqueue_gwfs(struct sched_state *ss, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(p->mh, c);
@@ -229,6 +228,7 @@ void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct process *p, t_
 
 	assert(p == c->process);
 	upd_lag(ss, p, time_passed);
+	p->he.vruntime = proc_vt(ss, c, p);
 }
 
 // Process p is not runnable and yields core, which may make

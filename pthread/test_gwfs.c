@@ -123,8 +123,9 @@ void test_grp_sleep_wakeup() {
 
 	ss_yield(ss, c[0], p0, tl);
 	
-	p0 = schedule_retry(c[0], ss);
 	assert(gs[0]->vruntime == 3 * tl);
+
+	p0 = schedule_retry(c[0], ss);
 
 	ss_dequeue(ss, c[0], p0, tl);
 
@@ -143,13 +144,11 @@ void test_grp_sleep_wakeup() {
 
 	ss_yield(ss, c[0], p0, tl);
 
-	p1 = schedule_retry(c[0], ss);
-
 	assert(gs[0]->vruntime == 6 * tl);
 
-	ss_yield(ss, c[0], p1, tl/2);
+	p1 = schedule_retry(c[0], ss);
 
-	schedule_retry(c[0], ss);
+	ss_yield(ss, c[0], p1, tl/2);
 
 	assert(gs[0]->vruntime == 6 * tl + tl/2);
 

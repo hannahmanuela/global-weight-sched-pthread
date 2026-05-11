@@ -198,7 +198,7 @@ void test_grp_fair_sleep_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c[NCORE1] = {c_new(0, GRP1, 0)};
+	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
 	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -209,10 +209,10 @@ void test_grp_fair_sleep_lag() {
 	}
 
 	struct process *p0 = schedule_retry(c[0], ss);
-	struct process *p1 = schedule_retry(c[0], ss);
+	struct process *p1 = schedule_retry(c[1], ss);
 
 	ss_dequeue(ss, c[0], p0, tl/10);
-	ss_dequeue(ss, c[0], p1, tl/10);
+	ss_dequeue(ss, c[1], p1, tl/10);
 
 
 	ss_enqueue(ss, c[0], p0);
@@ -233,7 +233,7 @@ void test_mheap_wakeup_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c[NCORE1] = {c_new(0, GRP3, 0)};
+	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
 	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -246,11 +246,11 @@ void test_mheap_wakeup_lag() {
 	struct process *p0 = schedule_retry(c[0], ss);
 	assert(p0->pid == 0);
 
-	struct process *p1 = schedule_retry(c[0], ss);
+	struct process *p1 = schedule_retry(c[1], ss);
 	assert(p1->pid == 1);
 
 	ss_dequeue(ss, c[0], p0, tl);
-	ss_dequeue(ss, c[0], p1, tl);
+	ss_dequeue(ss, c[1], p1, tl);
 
 	ss_enqueue(ss, c[0], p1);
 	assert(p1->he.vruntime == 400);
@@ -305,6 +305,8 @@ void test_running_lag() {
 
 	int nheap = 1;
 	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
+	// struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
+
 	struct sched_state *ss = ss_new(tl, nheap, c, num_cores);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(ss->mh, i, ws[i]);
@@ -323,6 +325,7 @@ void test_running_lag() {
 	assert(p1->he.vruntime == 1000);
 
 	struct process *p = schedule_retry(c[0], ss);
+
 	ss_enqueue(ss, c[0], p2);
 
 	// 1000 since p2 hasn't run yet; if it had run and dequeued,
@@ -384,10 +387,12 @@ void test_mheap(int nheap, int nproc) {
 	p = schedule_retry(c[0], ss);
 	assert(p->group->gid == GRP2-1);
 	assert(p->he.vruntime == 50);
+
 	ss_yield(ss, c[0], p, ss->tick_length);
 	p = schedule_retry(c[0], ss);
 	assert(p->group->gid == GRP2-1);
 	assert(p->he.vruntime == 100);
+
 	ss_yield(ss, c[0], p, ss->tick_length);
 	p = schedule_retry(c[0], ss);
 	assert(p->group->gid == 0);
@@ -550,7 +555,7 @@ void test_worst(int nheap) {
 
 
 void main(int argc, char *argv[]) {
-	debug = true;
+	//debug = true;
 	test_grp_sleep_wakeup();
 	test_load();
 	test_preempt_t();

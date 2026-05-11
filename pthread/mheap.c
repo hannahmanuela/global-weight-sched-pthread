@@ -249,6 +249,16 @@ static struct process  __attribute__ ((noinline)) *mh_try_del_min(struct core *c
 	return p;
 }
 
+static bool mh_keep_running_proc(vt_t vt0, int w, struct process *curp) {
+	if (curp == NULL)
+		return false;
+	if (vt0 < curp->he.vruntime)
+		return false;
+	if ((vt0 == curp->he.vruntime) && (w > curp->group->weight))
+		return false;
+	return true;
+}
+
 static struct process  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struct core *c, struct heap *h, vt_t vt, struct process *to_add) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
@@ -260,12 +270,19 @@ static struct process  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struc
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct process *p = mh_del_min_process(c, h);
-	p->tsc = safe_read_tsc();
-	p->h = NULL;
-	if (to_add) {
+	struct process *p = NULL;
+	if (!mh_keep_running_proc(vt0, h->heap[0].weight, to_add)) {
+		p = mh_del_min_process(c, h);
+		p->tsc = safe_read_tsc();
+	}
+	if (to_add != NULL && p != NULL) {
 		mh_add_process(c, to_add, h);
 	} else {
+		if(to_add) {
+			// pretend we added and removed to_add from the heap
+			h->last_vt = to_add->he.vruntime;
+			p = to_add;
+		}
 		lock_release(&h->lk);
 	}
 	return p;
@@ -318,6 +335,9 @@ static struct process  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct
 			h = mh_choose_heap(mh, c);
 		}
 		mh_add_process(c, curp, h);
+	} else {
+		// XXX pretend we added and removed to_add from the heap
+		// h->last_vt = to_add->vruntime;
 	}
 	return p;
 }
@@ -327,14 +347,20 @@ struct process *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struct pr
 	struct heap *h = mh->h[0];
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
+
 	if(he->vruntime != DUMMY) {
-		p = mh_del_min_process(c, h);
-		assert(p->h == h);
-		assert(p->mh == mh);
-		p->tsc = safe_read_tsc();
+		if (!mh_keep_running_proc(he->vruntime, he->weight, curp)) {
+			p = mh_del_min_process(c, h);
+			assert(p->h == h);
+			assert(p->mh == mh);
+			p->tsc = safe_read_tsc();
+		}
 	}
 	if ((p != NULL) && (curp != NULL)) {
 		mh_add_process(c, curp, h);
+	} else {
+		// pretend we added and removed to_add from the heap
+		if(curp) h->last_vt = curp->he.vruntime;
 	}
 	lock_release(&h->lk);
 	return p;

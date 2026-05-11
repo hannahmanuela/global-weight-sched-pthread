@@ -17,8 +17,8 @@
 //
 
 extern bool debug;
-extern int do_preempt;
-extern int do_affinity;
+extern bool do_preempt;
+extern bool do_affinity;
 
 static void set_preempt(struct sched_state *ss, struct core *c, struct process *p) {
 	while(1) {

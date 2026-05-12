@@ -555,7 +555,10 @@ void test_worst(int nheap) {
 
 
 void main(int argc, char *argv[]) {
-	//debug = true;
+       //debug = true;
+
+	srandom(getpid());
+
 	test_grp_sleep_wakeup();
 	test_load();
 	test_preempt_t();

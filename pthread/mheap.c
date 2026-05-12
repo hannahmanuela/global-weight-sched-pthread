@@ -288,7 +288,7 @@ static struct process  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struc
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct process *p = mh_keep_running_or_switch(c, h, vt0, h->heap[0].weight, to_add);
+	struct process *p = mh_keep_running_or_switch(c, h, vt, h->heap[0].weight, to_add);
 	lock_release(&h->lk);
 	return p;
 }

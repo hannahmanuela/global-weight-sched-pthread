@@ -97,7 +97,7 @@ bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 	struct process *min_proc = NULL;
 	if(c->process != NULL) {
 		if(debug) {
-			printf("%d: schedule yield %d(%d) gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->group->vruntime);
+			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->he.vruntime, c->process->group->vruntime);
 		}
 	}
 

@@ -79,6 +79,7 @@ struct core {
 	long nrr_skip_high;
 	long npreempted;
 	long nlocal;
+	long ndelay_yield;
 
 	long nmc_is_zero;
 	long nmc_dec;

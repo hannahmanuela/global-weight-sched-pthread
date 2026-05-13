@@ -24,6 +24,7 @@
 bool debug = false;
 bool do_affinity = false;
 bool do_preempt = false;
+bool delay_yield = false;
 bool use_power2_insert = true;
 int num_groups = DEF_NUM_GROUPS;
 int ratio = 1;

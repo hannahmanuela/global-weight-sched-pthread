@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <assert.h>
 
 #include "scheduler.h"
 #include "gwfs.h"
@@ -46,6 +47,7 @@ bool ss_schedule(struct sched_state *ss, struct core *c) {
 }	
 
 void ss_yield(struct sched_state *ss, struct core *c, struct process *p, t_t t){
+	assert(c->process == p);
 	return ss->sched.yield(ss, c, p, t);
 }
 
@@ -54,5 +56,6 @@ void ss_enqueue(struct sched_state *ss, struct core *c, struct process *p) {
 }
 
 void ss_dequeue(struct sched_state *ss, struct core *c, struct process *p, t_t t) {
+	assert(c->process == p);
 	return ss->sched.dequeue(ss, c, p, t);
 }

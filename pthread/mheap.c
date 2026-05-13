@@ -167,7 +167,6 @@ void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 	if (debug) {
 		printf("%d: add %d(%d) to heap %d\n", c->cid, p->pid, p->group->gid, h->id);
 	}
-	lock_release(&h->lk);
 }
 
 // caller must hold heap lock
@@ -245,7 +244,6 @@ static struct process  __attribute__ ((noinline)) *mh_try_del_min(struct core *c
 	}
 	struct process *p = mh_del_min_process(c, h);
 	p->tsc = safe_read_tsc();
-	lock_release(&h->lk);
 	return p;
 }
 
@@ -261,6 +259,7 @@ static bool mh_keep_running_proc(vt_t vt0, int w, struct process *curp) {
 	return true;
 }
 
+// caller must have h locked
 static struct process *mh_keep_running_or_switch(struct core *c, struct heap *h, vt_t vt, int w, struct process *to_add) {
 	struct process *p = NULL;
 	if (mh_keep_running_proc(vt, h->heap[0].weight, to_add)) {
@@ -270,9 +269,11 @@ static struct process *mh_keep_running_or_switch(struct core *c, struct heap *h,
 		p = to_add;
 	} else if (vt != DUMMY) { 
 		p = mh_del_min_process(c, h);
-		p->tsc = safe_read_tsc();
-		if (to_add != NULL) 
+		assert(p != NULL);
+		if (to_add != NULL)  {
+			c->ndelay_yield++;
 			mh_add_process(c, to_add, h);
+		}
 	}
 	return p;
 }
@@ -340,6 +341,7 @@ static struct process  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct
 			h = mh_choose_heap(mh, c);
 		}
 		mh_add_process(c, curp, h);
+		lock_release(&h->lk);
 	} else {
 		// XXX pretend we added and removed to_add from the heap
 		// h->last_vt = to_add->vruntime;

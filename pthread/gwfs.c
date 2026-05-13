@@ -19,6 +19,7 @@
 extern bool debug;
 extern bool do_preempt;
 extern bool do_affinity;
+extern bool delay_yield;
 
 static void set_preempt(struct sched_state *ss, struct core *c, struct process *p) {
 	while(1) {
@@ -202,6 +203,7 @@ void ss_enqueue_gwfs(struct sched_state *ss, struct core *c, struct process *p) 
 	if(!ss_preempt(ss, c, p)) {
 		p->he.vruntime = proc_vt(ss, c, p);
 		mh_add_process(c, p, h);
+		lock_release(&h->lk);
 
 		if(debug) {
 			printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
@@ -229,6 +231,12 @@ void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct process *p, t_
 	assert(p == c->process);
 	upd_lag(ss, p, time_passed);
 	p->he.vruntime = proc_vt(ss, c, p);
+	if(!delay_yield) {
+		struct heap *h = mh_choose_heap(p->mh, c);
+		mh_add_process(c, p, h);
+		lock_release(&h->lk);
+		c->process = NULL;
+	}
 }
 
 // Process p is not runnable and yields core, which may make

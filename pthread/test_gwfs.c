@@ -25,6 +25,7 @@
 
 int num_cores;
 extern bool debug;
+extern bool delay_yield;
 extern int scheduler;
 
 void ticks_gettime(t_t *ticks) {
@@ -92,6 +93,7 @@ void test_load() {
 				struct heap *h = mh_choose_heap(ss->mh, c[0]);
 				p->he.vruntime = safe_read_tsc();
 				mh_add_process(c[0], p, h);
+				lock_release(&h->lk);
 			}
 			int maxl = 0;
 			float avg = mh_load(ss->mh, &maxl);
@@ -556,6 +558,7 @@ void test_worst(int nheap) {
 
 void main(int argc, char *argv[]) {
        //debug = true;
+	delay_yield = true;
 
 	srandom(getpid());
 

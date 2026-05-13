@@ -30,6 +30,7 @@ static void enqueue(struct sched_state *ss, struct core *c, struct process *p) {
 	assert(p->h == NULL);
 	p->he.vruntime = safe_read_tsc();
 	mh_add_process(c, p, h);	
+	lock_release(&h->lk);
 }
 
 static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {

@@ -18,6 +18,7 @@ struct heap {
 
 	int heap_capacity;
 	int id;
+	int max;
 
 	int heap_size __calign__;
 	vt_t last_vt;

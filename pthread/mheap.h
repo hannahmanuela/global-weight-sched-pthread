@@ -14,6 +14,7 @@ struct mheap {
 };
 
 struct mheap *mh_new(int n);
+void mh_stats(struct mheap *mh);
 void mh_free(struct mheap *mh);
 void mh_print(struct mheap *mh);
 vt_t mh_min_vt(struct heap *h);

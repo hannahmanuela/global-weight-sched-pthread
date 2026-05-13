@@ -430,6 +430,7 @@ void main(int argc, char *argv[]) {
 	}
 	     
 	ss_stats(gs->ss, gs->grps, num_groups);
+	mh_stats(gs->ss->mh);
 
 	if (do_latency) {
 		printf("lat distribution:\n");

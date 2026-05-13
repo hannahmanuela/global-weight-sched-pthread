@@ -20,6 +20,7 @@ struct heap *heap_new() {
 	h->heap_size = 0;
 	h->heap_capacity = 0;
 	h->last_vt = 0;
+	h->max = 0;
 	lock_init(&h->lk);
 	heap_alloc(h);
 	assert(((long) h->heap) % CACHE_LINE_SZ == 0);
@@ -105,6 +106,8 @@ void heap_push(struct heap *h, struct heap_elem *e) {
 	int i = h->heap_size;
 	h->heap[h->heap_size++] = *e;
 	heap_sift_up(h, i);
+	if (i > h->max)
+		h->max = i;
 	//h->min_vt = h->heap[0].vruntime;
 }
 

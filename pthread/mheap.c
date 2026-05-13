@@ -69,6 +69,17 @@ static vt_t heap_check(struct heap *h) {
 	}
 }
 
+void mh_stats(struct mheap *mh) {
+	int max = 0;
+	int n = 0;
+	for (int i = 0; i < mh->nheap; i++) {
+		n += mh->h[i]->max;
+		if (mh->h[i]->max > max)
+			max = mh->h[i]->max;
+	}
+	printf("mh_stats: max %d %0.2f\n", max, AVG(n, mh->nheap));
+}
+
 static void print_elem(struct heap_elem *e) {
 	if(e->vruntime == DUMMY) {
 		printf("[dummy vt %lld w %d]", e->vruntime, e->weight);

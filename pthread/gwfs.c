@@ -181,6 +181,17 @@ static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
 	return my_vt;
 }	
 
+static vt_t min_vt(struct heap *h, struct core *c) {
+	vt_t h_min = mh_min_vt(h);
+	if (h_min == DUMMY) {
+		h_min = atomic_load_explicit(&h->last_vt, __ATOMIC_RELAXED);
+		if (c->process && c->process->he.vruntime > h_min) {
+			h_min = c->process->he.vruntime;
+		}
+	}
+	return h_min;
+}
+
 // Add p to group and make p runnable
 void ss_enqueue_gwfs(struct sched_state *ss, struct core *c, struct process *p) {
 	struct heap *h = mh_choose_heap(p->mh, c);
@@ -192,7 +203,7 @@ void ss_enqueue_gwfs(struct sched_state *ss, struct core *c, struct process *p) 
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
 		vt_t lag = p->group->vruntime - p->group->min_vt_deq;
-		vt_t h_min = mh_min_vt(h);
+		vt_t h_min = min_vt(h, c);
 		if(p->group->min_vt_deq > h_min) {
 			lag += (p->group->min_vt_deq-h_min);
 		}
@@ -257,7 +268,7 @@ void ss_dequeue_gwfs(struct sched_state *ss, struct core *c, struct process *p, 
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {
-		vt_t h_min = mh_min_vt(p->h);
+		vt_t h_min = min_vt(p->h, c);
 		p->group->min_vt_deq = h_min;
 		ticks_gettime(p->group->sleepstart);
 	}

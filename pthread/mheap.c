@@ -55,8 +55,6 @@ static struct heap_elem *mh_min(struct heap *h) {
 vt_t mh_min_vt(struct heap *h) {
 	struct heap_elem *min = mh_min(h);
 	vt_t vt = atomic_load(&min->vruntime);
-	if (vt == DUMMY)
-		return atomic_load_explicit(&h->last_vt, __ATOMIC_RELAXED);
 	return vt;
 }
 

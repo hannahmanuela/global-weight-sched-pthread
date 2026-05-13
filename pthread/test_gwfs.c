@@ -557,7 +557,7 @@ void test_worst(int nheap) {
 
 
 void main(int argc, char *argv[]) {
-       //debug = true;
+        // debug = true;
 	delay_yield = true;
 
 	srandom(getpid());

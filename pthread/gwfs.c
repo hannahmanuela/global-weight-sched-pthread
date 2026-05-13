@@ -184,7 +184,7 @@ static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
 static vt_t min_vt(struct heap *h, struct core *c) {
 	vt_t h_min = mh_min_vt(h);
 	if (h_min == DUMMY) {
-		h_min = atomic_load_explicit(&h->last_vt, __ATOMIC_RELAXED);
+		h_min = mh_last_vt(h);
 		if (c->process && c->process->he.vruntime > h_min) {
 			h_min = c->process->he.vruntime;
 		}

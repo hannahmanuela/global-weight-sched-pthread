@@ -17,6 +17,7 @@ struct mheap *mh_new(int n);
 void mh_free(struct mheap *mh);
 void mh_print(struct mheap *mh);
 vt_t mh_min_vt(struct heap *h);
+vt_t mh_last_vt(struct heap *h);
 struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all);
 struct process *mh_min_proc_enq(struct mheap *mh, struct core *c, struct process *p, bool all);
 struct heap *mh_choose_heap( struct mheap *mh, struct core *c);

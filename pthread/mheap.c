@@ -58,6 +58,10 @@ vt_t mh_min_vt(struct heap *h) {
 	return vt;
 }
 
+vt_t mh_last_vt(struct heap *h) {
+	return atomic_load_explicit(&h->last_vt, __ATOMIC_RELAXED);
+}
+
 static vt_t heap_check(struct heap *h) {
 	vt_t min = mh_min_vt(h);
 	for (int i = 0; i < h->heap_size; i++) {

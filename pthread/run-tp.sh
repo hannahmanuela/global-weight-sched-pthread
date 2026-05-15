@@ -10,11 +10,11 @@ fi
 echo "----low load"
 
 for s in ${SCHEDULERS[@]}; do
-    ./schedule $s $1 $1
+    ./schedule -y $s $1 $1
 done
 
 echo "----high load"
 
 for s in ${SCHEDULERS[@]}; do
-    ./schedule $s $1 $(($1 * 4))
+    ./schedule -y $s $1 $(($1 * 4))
 done

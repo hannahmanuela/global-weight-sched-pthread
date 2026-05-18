@@ -17,8 +17,16 @@ struct scheduler {
 	void (*dequeue)(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_gotten);
 };
 
+struct schedulerv1 {
+	bool (*schedule)(struct core *c);
+	void (*yield)(struct core *c, struct task_struct *p, t_t time_passed);
+	void (*enqueue)(struct core *c, struct task_struct *p);
+	void (*dequeue)(struct core *c, struct task_struct *p, t_t time_gotten);
+};
+
 struct sched_state {
 	struct scheduler sched;
+	struct schedulerv1 schedv1;
 	struct core **cs;
 	int ncore;
 	int tick_length;

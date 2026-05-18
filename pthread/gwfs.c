@@ -24,14 +24,14 @@ extern bool delay_yield;
 extern pthread_key_t core_key;
 extern struct sched_state *ss_global;
 
-static void set_preempt(struct sched_state *ss, struct core *c, struct task_struct *p) {
+static void set_preempt(struct core *c, struct task_struct *p) {
 	while(1) {
-		preempt_t pre = atomic_load(&ss->preempt);
+		preempt_t pre = atomic_load(&ss_global->preempt);
 		if(WEIGHT(pre) < p->he.weight)
 			return;
 
 		c->npreempt_set++;
-		
+
 		int n = NCORE(pre);
 		w_t w = WEIGHT(pre);
 		cid_t cid = CORE(pre);
@@ -43,21 +43,21 @@ static void set_preempt(struct sched_state *ss, struct core *c, struct task_stru
 		}
 		npre = PREEMPT(n, w, c->cid);
 		//printf("set_preempt: %d %lx (%d, %d, %d)\n", cid, npre, n, w, c->cid);
-		if (__atomic_compare_exchange_n(&ss->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+		if (__atomic_compare_exchange_n(&ss_global->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 			break;
 		}
 		c->npreempt_retry++;
 	}
 }
 
-static void reset_preempt(struct sched_state *ss, struct core *c, w_t w) {
+static void reset_preempt(struct core *c, w_t w) {
 	while(1) {
-		preempt_t pre = atomic_load(&ss->preempt);
+		preempt_t pre = atomic_load(&ss_global->preempt);
 		if(WEIGHT(pre) != w)
 			return;
 
 		c->npreempt_clear++;
-		
+
 		int n = NCORE(pre);
 		w_t w = WEIGHT(pre);
 		cid_t cid = CORE(pre);
@@ -65,10 +65,10 @@ static void reset_preempt(struct sched_state *ss, struct core *c, w_t w) {
 		if(n == 1) w = MAXWEIGHT;
 		preempt_t npre = PREEMPT(n-1, w, cid);
 		//printf("reset_preempt: %d %lx (%d, %d, %d)\n", c->cid, npre, n-1, w, cid);
-		if (__atomic_compare_exchange_n(&ss->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+		if (__atomic_compare_exchange_n(&ss_global->preempt, &pre, npre, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 			break;
 		}
-		c->npreempt_retry;		
+		c->npreempt_retry;
 	}
 }
 
@@ -97,7 +97,7 @@ static vt_t sub_lag(struct core *c, struct task_struct *p, vt_t wvt, vt_t *lag) 
 
 
 // Select next process to run
-bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
+bool ss_schedule_gwfs(struct core *c) {
 	struct task_struct *min_proc = NULL;
 	if(c->process != NULL) {
 		if(debug) {
@@ -107,13 +107,13 @@ bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 
 	// XXX kill this case?  for light load we get
 	// get affinity by rescheduling c->process
-	if(do_affinity && ss->mh->nheap > 1 && c->process) {
+	if(do_affinity && ss_global->mh->nheap > 1 && c->process) {
 		assert(0);
 		min_proc = mh_min_affinity(c);
 	}
 
 	if (min_proc == NULL) {
-		min_proc = mh_min_proc_enq(ss->mh, c, c->process, false);
+		min_proc = mh_min_proc_enq(ss_global->mh, c, c->process, false);
 	}
 	if (min_proc == NULL && c->process != NULL) {
 		c->nlocal  += 1;
@@ -133,21 +133,21 @@ bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 		c_log_append(c, min_proc);
 	}
 	if(do_preempt) {
-		set_preempt(ss, c, min_proc);
+		set_preempt(c, min_proc);
 	}
 	return true;
 }
 
 
 
-static bool ss_preempt(struct sched_state *ss, struct core *c, struct task_struct *p) {
+static bool ss_preempt(struct core *c, struct task_struct *p) {
 	if(!do_preempt)
 		return false;
-	preempt_t pre = atomic_load(&ss->preempt);
+	preempt_t pre = atomic_load(&ss_global->preempt);
 	w_t w = WEIGHT(pre);
 	if(p->he.weight > w) {
 		cid_t cid = CORE(pre);
-		struct core *c1 = ss->cs[cid];
+		struct core *c1 = ss_global->cs[cid];
 		lock_acquire(&c1->lk);
 		struct task_struct *p1 = c1->process;
 		if(p1->he.weight == w) {
@@ -159,24 +159,24 @@ static bool ss_preempt(struct sched_state *ss, struct core *c, struct task_struc
 	return false;
 }
 
-static bool ss_preempt_slow(struct sched_state *ss, struct core *c, struct task_struct *p) {
-	// vt_t vt = proc_vt(ss, c, p);
-	for (int i = 0; i < ss->ncore; i++) {
-		struct task_struct *p1 = ss->cs[i]->process;
+static bool ss_preempt_slow(struct core *c, struct task_struct *p) {
+	// vt_t vt = proc_vt(c, p);
+	for (int i = 0; i < ss_global->ncore; i++) {
+		struct task_struct *p1 = ss_global->cs[i]->process;
 		if(p1 == NULL) {
 			continue;
 		}
 		if(p1->he.weight < p->he.weight) {
 			printf("kick c %d to replace pid %d with pid %d\n", i, p1->pid, p->pid);
-			ss->cs[i]->npreempted += 1;
+			ss_global->cs[i]->npreempted += 1;
 			break;
 		}
 	}
 	return false;
 }
 
-static vt_t proc_vt(struct sched_state *ss, struct core *c, struct task_struct *p) {
-	vt_t wvt = calc_delta(ss->tick_length, p->he.weight);
+static vt_t proc_vt(struct core *c, struct task_struct *p) {
+	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
 	vt_t lag;
 	vt_t vt = sub_lag(c, p, wvt, &lag);
 	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
@@ -217,13 +217,13 @@ void account_wakeup_gwfs(struct task_struct *p) {
 }
 
 void put_task_in_rq_gwfs(struct task_struct *p) {
-	// XXX test run in pthread
+	// XXX run test and driver group setup in pthread
 	struct core *c = pthread_getspecific(core_key);
 	printf("c %p\n", c);
 	assert(c != NULL);
 	struct heap *h = mh_choose_heap(p->mh, c);
 	assert(p->h == NULL);
-	p->he.vruntime = proc_vt(ss_global, c, p);
+	p->he.vruntime = proc_vt(c, p);
 	mh_add_process(c, p, h);
 	lock_release(&h->lk);
 
@@ -234,32 +234,32 @@ void put_task_in_rq_gwfs(struct task_struct *p) {
 }
 
 // Add p to group and make p runnable
-void ss_enqueue_gwfs(struct sched_state *ss, struct core *c, struct task_struct *p) {
+void ss_enqueue_gwfs(struct core *c, struct task_struct *p) {
 	account_wakeup_gwfs(p);
-	if(!ss_preempt(ss, c, p)) {
+	if(!ss_preempt(c, p)) {
 		put_task_in_rq_gwfs(p);
 	}
 }
 
 // proc may have run for less than its allocated time; in that
 // case adjust the proc's group vruntime.
-static void upd_lag(struct sched_state *ss, struct task_struct *p, t_t time_passed) {
+static void upd_lag(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	vt_t vt = calc_delta(time_passed, p->he.weight);
-	vt_t wvt = calc_delta(ss->tick_length, p->he.weight);
+	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
 	if (wvt > vt) {
 		grp_add_lag(p, -(wvt-vt));
 	}
 }
 
 // Yield and enqueue
-void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
+void ss_yield_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
 	if(do_preempt)
-		reset_preempt(ss, c, p->he.weight);
+		reset_preempt(c, p->he.weight);
 
 	assert(p == c->process);
-	upd_lag(ss, p, time_passed);
-	p->he.vruntime = proc_vt(ss, c, p);
+	upd_lag(p, time_passed);
+	p->he.vruntime = proc_vt(c, p);
 	if(!delay_yield) {
 		struct heap *h = mh_choose_heap(p->mh, c);
 		mh_add_process(c, p, h);
@@ -270,9 +270,9 @@ void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct task_struct *p
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void ss_dequeue_gwfs(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
+void ss_dequeue_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
 	if(do_preempt)
-		reset_preempt(ss, c, p->he.weight);
+		reset_preempt(c, p->he.weight);
 
 	struct heap *h = p->h;
 	lock_acquire(&h->lk);
@@ -282,7 +282,7 @@ void ss_dequeue_gwfs(struct sched_state *ss, struct core *c, struct task_struct 
 		mh_print(p->group->mh);
 	}
 
-	upd_lag(ss, p, time_passed);
+	upd_lag(p, time_passed);
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {

@@ -47,7 +47,7 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 
 	switch (scheduler) {
 	case GWFS:
-		ss->sched = (struct scheduler) {
+		ss->schedv1 = (struct schedulerv1) {
 			ss_schedule_gwfs, ss_yield_gwfs, ss_enqueue_gwfs, ss_dequeue_gwfs
 		};
 		break;

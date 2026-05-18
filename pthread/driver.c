@@ -17,6 +17,7 @@
 #include <float.h>
 
 #include "vt.h"
+#include "sched.h"
 #include "core.h"
 #include "group.h"
 #include "heap.h"
@@ -47,6 +48,8 @@ extern int scheduler;
 extern int ratio;
 extern bool do_latency;
 extern bool delay_yield;
+extern pthread_key_t core_key;
+extern struct sched_state *ss_global;
 
 struct global_state {
 	struct sched_state *ss;
@@ -76,7 +79,7 @@ void ticks_getwork(t_t *ticks) {
 #define ENQ 2
 #define DEQ 3
 
-void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, long *n, struct process *p) {
+void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, long *n, struct task_struct *p) {
 	long ts = 0;
 	if(do_ts_op) ts = safe_read_tsc();
 	int c = mycore->cid;
@@ -125,7 +128,7 @@ void action(struct sched_state *ss, struct core *mycore, int choice) {
 		break;
 	case WAKEUP: // Make a process runnable
 		// pick an existing process from the pool?
-		struct process *p = mycore->pool;
+		struct task_struct *p = mycore->pool;
 		if (!p) {
 			return; 
 		}
@@ -163,7 +166,7 @@ void rr_groups(int num_groups, int num_threads_p_group) {
 		struct group *g = grp_new(mh, i, 10);
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
-			struct process *p = grp_new_process(mh, i*ns[0]+j, g);
+			struct task_struct *p = grp_new_process(mh, i*ns[0]+j, g);
 			assert(p->mh != NULL);
 			if(is_pcrq()) ss_enqueue_pcrq(gs->ss, gs->cores[0], p);
 			else if (is_gq()) ss_enqueue_gq(gs->ss, gs->cores[0], p);
@@ -204,7 +207,7 @@ void ss_groups(int num_groups, int num_threads_p_group) {
 		w  += base_weight * (ratio - 1);
 		gs->grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {
-			struct process *p = grp_new_process(gs->ss->mh, i*num_threads_p_group+j, g);
+			struct task_struct *p = grp_new_process(gs->ss->mh, i*num_threads_p_group+j, g);
 			ss_enqueue(gs->ss, gs->cores[0], p);
 		}
 	}
@@ -220,6 +223,12 @@ void ss_sched_action(struct core *mycore) {
 
 void *run_core(void* core) {
 	struct core *mycore = (struct core *) core;
+	struct core **priv = malloc(sizeof(struct core *));
+        *priv = mycore;
+	pthread_setspecific(core_key, priv);
+	struct core *c = pthread_getspecific(core_key);
+	assert(c == mycore);
+	printf("p %p\n", c);
 
 	// pin to an actual core per the selected policy
 	int cpu_want = calc_pin_cpu(mycore->cid);
@@ -315,9 +324,8 @@ void main(int argc, char *argv[]) {
 
 	// printf("==="); mh_print(gs->ss->mh);
 
-	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
-		pthread_create(&threads[i], NULL, run_core, (void*)(gs->cores[i]));
+		pthread_create(&gs->cores[i]->tid, NULL, run_core, (void*)(gs->cores[i]));
 	}
 
 	int pg = (is_rr() && (ratio == 0)) ? 0 : num_threads_p_group;
@@ -359,7 +367,7 @@ void main(int argc, char *argv[]) {
 
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = gs->cores[i];
-		pthread_join(threads[c->cid], NULL);
+		pthread_join(c->tid, NULL);
 
 		c_log_done(c);
 

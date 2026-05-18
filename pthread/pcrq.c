@@ -14,7 +14,7 @@ bool ss_schedule_pcrq(struct sched_state *ss, struct core *c) {
 	struct heap_elem *he = heap_remove_min(ss->mh->h[c->cid]);
 	if(he == NULL)
 		return false;
-	struct process *p = (struct process *) he->elem;
+	struct task_struct *p = (struct task_struct *) he->elem;
 	if(debug) {
 		printf("%d: schedule %d(%d)\n", c->cid, p->pid, p->group->gid);
 	}
@@ -25,7 +25,7 @@ bool ss_schedule_pcrq(struct sched_state *ss, struct core *c) {
 	return true;
 }
 
-void ss_yield_pcrq(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
+void ss_yield_pcrq(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	p->he.vruntime = safe_read_tsc();
 	assert(p->h == ss->mh->h[c->cid]);
@@ -35,7 +35,7 @@ void ss_yield_pcrq(struct sched_state *ss, struct core *c, struct process *p, t_
 	}
 }
 
-void ss_enqueue_pcrq(struct sched_state *ss, struct core *c, struct process *p) {
+void ss_enqueue_pcrq(struct sched_state *ss, struct core *c, struct task_struct *p) {
 	int i, j;
 	mh_rand_heaps(ss->mh, c, &i, &j);
 	if (ss->mh->h[i]->heap_size > ss->mh->h[j]->heap_size)
@@ -48,5 +48,5 @@ void ss_enqueue_pcrq(struct sched_state *ss, struct core *c, struct process *p) 
 	}
 }
 
-void ss_dequeue_pcrq(struct sched_state *ss, struct core *c, struct process *p, t_t time_gotten) {
+void ss_dequeue_pcrq(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_gotten) {
 }

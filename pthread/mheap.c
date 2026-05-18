@@ -46,6 +46,10 @@ void mh_free(struct mheap *mh) {
 	}
 }
 
+struct heap *mh_heap(struct mheap *mh, int i) {
+	return mh->h[i];
+}
+
 static struct heap_elem *mh_min(struct heap *h) {
 	struct heap_elem *he = heap_min(h);
 	assert(he != NULL);
@@ -85,7 +89,7 @@ static void print_elem(struct heap_elem *e) {
 		printf("[dummy vt %lld w %d]", e->vruntime, e->weight);
 		return;
 	}
-	struct process *p = (struct process *) e->elem;
+	struct task_struct *p = (struct task_struct *) e->elem;
 	printf("("); proc_print(p); printf(")");
 }
 
@@ -173,7 +177,7 @@ retry:
 }
 
 // caller must hold heap lock
-void mh_add_process(struct core *c, struct process *p, struct heap *h) {
+void mh_add_process(struct core *c, struct task_struct *p, struct heap *h) {
 	p->h = h;
 	assert(p->mh != NULL);
 	heap_push(h, &p->he);
@@ -183,21 +187,21 @@ void mh_add_process(struct core *c, struct process *p, struct heap *h) {
 }
 
 // caller must hold heap lock
-static struct process *mh_remove_min(struct heap *h) {
+static struct task_struct *mh_remove_min(struct heap *h) {
 	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
-	return (struct process *) he->elem;
+	return (struct task_struct *) he->elem;
 }
 
 // caller must hold heap lock
-static struct process *mh_del_min_process(struct core *c, struct heap *h) {
-	struct process *p = mh_remove_min(h);
+static struct task_struct *mh_del_min_process(struct core *c, struct heap *h) {
+	struct task_struct *p = mh_remove_min(h);
 	if(do_affinity)
 		atomic_store_explicit(&p->cid, c->cid, __ATOMIC_RELAXED);
 	return p;
 }
 
-static void mh_upd_stat(struct process *p, struct core *c, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
+static void mh_upd_stat(struct task_struct *p, struct core *c, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
 	p->other_hid = other;
 	p->other_vt = other_vt;
 	c->nretry_del += (r + r_lock);
@@ -244,7 +248,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, stru
 }
 
 // del min proc from h; may fail because some other core grabbed the min vt
-static struct process  __attribute__ ((noinline)) *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
+static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
@@ -255,12 +259,12 @@ static struct process  __attribute__ ((noinline)) *mh_try_del_min(struct core *c
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct process *p = mh_del_min_process(c, h);
+	struct task_struct *p = mh_del_min_process(c, h);
 	p->tsc = safe_read_tsc();
 	return p;
 }
 
-static bool mh_keep_running_proc(vt_t vt0, int w, struct process *curp) {
+static bool mh_keep_running_proc(vt_t vt0, int w, struct task_struct *curp) {
 	if (curp == NULL)
 		return false;
 	if (vt0 == DUMMY)
@@ -273,8 +277,8 @@ static bool mh_keep_running_proc(vt_t vt0, int w, struct process *curp) {
 }
 
 // caller must have h locked
-static struct process *mh_keep_running_or_switch(struct core *c, struct heap *h, vt_t vt, int w, struct process *to_add) {
-	struct process *p = NULL;
+static struct task_struct *mh_keep_running_or_switch(struct core *c, struct heap *h, vt_t vt, int w, struct task_struct *to_add) {
+	struct task_struct *p = NULL;
 	if (mh_keep_running_proc(vt, h->heap[0].weight, to_add)) {
 		// pretend we added and removed to_add from the heap
 		h->last_vt = to_add->he.vruntime;
@@ -291,7 +295,7 @@ static struct process *mh_keep_running_or_switch(struct core *c, struct heap *h,
 	return p;
 }
 
-static struct process  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struct core *c, struct heap *h, vt_t vt, struct process *to_add) {
+static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struct core *c, struct heap *h, vt_t vt, struct task_struct *to_add) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
@@ -302,13 +306,13 @@ static struct process  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struc
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct process *p = mh_keep_running_or_switch(c, h, vt, h->heap[0].weight, to_add);
+	struct task_struct *p = mh_keep_running_or_switch(c, h, vt, h->heap[0].weight, to_add);
 	lock_release(&h->lk);
 	return p;
 }
 
-static struct process  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, struct core *c, int s) {
-	struct process *p = NULL;
+static struct task_struct  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, struct core *c, int s) {
+	struct task_struct *p = NULL;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[MH_IND(mh, i+s)];
 		vt_t vt = atomic_load_explicit(&h->heap[0].vruntime, __ATOMIC_RELAXED);
@@ -319,10 +323,10 @@ static struct process  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap 
 	return p;
 }
 
-static struct process  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, struct process *curp, bool all) {
+static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, struct task_struct *curp, bool all) {
 	long r = 0;
 	long r_lock = 0;  // XXX delete?
-	struct process *p;
+	struct task_struct *p;
 	struct heap *h;
 	int i, j;
 	vt_t vt;
@@ -362,17 +366,17 @@ static struct process  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct
 	return p;
 }
 
-struct process *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struct process *to_add) {
+struct task_struct *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struct task_struct *to_add) {
 	struct heap *h = mh->h[0];
 
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
-	struct process *p = mh_keep_running_or_switch(c, h, he->vruntime, he->weight, to_add);
+	struct task_struct *p = mh_keep_running_or_switch(c, h, he->vruntime, he->weight, to_add);
 	lock_release(&h->lk);
 	return p;
 }
 
-struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
+struct task_struct *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
 	if (mh->nheap == 1) {
 		return mh_min_proc_one_heap(mh, c, NULL);
 	}
@@ -380,7 +384,7 @@ struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
 }
 
 // if there is a min, grab it and enqueue p
-struct process *mh_min_proc_enq(struct mheap *mh, struct core *c, struct process *to_add, bool all) {
+struct task_struct *mh_min_proc_enq(struct mheap *mh, struct core *c, struct task_struct *to_add, bool all) {
 	if (mh->nheap == 1) {
 		return mh_min_proc_one_heap(mh, c, to_add);
 	}
@@ -421,8 +425,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap 
 	return h_i;
 }
 
-struct process *mh_min_affinity(struct core *c) {
-	struct process *cp = c->process;
+struct task_struct *mh_min_affinity(struct core *c) {
+	struct task_struct *cp = c->process;
 	struct heap *h = cp->h;
 	int cid = atomic_load_explicit(&cp->cid, __ATOMIC_RELAXED);
 	if (cid != c->cid) {  // some other core is running cp or has run it
@@ -433,7 +437,7 @@ struct process *mh_min_affinity(struct core *c) {
 		c->miss[cp->group->gid]++;
 		return NULL;
 	}
-	struct process *p = NULL;
+	struct task_struct *p = NULL;
 	lock_acquire(&h->lk);
 	if((h->heap[0].elem != cp) || (cp->cid != c->cid)) {
 		c->miss[cp->group->gid]++;

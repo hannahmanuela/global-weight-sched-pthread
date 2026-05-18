@@ -5,6 +5,7 @@
 
 #include "vt.h"
 #include "util.h"
+#include "gw_sched.h"
 #include "driver.h"
 #include "sched_state.h"
 #include "core.h"
@@ -20,8 +21,10 @@ extern bool debug;
 extern bool do_preempt;
 extern bool do_affinity;
 extern bool delay_yield;
+extern pthread_key_t core_key;
+extern struct sched_state *ss_global;
 
-static void set_preempt(struct sched_state *ss, struct core *c, struct process *p) {
+static void set_preempt(struct sched_state *ss, struct core *c, struct task_struct *p) {
 	while(1) {
 		preempt_t pre = atomic_load(&ss->preempt);
 		if(WEIGHT(pre) < p->he.weight)
@@ -69,7 +72,7 @@ static void reset_preempt(struct sched_state *ss, struct core *c, w_t w) {
 	}
 }
 
-static vt_t sub_lag(struct core *c, struct process *p, vt_t wvt, vt_t *lag) {
+static vt_t sub_lag(struct core *c, struct task_struct *p, vt_t wvt, vt_t *lag) {
 	vt_t vt = wvt;
 	*lag = 0;
 	while(1) {
@@ -95,7 +98,7 @@ static vt_t sub_lag(struct core *c, struct process *p, vt_t wvt, vt_t *lag) {
 
 // Select next process to run
 bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
-	struct process *min_proc = NULL;
+	struct task_struct *min_proc = NULL;
 	if(c->process != NULL) {
 		if(debug) {
 			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->he.vruntime, c->process->group->vruntime);
@@ -137,7 +140,7 @@ bool ss_schedule_gwfs(struct sched_state *ss, struct core *c) {
 
 
 
-static bool ss_preempt(struct sched_state *ss, struct core *c, struct process *p) {
+static bool ss_preempt(struct sched_state *ss, struct core *c, struct task_struct *p) {
 	if(!do_preempt)
 		return false;
 	preempt_t pre = atomic_load(&ss->preempt);
@@ -146,7 +149,7 @@ static bool ss_preempt(struct sched_state *ss, struct core *c, struct process *p
 		cid_t cid = CORE(pre);
 		struct core *c1 = ss->cs[cid];
 		lock_acquire(&c1->lk);
-		struct process *p1 = c1->process;
+		struct task_struct *p1 = c1->process;
 		if(p1->he.weight == w) {
 			printf("preempt c %d to replace pid %d with pid %d(%d)\n", cid, p1->pid, p->pid, p->he.weight);
 			c1->npreempted += 1;
@@ -156,10 +159,10 @@ static bool ss_preempt(struct sched_state *ss, struct core *c, struct process *p
 	return false;
 }
 
-static bool ss_preempt_slow(struct sched_state *ss, struct core *c, struct process *p) {
+static bool ss_preempt_slow(struct sched_state *ss, struct core *c, struct task_struct *p) {
 	// vt_t vt = proc_vt(ss, c, p);
 	for (int i = 0; i < ss->ncore; i++) {
-		struct process *p1 = ss->cs[i]->process;
+		struct task_struct *p1 = ss->cs[i]->process;
 		if(p1 == NULL) {
 			continue;
 		}
@@ -172,7 +175,7 @@ static bool ss_preempt_slow(struct sched_state *ss, struct core *c, struct proce
 	return false;
 }
 
-static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
+static vt_t proc_vt(struct sched_state *ss, struct core *c, struct task_struct *p) {
 	vt_t wvt = calc_delta(ss->tick_length, p->he.weight);
 	vt_t lag;
 	vt_t vt = sub_lag(c, p, wvt, &lag);
@@ -181,51 +184,66 @@ static vt_t proc_vt(struct sched_state *ss, struct core *c, struct process *p) {
 	return my_vt;
 }	
 
-static vt_t min_vt(struct heap *h, struct core *c) {
+// XXX min 
+static vt_t min_vt(struct heap *h) {
 	vt_t h_min = mh_min_vt(h);
 	if (h_min == DUMMY) {
 		h_min = mh_last_vt(h);
+		// XXX fix me
+		/*
 		if (c->process && c->process->he.vruntime > h_min) {
 			h_min = c->process->he.vruntime;
 		}
+		*/
 	}
 	return h_min;
 }
 
-// Add p to group and make p runnable
-void ss_enqueue_gwfs(struct sched_state *ss, struct core *c, struct process *p) {
-	struct heap *h = mh_choose_heap(p->mh, c);
-	assert(p->h == NULL);
-
+// XXX should min_vt take the heap that p will be inserted in?
+void account_wakeup_gwfs(struct task_struct *p) {
 	int old_nthread = atomic_fetch_add(&p->group->nthread, 1);
 	if(old_nthread == 0) {  // group has become runnable
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
 		vt_t lag = p->group->vruntime - p->group->min_vt_deq;
-		vt_t h_min = min_vt(h, c);
+		vt_t h_min = min_vt(mh_heap(p->mh, 0));
 		if(p->group->min_vt_deq > h_min) {
 			lag += (p->group->min_vt_deq-h_min);
 		}
 		vt_t vt = h_min + lag;
 		grp_set_vruntime(p, vt);
 	}
+}
 
+void put_task_in_rq_gwfs(struct task_struct *p) {
+	// XXX test run in pthread
+	struct core *c = pthread_getspecific(core_key);
+	printf("c %p\n", c);
+	assert(c != NULL);
+	struct heap *h = mh_choose_heap(p->mh, c);
+	assert(p->h == NULL);
+	p->he.vruntime = proc_vt(ss_global, c, p);
+	mh_add_process(c, p, h);
+	lock_release(&h->lk);
+
+	if(debug) {
+		printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
+		mh_print(p->group->mh);
+	}
+}
+
+// Add p to group and make p runnable
+void ss_enqueue_gwfs(struct sched_state *ss, struct core *c, struct task_struct *p) {
+	account_wakeup_gwfs(p);
 	if(!ss_preempt(ss, c, p)) {
-		p->he.vruntime = proc_vt(ss, c, p);
-		mh_add_process(c, p, h);
-		lock_release(&h->lk);
-
-		if(debug) {
-			printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
-			mh_print(p->group->mh);
-		}
+		put_task_in_rq_gwfs(p);
 	}
 }
 
 // proc may have run for less than its allocated time; in that
 // case adjust the proc's group vruntime.
-static void upd_lag(struct sched_state *ss, struct process *p, t_t time_passed) {
+static void upd_lag(struct sched_state *ss, struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	vt_t vt = calc_delta(time_passed, p->he.weight);
 	vt_t wvt = calc_delta(ss->tick_length, p->he.weight);
@@ -235,7 +253,7 @@ static void upd_lag(struct sched_state *ss, struct process *p, t_t time_passed) 
 }
 
 // Yield and enqueue
-void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
+void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
 	if(do_preempt)
 		reset_preempt(ss, c, p->he.weight);
 
@@ -252,7 +270,7 @@ void ss_yield_gwfs(struct sched_state *ss, struct core *c, struct process *p, t_
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void ss_dequeue_gwfs(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
+void ss_dequeue_gwfs(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
 	if(do_preempt)
 		reset_preempt(ss, c, p->he.weight);
 
@@ -268,7 +286,7 @@ void ss_dequeue_gwfs(struct sched_state *ss, struct core *c, struct process *p, 
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {
-		vt_t h_min = min_vt(p->h, c);
+		vt_t h_min = min_vt(p->h);
 		p->group->min_vt_deq = h_min;
 		ticks_gettime(p->group->sleepstart);
 	}
@@ -279,3 +297,21 @@ void ss_dequeue_gwfs(struct sched_state *ss, struct core *c, struct process *p, 
 	lock_release(&h->lk);
 }
 
+static void init_gwfs() {
+}
+
+const struct gw_scheduler gw_sched_wfs = {
+        .name           = "wfs",
+        .init           = init_gwfs,
+        .account_wakeup   = account_wakeup_gwfs,
+        .account_sleep    = NULL,
+        .put_task_in_rq   = put_task_in_rq_gwfs,
+        .take_task_from_rq = NULL,
+        .charge_vt        = NULL,
+        .account        = NULL,
+        .schedule       = NULL,
+        .yield          = NULL,
+        .pick_idle_target = NULL,
+        .any_queued     = NULL,
+        .set_nheaps     = NULL,
+};

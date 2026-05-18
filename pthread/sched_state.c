@@ -30,9 +30,12 @@ int num_groups = DEF_NUM_GROUPS;
 int ratio = 1;
 bool do_latency = false;
 int scheduler;
+pthread_key_t core_key;
+struct sched_state *ss_global;
 
 struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int ncore) {
 	struct sched_state *ss = aligned_alloc(CACHE_LINE_SZ, sizeof(struct sched_state));
+	ss_global = ss;
 	ss->tick_length = tick_length;
 	ss->mh = mh_new(nheap);
 	if(is_rr()) ss->mh1 = mh_new(nheap);

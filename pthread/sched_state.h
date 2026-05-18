@@ -12,9 +12,9 @@ struct sched_state;
 
 struct scheduler {
 	bool (*schedule)(struct sched_state *ss, struct core *c);
-	void (*yield)(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed);
-	void (*enqueue)(struct sched_state *ss, struct core *c, struct process *p);
-	void (*dequeue)(struct sched_state *ss, struct core *c, struct process *p, t_t time_gotten);
+	void (*yield)(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed);
+	void (*enqueue)(struct sched_state *ss, struct core *c, struct task_struct *p);
+	void (*dequeue)(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_gotten);
 };
 
 struct sched_state {
@@ -34,6 +34,8 @@ struct sched_state {
 	preempt_t preempt __calign__;
 
 	bitarray_t preemptable __calign__;
+
+	vt_t min_vt __calign__;
 };
 
 struct sched_state *ss_new(int tick_length, int n, struct core *cs[], int ncore);

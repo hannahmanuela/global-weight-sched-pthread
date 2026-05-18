@@ -30,7 +30,7 @@ int calc_pin_cpu(int cid) {
 }
 
 void core_print(struct core *c) {
-	struct process *p = c->process;
+	struct task_struct *p = c->process;
 	if (p == NULL) {
 		printf("  pid %d ", -1);
 	} else {
@@ -88,7 +88,7 @@ void c_log_init(struct core *c, char *name) {
 	c->log = malloc(sizeof(struct log_entry) * LOG_NENTRY);
 }
 
-void c_log_append(struct core *c, struct process *p) {
+void c_log_append(struct core *c, struct task_struct *p) {
 	if(c->log_nentry == LOG_NENTRY) {
 		int n = write(c->fd, c->log, sizeof(struct log_entry) * LOG_NENTRY);
 		if (n <= 0) {
@@ -119,7 +119,7 @@ void c_log_done(struct core *c) {
 	}
 }
 
-void c_lat(struct core *c, struct process *p) {
+void c_lat(struct core *c, struct task_struct *p) {
 	if (!do_latency) return;
 
 	t_t lat = p->tsc - p->he.vruntime;

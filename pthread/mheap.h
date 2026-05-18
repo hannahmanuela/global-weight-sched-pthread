@@ -17,13 +17,14 @@ struct mheap *mh_new(int n);
 void mh_stats(struct mheap *mh);
 void mh_free(struct mheap *mh);
 void mh_print(struct mheap *mh);
+struct heap *mh_heap(struct mheap *mh, int i);
 vt_t mh_min_vt(struct heap *h);
 vt_t mh_last_vt(struct heap *h);
-struct process *mh_min_proc(struct mheap *mh, struct core *c, bool all);
-struct process *mh_min_proc_enq(struct mheap *mh, struct core *c, struct process *p, bool all);
+struct task_struct *mh_min_proc(struct mheap *mh, struct core *c, bool all);
+struct task_struct *mh_min_proc_enq(struct mheap *mh, struct core *c, struct task_struct *p, bool all);
 struct heap *mh_choose_heap( struct mheap *mh, struct core *c);
-void mh_add_process(struct core *c, struct process *p, struct heap *h);
-struct process *mh_min_affinity(struct core *c);
+void mh_add_process(struct core *c, struct task_struct *p, struct heap *h);
+struct task_struct *mh_min_affinity(struct core *c);
 float mh_load(struct mheap *mh, int *maxl);
 void mh_rand_heaps(struct mheap *mh, struct core *c, int *i, int *j);
 

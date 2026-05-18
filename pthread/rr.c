@@ -21,7 +21,7 @@ extern bool debug;
 extern bool do_preempt;
 extern int num_groups;
 
-static void enqueue(struct sched_state *ss, struct core *c, struct process *p) {
+static void enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {
 	if(debug) {
 		printf("%d: enqueue_rr %d(%d) %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
 		//mh_print(p->group->mh);
@@ -33,10 +33,10 @@ static void enqueue(struct sched_state *ss, struct core *c, struct process *p) {
 	lock_release(&h->lk);
 }
 
-static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {
+static struct task_struct *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {
 	bool deq = (c->process != NULL) && c->process->mh == mh;
 	assert(!c->process || c->process->mh != NULL);
-	struct process *p = mh_min_proc_enq(mh, c, deq ? c->process : NULL, all);
+	struct task_struct *p = mh_min_proc_enq(mh, c, deq ? c->process : NULL, all);
 	if(p != NULL) {
 		assert(p->mh == mh);
 		if(debug) {
@@ -53,7 +53,7 @@ static struct process *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *
 
 // Yield c->process, if any, and select new one, if there is a runnable one
 bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
-	struct process *p;
+	struct task_struct *p;
 	bool low = false;
 	bool preempted = atomic_load(&c->preempted);
 
@@ -143,7 +143,7 @@ ok:
 }
 
 // p wokeup: enqueue p at the ends of its group's queue
-void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
+void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct task_struct *p) {
 	int cid = -1;
 	assert(p->mh != NULL);
 	if (do_preempt && p->group->gid == RR_HIGH) {
@@ -159,12 +159,12 @@ void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct process *p) {
 }
 
 // p yields after it ran for a tick, do nothing until ss_schedule()
-void ss_yield_rr(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
+void ss_yield_rr(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 }
 
 // process p goes to sleep
-void ss_dequeue_rr(struct sched_state *ss, struct core *c, struct process *p, t_t time_passed) {
+void ss_dequeue_rr(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
 	assert(c->process == p);
 	p->runtime += time_passed;
 	if(debug) {

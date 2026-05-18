@@ -26,6 +26,8 @@ struct log_entry {
 };
 
 struct core {
+	pthread_t tid;
+	
 	struct spinlock lk __calign__;
 
 	atomic_bool preempted __calign__;
@@ -37,8 +39,8 @@ struct core {
 	unsigned int seed;
 	struct drand48_data randBuffer;
 
-	struct process *process;   // currently running process or last process ran
-	struct process *pool;   // pool of processes sleeping
+	struct task_struct *process;   // currently running process or last process ran
+	struct task_struct *pool;   // pool of processes sleeping
 
 
 	// fields for tatistics:
@@ -103,8 +105,8 @@ void c_print(struct core *c, int ngrp);
 int c_rand(struct core *c, int n);
 struct core *c_new(int i, int n, int seed);
 void c_log_init(struct core *c, char *name);
-void c_log_append(struct core *c, struct process *p);
+void c_log_append(struct core *c, struct task_struct *p);
 void c_log_done(struct core *c);
-void c_lat(struct core *c, struct process *p);
+void c_lat(struct core *c, struct task_struct *p);
 
 #endif

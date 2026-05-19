@@ -216,15 +216,13 @@ void account_wakeup_gwfs(struct task_struct *p) {
 	}
 }
 
-// XXX util function for getting core
 void put_task_in_rq_gwfs(struct task_struct *p) {
 	// XXX run test and driver group setup in pthread
-	struct core **c = pthread_getspecific(core_key);
-	assert(c != NULL);
-	struct heap *h = mh_choose_heap(p->mh, *c);
+	struct core *c = get_core();
+	struct heap *h = mh_choose_heap(p->mh, c);
 	assert(p->h == NULL);
-	p->he.vruntime = proc_vt(*c, p);
-	mh_add_process(*c, p, h);
+	p->he.vruntime = proc_vt(c, p);
+	mh_add_process(c, p, h);
 	lock_release(&h->lk);
 
 	if(debug) {

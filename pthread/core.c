@@ -15,6 +15,8 @@
 extern bool do_affinity;
 extern bool do_latency;
 
+pthread_key_t core_key;
+
 // Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
 //   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
 //   HT siblings: CPU N and CPU N+28 share a physical core.

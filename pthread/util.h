@@ -19,6 +19,9 @@
     (type *)((char *)__mptr - offsetof(type, member)); \
 })
 
+struct core;
+
+struct core *get_core();
 void error(char *);
 double now();
 long safe_read_tsc();

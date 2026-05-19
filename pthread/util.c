@@ -15,6 +15,14 @@
 
 #include "vt.h"
 
+extern pthread_key_t core_key;
+
+struct core *get_core() {
+	struct core **c = pthread_getspecific(core_key);
+	assert(c != NULL);
+	return *c;
+}
+
 long safe_read_tsc() {
 	unsigned int aux;
 	long ret_val = _rdtscp(&aux);

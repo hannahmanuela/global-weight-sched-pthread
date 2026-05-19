@@ -401,7 +401,7 @@ struct task_struct *mh_min_proc_enq(struct mheap *mh, struct task_struct *to_add
 // has a process of the same weight at the front (or no process at all).
 //
 
-static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
+static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
@@ -454,7 +454,7 @@ retry:
 	vt_t vt;
 	vt_t other_vt;
 	mh_rand_heap(cp->mh, h->id, &j);
-	struct heap *h1 = mh_select_affinity(cp->mh, c, h->id, j, &vt, &other_vt);
+	struct heap *h1 = mh_select_affinity(cp->mh, h->id, j, &vt, &other_vt);
 	if (h1 == h) {
 		// printf("hit %d(%d) %d(%d):", h->id, vt, j, other_vt);
 		// mh_print_min(cp->mh);

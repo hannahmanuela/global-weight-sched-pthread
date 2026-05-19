@@ -59,8 +59,9 @@ void c_print(struct core *c, int num_groups) {
 	}
 }
 
-int c_rand(struct core *c, int n) {
+int c_rand(int n) {
        double dr;
+       struct core *c = get_core();
        drand48_r(&c->randBuffer, &dr);
        int r = (int) (dr * n);
        // int r = rand_r(&c->seed) % n;

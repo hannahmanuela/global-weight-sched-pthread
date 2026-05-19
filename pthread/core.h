@@ -102,7 +102,7 @@ struct core {
 int calc_pin_cpu(int cid);
 void core_print(struct core *c);
 void c_print(struct core *c, int ngrp);
-int c_rand(struct core *c, int n);
+int c_rand(int n);
 struct core *c_new(int i, int n, int seed);
 void c_log_init(struct core *c, char *name);
 void c_log_append(struct core *c, struct task_struct *p);

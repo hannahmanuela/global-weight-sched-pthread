@@ -127,19 +127,19 @@ float mh_load(struct mheap *mh, int *maxl) {
 }
 
 void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, struct core *c, int *i, int *j) {
-	*i = c_rand(c, mh->nheap);
-	*j = c_rand(c, mh->nheap);
+	*i = c_rand(mh->nheap);
+	*j = c_rand(mh->nheap);
 	while (*i == *j) {
 		c->nrand++;
-		*j = c_rand(c, mh->nheap);
+		*j = c_rand(mh->nheap);
 	}
 }
 
 static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, struct core *c, int i, int *j) {
-	*j = c_rand(c, mh->nheap);
+	*j = c_rand(mh->nheap);
 	while (i == *j) {
 		c->nrand++;
-		*j = c_rand(c, mh->nheap);
+		*j = c_rand(mh->nheap);
 	}
 }
 
@@ -164,7 +164,7 @@ retry:
 		mh_rand_heaps(mh, c, &i, &j);
 		i = mh_least_loaded(mh, i, j);
 	} else {
-		i = c_rand(c, mh->nheap);
+		i = c_rand(mh->nheap);
 	}
 
 	struct heap *h = mh->h[i];

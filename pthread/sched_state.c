@@ -71,7 +71,7 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 }
 
 struct core *ss_choose_core(struct sched_state *ss, struct core *c) {
-	int i = c_rand(c, ss->ncore);
+	int i = c_rand(ss->ncore);
 	return ss->cs[i];
 }
 

@@ -30,11 +30,11 @@ long mc_print(struct mcntr *mc) {
 }
 
 void mc_two_bins(struct mcntr *mc, struct core *c, int *i, int *j, long *v1, long *v2) {
-	*i = c_rand(c, mc->n);
-	*j = c_rand(c, mc->n);
+	*i = c_rand(mc->n);
+	*j = c_rand(mc->n);
 	while (*i == *j) {
 		c->nrand++;
-		*j = c_rand(c, mc->n);
+		*j = c_rand(mc->n);
 	}
 	*v1 = atomic_load_explicit(&(mc->c[*i]->cntr), __ATOMIC_ACQUIRE);
 	*v2 = atomic_load_explicit(&(mc->c[*j]->cntr), __ATOMIC_ACQUIRE);
@@ -52,7 +52,7 @@ float mc_approx_val(struct mcntr *mc, struct core *c) {
 
 bool mc_is_zero(struct mcntr *mc, struct core *c) {
 	c->nmc_is_zero += 1;
-	int s = c_rand(c, mc->n);
+	int s = c_rand(mc->n);
 	for (int i = 0; i < mc->n; i++) {
 		struct cntr *c = mc->c[MC_IND(mc,s+i)];
 		int v = atomic_load_explicit(&c->cntr, __ATOMIC_ACQUIRE);

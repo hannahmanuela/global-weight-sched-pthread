@@ -261,7 +261,8 @@ void ss_enqueue_gwfs(struct task_struct *p) {
 }
 
 // Yield and enqueue
-void ss_yield_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
+void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
+	struct core *c = get_core();
 	if(do_preempt)
 		reset_preempt(c, p->he.weight);
 
@@ -302,7 +303,7 @@ static void account_sleep_gwfs(struct task_struct *p) {
 
 // Process p is not runnable and yields core, which may make
 // p's group not runnable
-void ss_dequeue_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
+void ss_dequeue_gwfs(struct task_struct *p, t_t time_passed) {
 	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
 		mh_print(p->group->mh);
@@ -314,7 +315,7 @@ void ss_dequeue_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
 static void init_gwfs() {
 }
 
-// XXX why have yield, why rq argument to schedule?
+// XXX why have yield
 const struct gw_scheduler gw_sched_wfs = {
         .name           = "wfs",
         .init           = init_gwfs,

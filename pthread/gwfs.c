@@ -127,27 +127,25 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	if(prev) prev->he.vruntime = proc_vt(c, prev);
 
 	if(debug) {
-		printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->he.vruntime, c->process->group->vruntime);
+		printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", c->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
 	}
 
 	// XXX kill this case?  for light load we get
-	// get affinity by rescheduling c->process
-	if(do_affinity && ss_global->mh->nheap > 1 && c->process) {
+	// get affinity by rescheduling prev
+	if(do_affinity && ss_global->mh->nheap > 1 && prev) {
 		assert(0);
 		min_proc = mh_min_affinity(c);
 	}
 
 	if (min_proc == NULL) {
-		min_proc = mh_min_proc_enq(ss_global->mh, c, c->process, false);
+		min_proc = mh_min_proc_enq(ss_global->mh, c, prev, false);
 	}
-	if (min_proc == NULL && c->process != NULL) {
+	if (min_proc == NULL && prev != NULL) {
 		c->nlocal  += 1;
-		min_proc = c->process;  // for debug
+		min_proc = prev;  // for debug
 	} else if (min_proc == NULL) {
 		c->nsched_null += 1;
 		return NULL;
-	} else {
-		c->process = min_proc;
 	}
 
 	if(debug) {
@@ -167,8 +165,8 @@ bool ss_account_schedule_gwfs() {
 	struct core *c = get_core();
 	if (c->process != NULL)
 		ss_account_gwfs(c->process, ss_global->tick_length);
-	struct task_struct *p = ss_schedule_gwfs(NULL, c->process);
-	return p != NULL;
+	c->process = ss_schedule_gwfs(NULL, c->process);
+	return c->process != NULL;
 }
 
 static bool ss_preempt(struct task_struct *p) {

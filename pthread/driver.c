@@ -48,7 +48,6 @@ extern int scheduler;
 extern int ratio;
 extern bool do_latency;
 extern bool delay_yield;
-extern pthread_key_t core_key;
 extern struct sched_state *ss_global;
 
 static int num_threads_p_group;
@@ -225,12 +224,7 @@ void ss_sched_action(struct core *mycore) {
 
 void *run_core(void* core) {
 	struct core *mycore = (struct core *) core;
-	struct core **priv = malloc(sizeof(struct core *));
-        *priv = mycore;
-	pthread_setspecific(core_key, priv);
-	struct core **c = pthread_getspecific(core_key);
-	assert(c == priv);
-	assert(*c == mycore);
+	set_mycore(mycore);
 
 	// pin to an actual core per the selected policy
 	int cpu_want = calc_pin_cpu(mycore->cid);
@@ -332,8 +326,6 @@ void main(int argc, char *argv[]) {
 	gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores);
 
 	// printf("==="); mh_print(gs->ss->mh);
-
-	pthread_key_create(&core_key, tls_cleanup);
 
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&gs->cores[i]->tid, NULL, run_core, (void*)(gs->cores[i]));

@@ -99,6 +99,8 @@ struct core {
 
 #define LOG_NENTRY  1000000
 
+void set_mycore(struct core *);
+struct core *get_mycore();
 int calc_pin_cpu(int cid);
 void core_print(struct core *c);
 void c_print(struct core *c, int ngrp);

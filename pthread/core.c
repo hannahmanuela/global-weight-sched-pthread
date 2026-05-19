@@ -15,7 +15,16 @@
 extern bool do_affinity;
 extern bool do_latency;
 
-pthread_key_t core_key;
+__thread struct core *tl_mycore;
+
+void set_mycore(struct core *c) {
+	tl_mycore = c;
+}
+
+struct core *get_mycore() {
+	return tl_mycore;
+}
+
 
 // Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
 //   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
@@ -61,7 +70,7 @@ void c_print(struct core *c, int num_groups) {
 
 int c_rand(int n) {
        double dr;
-       struct core *c = get_core();
+       struct core *c = get_mycore();
        drand48_r(&c->randBuffer, &dr);
        int r = (int) (dr * n);
        // int r = rand_r(&c->seed) % n;
@@ -92,7 +101,7 @@ void c_log_init(struct core *c, char *name) {
 }
 
 void c_log_append(struct task_struct *p) {
-	struct core *c = get_core();
+	struct core *c = get_mycore();
 	if(c->log_nentry == LOG_NENTRY) {
 		int n = write(c->fd, c->log, sizeof(struct log_entry) * LOG_NENTRY);
 		if (n <= 0) {

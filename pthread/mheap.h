@@ -26,6 +26,6 @@ struct heap *mh_choose_heap( struct mheap *mh, struct core *c);
 void mh_add_process(struct task_struct *p, struct heap *h);
 struct task_struct *mh_min_affinity(struct core *c);
 float mh_load(struct mheap *mh, int *maxl);
-void mh_rand_heaps(struct mheap *mh, struct core *c, int *i, int *j);
+void mh_rand_heaps(struct mheap *mh, int *i, int *j);
 
 #endif

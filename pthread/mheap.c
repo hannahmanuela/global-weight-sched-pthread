@@ -126,19 +126,19 @@ float mh_load(struct mheap *mh, int *maxl) {
 	return ((float) tot)/mh->nheap;
 }
 
-void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, struct core *c, int *i, int *j) {
+void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, int *i, int *j) {
 	*i = c_rand(mh->nheap);
 	*j = c_rand(mh->nheap);
 	while (*i == *j) {
-		c->nrand++;
+		get_core()->nrand++;
 		*j = c_rand(mh->nheap);
 	}
 }
 
-static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, struct core *c, int i, int *j) {
+static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, int i, int *j) {
 	*j = c_rand(mh->nheap);
 	while (i == *j) {
-		c->nrand++;
+		get_core()->nrand++;
 		*j = c_rand(mh->nheap);
 	}
 }
@@ -161,7 +161,7 @@ retry:
 	int i;
 	if(use_power2_insert) {
 		int j;
-		mh_rand_heaps(mh, c, &i, &j);
+		mh_rand_heaps(mh, &i, &j);
 		i = mh_least_loaded(mh, i, j);
 	} else {
 		i = c_rand(mh->nheap);
@@ -336,7 +336,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 
 	while(true) {
 		p = NULL;
-		mh_rand_heaps(mh, c, &i, &j);
+		mh_rand_heaps(mh, &i, &j);
 		if ((h = mh_select(mh, c, i, j, &vt, &other_vt)) == NULL) {
 			if(all) p = mh_all_min_proc(mh, c, i);
 			break;
@@ -451,7 +451,7 @@ retry:
 	int j;
 	vt_t vt;
 	vt_t other_vt;
-	mh_rand_heap(cp->mh, c, h->id, &j);
+	mh_rand_heap(cp->mh, h->id, &j);
 	struct heap *h1 = mh_select_affinity(cp->mh, c, h->id, j, &vt, &other_vt);
 	if (h1 == h) {
 		// printf("hit %d(%d) %d(%d):", h->id, vt, j, other_vt);

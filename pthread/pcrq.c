@@ -37,7 +37,7 @@ void ss_yield_pcrq(struct sched_state *ss, struct core *c, struct task_struct *p
 
 void ss_enqueue_pcrq(struct sched_state *ss, struct core *c, struct task_struct *p) {
 	int i, j;
-	mh_rand_heaps(ss->mh, c, &i, &j);
+	mh_rand_heaps(ss->mh, &i, &j);
 	if (ss->mh->h[i]->heap_size > ss->mh->h[j]->heap_size)
 		i = j;
 	p->h = ss->mh->h[i];

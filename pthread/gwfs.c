@@ -118,6 +118,7 @@ void ss_account_gwfs(struct task_struct *p, u64 time_passed) {
 	upd_lag(p, time_passed);
 }
 
+// XXX why runq?
 struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	struct task_struct *min_proc = NULL;
 	struct core *c = get_core();
@@ -144,7 +145,7 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		min_proc = c->process;  // for debug
 	} else if (min_proc == NULL) {
 		c->nsched_null += 1;
-		return false;
+		return NULL;
 	} else {
 		c->process = min_proc;
 	}
@@ -159,6 +160,7 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	if(do_preempt) {
 		set_preempt(c, min_proc);
 	}
+	return min_proc;
 }
 
 bool ss_account_schedule_gwfs() {
@@ -278,6 +280,7 @@ void ss_yield_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
 
 // XXX why is time_passed not an argument?
 // XXX who does upd_lag()
+// XXX update_curr_gw isn't part of interface?
 static void account_sleep_gwfs(struct task_struct *p) {
 	struct core *c = get_core();
 	if(do_preempt)

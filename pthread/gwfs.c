@@ -221,7 +221,7 @@ static vt_t min_vt(struct heap *h) {
 }
 
 // XXX should min_vt take the heap that p will be inserted in?
-void account_wakeup_gwfs(struct task_struct *p) {
+static void account_wakeup_gwfs(struct task_struct *p) {
 	int old_nthread = atomic_fetch_add(&p->group->nthread, 1);
 	if(old_nthread == 0) {  // group has become runnable
 		ticks_gettime(p->group->time);
@@ -237,7 +237,7 @@ void account_wakeup_gwfs(struct task_struct *p) {
 	}
 }
 
-void put_task_in_rq_gwfs(struct task_struct *p) {
+static void put_task_in_rq_gwfs(struct task_struct *p) {
 	// XXX run test and driver group setup in pthread
 	struct core *c = get_core();
 	struct heap *h = mh_choose_heap(p->mh, c);
@@ -276,21 +276,15 @@ void ss_yield_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
 	}
 }
 
-// Process p is not runnable and yields core, which may make
-// p's group not runnable
-void ss_dequeue_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
+// XXX why is time_passed not an argument?
+// XXX who does upd_lag()
+static void account_sleep_gwfs(struct task_struct *p) {
+	struct core *c = get_core();
 	if(do_preempt)
 		reset_preempt(c, p->he.weight);
 
 	struct heap *h = p->h;
 	lock_acquire(&h->lk);
-
-	if(debug) {
-		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
-		mh_print(p->group->mh);
-	}
-
-	upd_lag(p, time_passed);
 
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {
@@ -302,17 +296,29 @@ void ss_dequeue_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
 	p->h = NULL;
 	c->process = NULL;
 
-	lock_release(&h->lk);
+	lock_release(&h->lk);	
+}
+
+// Process p is not runnable and yields core, which may make
+// p's group not runnable
+void ss_dequeue_gwfs(struct core *c, struct task_struct *p, t_t time_passed) {
+	if(debug) {
+		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
+		mh_print(p->group->mh);
+	}
+	upd_lag(p, time_passed);
+	account_sleep_gwfs(p);
 }
 
 static void init_gwfs() {
 }
 
+// XXX why have yield, why rq argument to schedule?
 const struct gw_scheduler gw_sched_wfs = {
         .name           = "wfs",
         .init           = init_gwfs,
         .account_wakeup   = account_wakeup_gwfs,
-        .account_sleep    = NULL,
+        .account_sleep    = account_sleep_gwfs,
         .put_task_in_rq   = put_task_in_rq_gwfs,
         .take_task_from_rq = NULL,
         .charge_vt        = NULL,

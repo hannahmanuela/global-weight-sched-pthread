@@ -94,15 +94,39 @@ static vt_t sub_lag(struct core *c, struct task_struct *p, vt_t wvt, vt_t *lag) 
 	return vt;
 }
 
+static vt_t proc_vt(struct core *c, struct task_struct *p) {
+	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
+	vt_t lag;
+	vt_t vt = sub_lag(c, p, wvt, &lag);
+	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
+	assert(my_vt >= p->he.vruntime);  // overflow?
+	return my_vt;
+}	
 
-// Select next process to run
-bool ss_schedule_gwfs() {
+// proc may have run for less than its allocated time; in that
+// case adjust the proc's group vruntime.
+static void upd_lag(struct task_struct *p, t_t time_passed) {
+	p->runtime += time_passed;
+	vt_t vt = calc_delta(time_passed, p->he.weight);
+	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
+	if (wvt > vt) {
+		grp_add_lag(p, -(wvt-vt));
+	}
+}
+
+void ss_account_gwfs(struct task_struct *p, u64 time_passed) {
+	upd_lag(p, time_passed);
+}
+
+struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	struct task_struct *min_proc = NULL;
 	struct core *c = get_core();
-	if(c->process != NULL) {
-		if(debug) {
-			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->he.vruntime, c->process->group->vruntime);
-		}
+
+	// XXX why isn't this in ss_account_gwfs?
+	if(prev) prev->he.vruntime = proc_vt(c, prev);
+
+	if(debug) {
+		printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->he.vruntime, c->process->group->vruntime);
 	}
 
 	// XXX kill this case?  for light load we get
@@ -135,10 +159,15 @@ bool ss_schedule_gwfs() {
 	if(do_preempt) {
 		set_preempt(c, min_proc);
 	}
-	return true;
 }
 
-
+bool ss_account_schedule_gwfs() {
+	struct core *c = get_core();
+	if (c->process != NULL)
+		ss_account_gwfs(c->process, ss_global->tick_length);
+	struct task_struct *p = ss_schedule_gwfs(NULL, c->process);
+	return p != NULL;
+}
 
 static bool ss_preempt(struct task_struct *p) {
 	if(!do_preempt)
@@ -175,14 +204,6 @@ static bool ss_preempt_slow(struct task_struct *p) {
 	return false;
 }
 
-static vt_t proc_vt(struct core *c, struct task_struct *p) {
-	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
-	vt_t lag;
-	vt_t vt = sub_lag(c, p, wvt, &lag);
-	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
-	assert(my_vt >= p->he.vruntime);  // overflow?
-	return my_vt;
-}	
 
 // XXX min 
 static vt_t min_vt(struct heap *h) {
@@ -236,17 +257,6 @@ void ss_enqueue_gwfs(struct task_struct *p) {
 	account_wakeup_gwfs(p);
 	if(!ss_preempt(p)) {
 		put_task_in_rq_gwfs(p);
-	}
-}
-
-// proc may have run for less than its allocated time; in that
-// case adjust the proc's group vruntime.
-static void upd_lag(struct task_struct *p, t_t time_passed) {
-	p->runtime += time_passed;
-	vt_t vt = calc_delta(time_passed, p->he.weight);
-	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
-	if (wvt > vt) {
-		grp_add_lag(p, -(wvt-vt));
 	}
 }
 
@@ -306,8 +316,8 @@ const struct gw_scheduler gw_sched_wfs = {
         .put_task_in_rq   = put_task_in_rq_gwfs,
         .take_task_from_rq = NULL,
         .charge_vt        = NULL,
-        .account        = NULL,
-        .schedule       = NULL,
+        .account        = ss_account_gwfs,
+        .schedule       = ss_schedule_gwfs,
         .yield          = NULL,
         .pick_idle_target = NULL,
         .any_queued     = NULL,

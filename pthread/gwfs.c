@@ -71,7 +71,7 @@ static void reset_preempt(struct core *c, w_t w) {
 	}
 }
 
-static vt_t sub_lag(struct core *c, struct task_struct *p, vt_t wvt, vt_t *lag) {
+static vt_t sub_lag(struct task_struct *p, vt_t wvt, vt_t *lag) {
 	vt_t vt = wvt;
 	*lag = 0;
 	while(1) {
@@ -88,16 +88,17 @@ static vt_t sub_lag(struct core *c, struct task_struct *p, vt_t wvt, vt_t *lag) 
 			if (__atomic_compare_exchange_n(&p->group->lag, &v, v-*lag, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 				break;
 			}
+			struct core *c = get_core();
 			atomic_fetch_add_explicit(&c->lag_sub_retry, 1, __ATOMIC_RELAXED);
 		}
 	}
 	return vt;
 }
 
-static vt_t proc_vt(struct core *c, struct task_struct *p) {
+static vt_t proc_vt(struct task_struct *p) {
 	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
 	vt_t lag;
-	vt_t vt = sub_lag(c, p, wvt, &lag);
+	vt_t vt = sub_lag(p, wvt, &lag);
 	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
 	assert(my_vt >= p->he.vruntime);  // overflow?
 	return my_vt;
@@ -121,42 +122,41 @@ void ss_account_gwfs(struct task_struct *p, u64 time_passed) {
 // XXX why runq?
 struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	struct task_struct *min_proc = NULL;
-	struct core *c = get_core();
 
 	// XXX why isn't this in ss_account_gwfs?
-	if(prev) prev->he.vruntime = proc_vt(c, prev);
+	if(prev) prev->he.vruntime = proc_vt(prev);
 
 	if(debug) {
-		printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", c->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
+		printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", get_core()->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
 	}
 
 	// XXX kill this case?  for light load we get
 	// get affinity by rescheduling prev
 	if(do_affinity && ss_global->mh->nheap > 1 && prev) {
 		assert(0);
-		min_proc = mh_min_affinity(c);
+		min_proc = mh_min_affinity(get_core());
 	}
 
 	if (min_proc == NULL) {
-		min_proc = mh_min_proc_enq(ss_global->mh, c, prev, false);
+		min_proc = mh_min_proc_enq(ss_global->mh, prev, false);
 	}
 	if (min_proc == NULL && prev != NULL) {
-		c->nlocal  += 1;
+		get_core()->nlocal  += 1;
 		min_proc = prev;  // for debug
 	} else if (min_proc == NULL) {
-		c->nsched_null += 1;
+		get_core()->nsched_null += 1;
 		return NULL;
 	}
 
 	if(debug) {
-		printf("%d: schedule %d(%d) vt %lld\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
+		printf("%d: schedule %d(%d) vt %lld\n", get_core()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 		mh_print(min_proc->mh);
 	}
-	if(c->fd > 0) {
-		c_log_append(c, min_proc);
+	if(get_core()->fd > 0) {
+		c_log_append(get_core(), min_proc);
 	}
 	if(do_preempt) {
-		set_preempt(c, min_proc);
+		set_preempt(get_core(), min_proc);
 	}
 	return min_proc;
 }
@@ -239,10 +239,9 @@ static void account_wakeup_gwfs(struct task_struct *p) {
 
 static void put_task_in_rq_gwfs(struct task_struct *p) {
 	// XXX run test and driver group setup in pthread
-	struct core *c = get_core();
-	struct heap *h = mh_choose_heap(p->mh, c);
+	struct heap *h = mh_choose_heap(p->mh);
 	assert(p->h == NULL);
-	p->he.vruntime = proc_vt(c, p);
+	p->he.vruntime = proc_vt(p);
 	mh_add_process(p, h);
 	lock_release(&h->lk);
 
@@ -268,9 +267,9 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 
 	assert(p == c->process);
 	upd_lag(p, time_passed);
-	p->he.vruntime = proc_vt(c, p);
+	p->he.vruntime = proc_vt(p);
 	if(!delay_yield) {
-		struct heap *h = mh_choose_heap(p->mh, c);
+		struct heap *h = mh_choose_heap(p->mh);
 		mh_add_process(p, h);
 		lock_release(&h->lk);
 		c->process = NULL;

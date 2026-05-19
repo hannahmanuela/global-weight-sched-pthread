@@ -150,7 +150,7 @@ static int mh_least_loaded(struct mheap *mh, int i, int j) {
 	else return i;
 }
 
-struct heap *mh_choose_heap(struct mheap *mh, struct core *c) {
+struct heap *mh_choose_heap(struct mheap *mh) {
 	long r = 0;
 	if(mh->nheap == 1) {
 		struct heap *h = mh->h[0];
@@ -172,7 +172,7 @@ retry:
 		r++;
 		goto retry;
 	}
-	c->nretry_ins += r;
+	get_core()->nretry_ins += r;
 	return h;
 }
 
@@ -203,7 +203,9 @@ static struct task_struct *mh_del_min_process(struct heap *h) {
 	return p;
 }
 
-static void mh_upd_stat(struct task_struct *p, struct core *c, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
+static void mh_upd_stat(struct task_struct *p, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
+	struct core *c = get_core();
+
 	p->other_hid = other;
 	p->other_vt = other_vt;
 	c->nretry_del += (r + r_lock);
@@ -214,7 +216,7 @@ static void mh_upd_stat(struct task_struct *p, struct core *c, int other, vt_t v
 		c->max_retry_del_lock = r_lock;
 }
 
-static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, struct core *c, int i, int j, vt_t *vt, vt_t *other_vt) {
+static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
@@ -250,7 +252,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, stru
 }
 
 // del min proc from h; may fail because some other core grabbed the min vt
-static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min(struct core *c, struct heap *h, vt_t vt) {
+static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min(struct heap *h, vt_t vt) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
@@ -297,7 +299,7 @@ static struct task_struct *mh_keep_running_or_switch(struct heap *h, vt_t vt, in
 	return p;
 }
 
-static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struct core *c, struct heap *h, vt_t vt, struct task_struct *to_add) {
+static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struct heap *h, vt_t vt, struct task_struct *to_add) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
@@ -313,19 +315,19 @@ static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(s
 	return p;
 }
 
-static struct task_struct  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, struct core *c, int s) {
+static struct task_struct  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, int s) {
 	struct task_struct *p = NULL;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[MH_IND(mh, i+s)];
 		vt_t vt = atomic_load_explicit(&h->heap[0].vruntime, __ATOMIC_RELAXED);
-		if (vt != DUMMY && ((p = mh_try_del_min(c, h, vt)) != NULL)) {
+		if (vt != DUMMY && ((p = mh_try_del_min(h, vt)) != NULL)) {
 			break;
 		}
 	}
 	return p;
 }
 
-static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct mheap *mh, struct core *c, struct task_struct *curp, bool all) {
+static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct mheap *mh, struct task_struct *curp, bool all) {
 	long r = 0;
 	long r_lock = 0;  // XXX delete?
 	struct task_struct *p;
@@ -337,11 +339,11 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 	while(true) {
 		p = NULL;
 		mh_rand_heaps(mh, &i, &j);
-		if ((h = mh_select(mh, c, i, j, &vt, &other_vt)) == NULL) {
-			if(all) p = mh_all_min_proc(mh, c, i);
+		if ((h = mh_select(mh, i, j, &vt, &other_vt)) == NULL) {
+			if(all) p = mh_all_min_proc(mh, i);
 			break;
 		} 
-		if ((p = mh_try_del_min_enq_prev(c, h, vt, curp)) != NULL) {
+		if ((p = mh_try_del_min_enq_prev(h, vt, curp)) != NULL) {
 			curp = NULL;
 			break;
 		}
@@ -350,14 +352,14 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 
 	if(p != NULL) {
 		// h could be NULL after mh_all_min_proc
-		mh_upd_stat(p, c, (h && (h->id == i)) ? j  : i, vt, other_vt, r, r_lock); 
+		mh_upd_stat(p, (h && (h->id == i)) ? j  : i, vt, other_vt, r, r_lock); 
 	}
 
 	if ((p != NULL) && (curp != NULL)) {
 		i = mh_least_loaded(mh, i, j);
 		struct heap *h = mh->h[i];
 		if(lock_try_acquire(&h->lk) != 0) {
-			h = mh_choose_heap(mh, c);
+			h = mh_choose_heap(mh);
 		}
 		mh_add_process(curp, h);
 		lock_release(&h->lk);
@@ -368,7 +370,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 	return p;
 }
 
-struct task_struct *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struct task_struct *to_add) {
+struct task_struct *mh_min_proc_one_heap(struct mheap *mh, struct task_struct *to_add) {
 	struct heap *h = mh->h[0];
 
 	lock_acquire(&h->lk);
@@ -378,19 +380,19 @@ struct task_struct *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struc
 	return p;
 }
 
-struct task_struct *mh_min_proc(struct mheap *mh, struct core *c, bool all) {
+struct task_struct *mh_min_proc(struct mheap *mh, bool all) {
 	if (mh->nheap == 1) {
-		return mh_min_proc_one_heap(mh, c, NULL);
+		return mh_min_proc_one_heap(mh, NULL);
 	}
-	return mh_sample_min_proc_enq(mh, c, NULL, all);
+	return mh_sample_min_proc_enq(mh, NULL, all);
 }
 
 // if there is a min, grab it and enqueue p
-struct task_struct *mh_min_proc_enq(struct mheap *mh, struct core *c, struct task_struct *to_add, bool all) {
+struct task_struct *mh_min_proc_enq(struct mheap *mh, struct task_struct *to_add, bool all) {
 	if (mh->nheap == 1) {
-		return mh_min_proc_one_heap(mh, c, to_add);
+		return mh_min_proc_one_heap(mh, to_add);
 	}
-	return mh_sample_min_proc_enq(mh, c, to_add, all);
+	return mh_sample_min_proc_enq(mh, to_add, all);
 }
 
 //
@@ -460,7 +462,7 @@ retry:
 		p = mh_remove_min(h);
 		assert(cp == p);
 		assert(p->cid == cid);
-		mh_upd_stat(p, c, j, vt, other_vt, r, r_lock);
+		mh_upd_stat(p, j, vt, other_vt, r, r_lock);
 		goto end;
 	}
 	int l = lock_try_acquire(&h1->lk);
@@ -477,7 +479,7 @@ retry:
 	c->miss[cp->group->gid]++;
 	p = mh_del_min_process(h1);
 	lock_release(&h1->lk);
-	mh_upd_stat(p, c, j, vt, other_vt, r, r_lock);
+	mh_upd_stat(p, j, vt, other_vt, r, r_lock);
 end:
 	lock_release(&h->lk);
 	return p;

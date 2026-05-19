@@ -26,7 +26,7 @@ static void enqueue(struct sched_state *ss, struct core *c, struct task_struct *
 		printf("%d: enqueue_rr %d(%d) %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
 		//mh_print(p->group->mh);
 	}
-	struct heap *h = mh_choose_heap(p->group->mh, c);
+	struct heap *h = mh_choose_heap(p->group->mh);
 	assert(p->h == NULL);
 	p->he.vruntime = safe_read_tsc();
 	mh_add_process(p, h);	
@@ -36,7 +36,7 @@ static void enqueue(struct sched_state *ss, struct core *c, struct task_struct *
 static struct task_struct *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {
 	bool deq = (c->process != NULL) && c->process->mh == mh;
 	assert(!c->process || c->process->mh != NULL);
-	struct task_struct *p = mh_min_proc_enq(mh, c, deq ? c->process : NULL, all);
+	struct task_struct *p = mh_min_proc_enq(mh, deq ? c->process : NULL, all);
 	if(p != NULL) {
 		assert(p->mh == mh);
 		if(debug) {

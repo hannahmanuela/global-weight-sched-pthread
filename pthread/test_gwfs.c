@@ -92,7 +92,7 @@ void test_load() {
 			struct sched_state *ss = mk_mheap(c, NCORE1, nheap, GRP1, PROC2, 0, gs, ws);
 			for (int i = 0; i < nproc; i++) {
 				struct task_struct *p = grp_new_process(ss->mh, i, gs[0]);
-				struct heap *h = mh_choose_heap(ss->mh, c[0]);
+				struct heap *h = mh_choose_heap(ss->mh);
 				p->he.vruntime = safe_read_tsc();
 				mh_add_process(p, h);
 				lock_release(&h->lk);
@@ -528,7 +528,7 @@ void test_worst(int nheap) {
 		struct sched_state *ss = ss_new(tl, nheap, c, NCORE1);
 		struct group *gs[GRP1];
 		gs[0] = grp_new(ss->mh, 0, 10);
-		struct heap *h = mh_choose_heap(ss->mh, c[0]);
+		struct heap *h = mh_choose_heap(ss->mh);
 
 		struct task_struct *p = grp_new_process(ss->mh, 1, gs[0]);
 		ss_enqueue(ss, c[0], p);

@@ -94,7 +94,7 @@ void test_load() {
 				struct task_struct *p = grp_new_process(ss->mh, i, gs[0]);
 				struct heap *h = mh_choose_heap(ss->mh, c[0]);
 				p->he.vruntime = safe_read_tsc();
-				mh_add_process(c[0], p, h);
+				mh_add_process(p, h);
 				lock_release(&h->lk);
 			}
 			int maxl = 0;

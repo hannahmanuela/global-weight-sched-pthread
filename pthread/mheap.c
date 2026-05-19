@@ -177,12 +177,12 @@ retry:
 }
 
 // caller must hold heap lock
-void mh_add_process(struct core *c, struct task_struct *p, struct heap *h) {
+void mh_add_process(struct task_struct *p, struct heap *h) {
 	p->h = h;
 	assert(p->mh != NULL);
 	heap_push(h, &p->he);
 	if (debug) {
-		printf("%d: add %d(%d) to heap %d\n", c->cid, p->pid, p->group->gid, h->id);
+		printf("%d(%d): add to heap %d\n", p->pid, p->group->gid, h->id);
 	}
 }
 
@@ -289,7 +289,7 @@ static struct task_struct *mh_keep_running_or_switch(struct core *c, struct heap
 		assert(p != NULL);
 		if (to_add != NULL)  {
 			c->ndelay_yield++;
-			mh_add_process(c, to_add, h);
+			mh_add_process(to_add, h);
 		}
 	}
 	return p;
@@ -357,7 +357,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 		if(lock_try_acquire(&h->lk) != 0) {
 			h = mh_choose_heap(mh, c);
 		}
-		mh_add_process(c, curp, h);
+		mh_add_process(curp, h);
 		lock_release(&h->lk);
 	} else {
 		// XXX pretend we added and removed to_add from the heap

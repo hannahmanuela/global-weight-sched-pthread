@@ -243,7 +243,7 @@ static void put_task_in_rq_gwfs(struct task_struct *p) {
 	struct heap *h = mh_choose_heap(p->mh, c);
 	assert(p->h == NULL);
 	p->he.vruntime = proc_vt(c, p);
-	mh_add_process(c, p, h);
+	mh_add_process(p, h);
 	lock_release(&h->lk);
 
 	if(debug) {
@@ -271,7 +271,7 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 	p->he.vruntime = proc_vt(c, p);
 	if(!delay_yield) {
 		struct heap *h = mh_choose_heap(p->mh, c);
-		mh_add_process(c, p, h);
+		mh_add_process(p, h);
 		lock_release(&h->lk);
 		c->process = NULL;
 	}

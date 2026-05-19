@@ -29,7 +29,7 @@ static void enqueue(struct sched_state *ss, struct core *c, struct task_struct *
 	struct heap *h = mh_choose_heap(p->group->mh, c);
 	assert(p->h == NULL);
 	p->he.vruntime = safe_read_tsc();
-	mh_add_process(c, p, h);	
+	mh_add_process(p, h);	
 	lock_release(&h->lk);
 }
 

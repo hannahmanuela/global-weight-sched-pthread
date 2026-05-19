@@ -21,7 +21,6 @@ extern bool debug;
 extern bool do_preempt;
 extern bool do_affinity;
 extern bool delay_yield;
-extern pthread_key_t core_key;
 extern struct sched_state *ss_global;
 
 static void set_preempt(struct core *c, struct task_struct *p) {

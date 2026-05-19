@@ -194,10 +194,12 @@ static struct task_struct *mh_remove_min(struct heap *h) {
 }
 
 // caller must hold heap lock
-static struct task_struct *mh_del_min_process(struct core *c, struct heap *h) {
+static struct task_struct *mh_del_min_process(struct heap *h) {
 	struct task_struct *p = mh_remove_min(h);
-	if(do_affinity)
+	if(do_affinity) {
+		struct core *c = get_core();
 		atomic_store_explicit(&p->cid, c->cid, __ATOMIC_RELAXED);
+	}
 	return p;
 }
 
@@ -259,7 +261,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min(struct cor
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct task_struct *p = mh_del_min_process(c, h);
+	struct task_struct *p = mh_del_min_process(h);
 	p->tsc = safe_read_tsc();
 	return p;
 }
@@ -277,7 +279,7 @@ static bool mh_keep_running_proc(vt_t vt0, int w, struct task_struct *curp) {
 }
 
 // caller must have h locked
-static struct task_struct *mh_keep_running_or_switch(struct core *c, struct heap *h, vt_t vt, int w, struct task_struct *to_add) {
+static struct task_struct *mh_keep_running_or_switch(struct heap *h, vt_t vt, int w, struct task_struct *to_add) {
 	struct task_struct *p = NULL;
 	if (mh_keep_running_proc(vt, h->heap[0].weight, to_add)) {
 		// pretend we added and removed to_add from the heap
@@ -285,10 +287,10 @@ static struct task_struct *mh_keep_running_or_switch(struct core *c, struct heap
 		to_add->h = h;
 		p = to_add;
 	} else if (vt != DUMMY) { 
-		p = mh_del_min_process(c, h);
+		p = mh_del_min_process(h);
 		assert(p != NULL);
 		if (to_add != NULL)  {
-			c->ndelay_yield++;
+			get_core()->ndelay_yield++;
 			mh_add_process(to_add, h);
 		}
 	}
@@ -306,7 +308,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(s
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct task_struct *p = mh_keep_running_or_switch(c, h, vt, h->heap[0].weight, to_add);
+	struct task_struct *p = mh_keep_running_or_switch(h, vt, h->heap[0].weight, to_add);
 	lock_release(&h->lk);
 	return p;
 }
@@ -371,7 +373,7 @@ struct task_struct *mh_min_proc_one_heap(struct mheap *mh, struct core *c, struc
 
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
-	struct task_struct *p = mh_keep_running_or_switch(c, h, he->vruntime, he->weight, to_add);
+	struct task_struct *p = mh_keep_running_or_switch(h, he->vruntime, he->weight, to_add);
 	lock_release(&h->lk);
 	return p;
 }
@@ -473,7 +475,7 @@ retry:
 		goto retry;
 	}	
 	c->miss[cp->group->gid]++;
-	p = mh_del_min_process(c, h1);
+	p = mh_del_min_process(h1);
 	lock_release(&h1->lk);
 	mh_upd_stat(p, c, j, vt, other_vt, r, r_lock);
 end:

@@ -29,6 +29,9 @@ void set_scheduler(char *s) {
 	}
 }
 
+bool is_gwfs() {
+	return scheduler == GWFS;
+}
 
 bool is_rr() {
 	return scheduler == RR;
@@ -43,15 +46,21 @@ bool is_gq() {
 }
 
 bool ss_schedule(struct sched_state *ss, struct core *c) {
+	if(is_gwfs())
+		return ss->schedv1.schedule(c);
 	return ss->sched.schedule(ss, c);
 }	
 
 void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t){
 	assert(c->process == p);
+	if(is_gwfs())
+		return ss->schedv1.yield(c, p, t);
 	return ss->sched.yield(ss, c, p, t);
 }
 
 void ss_enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {
+	if(is_gwfs())
+		return ss->schedv1.enqueue(c, p);
 	return ss->sched.enqueue(ss, c, p);
 }
 

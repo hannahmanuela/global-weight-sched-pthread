@@ -51,6 +51,8 @@ extern bool delay_yield;
 extern pthread_key_t core_key;
 extern struct sched_state *ss_global;
 
+static int num_threads_p_group;
+
 struct global_state {
 	struct sched_state *ss;
 	struct group **grps;
@@ -148,7 +150,7 @@ void action(struct sched_state *ss, struct core *mycore, int choice) {
 	}
 }
 
-void rr_groups(int num_groups, int num_threads_p_group) {
+void rr_groups() {
 	int ns[2];
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
 	assert(num_groups <= 2);
@@ -199,7 +201,7 @@ void rr_sched_action(struct core *mycore) {
 		}
 }
 
-void ss_groups(int num_groups, int num_threads_p_group) {
+void ss_groups() {
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
 	w_t w = base_weight;
 	for (int i = 0; i < num_groups; i++) {
@@ -226,9 +228,9 @@ void *run_core(void* core) {
 	struct core **priv = malloc(sizeof(struct core *));
         *priv = mycore;
 	pthread_setspecific(core_key, priv);
-	struct core *c = pthread_getspecific(core_key);
-	assert(c == mycore);
-	printf("p %p\n", c);
+	struct core **c = pthread_getspecific(core_key);
+	assert(c == priv);
+	assert(*c == mycore);
 
 	// pin to an actual core per the selected policy
 	int cpu_want = calc_pin_cpu(mycore->cid);
@@ -238,6 +240,11 @@ void *run_core(void* core) {
 	CPU_SET(cpu_want, &cpuset);
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0)
 		error("couldn't set affininity\n");
+
+	if (mycore->cid == 0) {
+		if (is_rr() || is_pcrq() || is_gq()) rr_groups();
+		else ss_groups();
+	}
 
 	int cont = 1;
 	double start = now();
@@ -251,6 +258,10 @@ void usage(char *s) {
 	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <sched: gwfs/rr/pcrq> <num_cores> <num_threads>\n", s);
 	exit(1);
 
+}
+
+void tls_cleanup(void* data) {
+    free(data);
 }
 
 void main(int argc, char *argv[]) {
@@ -310,7 +321,7 @@ void main(int argc, char *argv[]) {
 		else nheap = num_cores * 2;
 	}
 	int num_threads = atoi(argv[optind+2]);
-	int num_threads_p_group = num_threads/num_groups;
+	num_threads_p_group = num_threads/num_groups;
 
 	gs = malloc(sizeof(struct global_state));
 	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
@@ -319,10 +330,10 @@ void main(int argc, char *argv[]) {
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
 	gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores);
-	if (is_rr() || is_pcrq() || is_gq()) rr_groups(num_groups, num_threads_p_group);
-	else ss_groups(num_groups, num_threads_p_group);
 
 	// printf("==="); mh_print(gs->ss->mh);
+
+	pthread_key_create(&core_key, tls_cleanup);
 
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&gs->cores[i]->tid, NULL, run_core, (void*)(gs->cores[i]));

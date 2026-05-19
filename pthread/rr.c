@@ -137,7 +137,7 @@ ok:
 		
 	c_lat(c, p);
 	if(c->fd > 0) {
-		c_log_append(c, c->process);
+		c_log_append(c->process);
 	}
 	return true;
 }

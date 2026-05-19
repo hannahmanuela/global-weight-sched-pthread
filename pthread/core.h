@@ -105,7 +105,7 @@ void c_print(struct core *c, int ngrp);
 int c_rand(int n);
 struct core *c_new(int i, int n, int seed);
 void c_log_init(struct core *c, char *name);
-void c_log_append(struct core *c, struct task_struct *p);
+void c_log_append(struct task_struct *p);
 void c_log_done(struct core *c);
 void c_lat(struct core *c, struct task_struct *p);
 

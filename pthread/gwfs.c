@@ -23,7 +23,8 @@ extern bool do_affinity;
 extern bool delay_yield;
 extern struct sched_state *ss_global;
 
-static void set_preempt(struct core *c, struct task_struct *p) {
+static void set_preempt(struct task_struct *p) {
+	struct core *c = get_core();
 	while(1) {
 		preempt_t pre = atomic_load(&ss_global->preempt);
 		if(WEIGHT(pre) < p->he.weight)
@@ -49,7 +50,8 @@ static void set_preempt(struct core *c, struct task_struct *p) {
 	}
 }
 
-static void reset_preempt(struct core *c, w_t w) {
+static void reset_preempt(w_t w) {
+	struct core *c = get_core();
 	while(1) {
 		preempt_t pre = atomic_load(&ss_global->preempt);
 		if(WEIGHT(pre) != w)
@@ -153,10 +155,10 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		mh_print(min_proc->mh);
 	}
 	if(get_core()->fd > 0) {
-		c_log_append(get_core(), min_proc);
+		c_log_append(min_proc);
 	}
 	if(do_preempt) {
-		set_preempt(get_core(), min_proc);
+		set_preempt(min_proc);
 	}
 	return min_proc;
 }
@@ -261,18 +263,16 @@ void ss_enqueue_gwfs(struct task_struct *p) {
 
 // Yield and enqueue
 void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
-	struct core *c = get_core();
 	if(do_preempt)
-		reset_preempt(c, p->he.weight);
+		reset_preempt(p->he.weight);
 
-	assert(p == c->process);
 	upd_lag(p, time_passed);
 	p->he.vruntime = proc_vt(p);
 	if(!delay_yield) {
 		struct heap *h = mh_choose_heap(p->mh);
 		mh_add_process(p, h);
 		lock_release(&h->lk);
-		c->process = NULL;
+		get_core()->process = NULL;
 	}
 }
 
@@ -280,9 +280,8 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 // XXX who does upd_lag()
 // XXX update_curr_gw isn't part of interface?
 static void account_sleep_gwfs(struct task_struct *p) {
-	struct core *c = get_core();
 	if(do_preempt)
-		reset_preempt(c, p->he.weight);
+		reset_preempt(p->he.weight);
 
 	struct heap *h = p->h;
 	lock_acquire(&h->lk);
@@ -295,7 +294,7 @@ static void account_sleep_gwfs(struct task_struct *p) {
 	}
 
 	p->h = NULL;
-	c->process = NULL;
+	get_core()->process = NULL;
 
 	lock_release(&h->lk);	
 }

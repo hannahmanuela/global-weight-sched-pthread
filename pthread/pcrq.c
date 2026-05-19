@@ -20,7 +20,7 @@ bool ss_schedule_pcrq(struct sched_state *ss, struct core *c) {
 	}
 	c->process = p;
 	if(c->fd > 0) {
-		c_log_append(c, p);
+		c_log_append(p);
 	}
 	return true;
 }

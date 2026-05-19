@@ -91,7 +91,8 @@ void c_log_init(struct core *c, char *name) {
 	c->log = malloc(sizeof(struct log_entry) * LOG_NENTRY);
 }
 
-void c_log_append(struct core *c, struct task_struct *p) {
+void c_log_append(struct task_struct *p) {
+	struct core *c = get_core();
 	if(c->log_nentry == LOG_NENTRY) {
 		int n = write(c->fd, c->log, sizeof(struct log_entry) * LOG_NENTRY);
 		if (n <= 0) {

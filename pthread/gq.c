@@ -32,7 +32,7 @@ struct task_struct *ss_schedule_q(queue_t *q, struct core *c) {
 		printf("%d: schedule_gq %d(%d) vt %lld\n", c->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 	}
 	if(c->fd > 0) {
-		c_log_append(c, min_proc);
+		c_log_append(min_proc);
 	}
 	c->process = min_proc;
 	return min_proc;

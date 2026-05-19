@@ -18,9 +18,9 @@ struct scheduler {
 };
 
 struct schedulerv1 {
-	bool (*schedule)(struct core *c);
+	bool (*schedule)();
 	void (*yield)(struct core *c, struct task_struct *p, t_t time_passed);
-	void (*enqueue)(struct core *c, struct task_struct *p);
+	void (*enqueue)(struct task_struct *p);
 	void (*dequeue)(struct core *c, struct task_struct *p, t_t time_gotten);
 };
 

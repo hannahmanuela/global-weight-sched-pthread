@@ -96,8 +96,9 @@ static vt_t sub_lag(struct core *c, struct task_struct *p, vt_t wvt, vt_t *lag) 
 
 
 // Select next process to run
-bool ss_schedule_gwfs(struct core *c) {
+bool ss_schedule_gwfs() {
 	struct task_struct *min_proc = NULL;
+	struct core *c = get_core();
 	if(c->process != NULL) {
 		if(debug) {
 			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", c->cid, c->process->pid, c->process->group->gid, c->process->he.vruntime, c->process->group->vruntime);
@@ -139,7 +140,7 @@ bool ss_schedule_gwfs(struct core *c) {
 
 
 
-static bool ss_preempt(struct core *c, struct task_struct *p) {
+static bool ss_preempt(struct task_struct *p) {
 	if(!do_preempt)
 		return false;
 	preempt_t pre = atomic_load(&ss_global->preempt);
@@ -158,7 +159,7 @@ static bool ss_preempt(struct core *c, struct task_struct *p) {
 	return false;
 }
 
-static bool ss_preempt_slow(struct core *c, struct task_struct *p) {
+static bool ss_preempt_slow(struct task_struct *p) {
 	// vt_t vt = proc_vt(c, p);
 	for (int i = 0; i < ss_global->ncore; i++) {
 		struct task_struct *p1 = ss_global->cs[i]->process;
@@ -231,9 +232,9 @@ void put_task_in_rq_gwfs(struct task_struct *p) {
 }
 
 // Add p to group and make p runnable
-void ss_enqueue_gwfs(struct core *c, struct task_struct *p) {
+void ss_enqueue_gwfs(struct task_struct *p) {
 	account_wakeup_gwfs(p);
-	if(!ss_preempt(c, p)) {
+	if(!ss_preempt(p)) {
 		put_task_in_rq_gwfs(p);
 	}
 }

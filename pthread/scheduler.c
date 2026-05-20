@@ -46,15 +46,17 @@ bool is_gq() {
 }
 
 bool ss_schedule(struct sched_state *ss, struct core *c) {
-	if(is_gwfs())
-		return ss->schedv1.schedule();
+	if(is_gwfs()) {
+		c->process = ss->schedv1.schedule();
+		return c->process == NULL;
+	}
 	return ss->sched.schedule(ss, c);
 }	
 
 void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t){
-	assert(c->process == p);
 	if(is_gwfs())
 		return ss->schedv1.yield(p, t);
+	assert(c->process == p);
 	return ss->sched.yield(ss, c, p, t);
 }
 

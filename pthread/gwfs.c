@@ -126,10 +126,11 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	struct task_struct *min_proc = NULL;
 
 	// XXX why isn't this in ss_account_gwfs?
-	if(prev) prev->he.vruntime = proc_vt(prev);
-
-	if(debug) {
-		printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", get_mycore()->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
+	if(prev) {
+		prev->he.vruntime = proc_vt(prev);
+		if(debug) {
+			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", get_mycore()->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
+		}
 	}
 
 	// XXX kill this case?  for light load we get
@@ -163,12 +164,11 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	return min_proc;
 }
 
-bool ss_account_schedule_gwfs() {
+struct task_struct *ss_account_schedule_gwfs() {
 	struct core *c = get_mycore();
 	if (c->process != NULL)
 		ss_account_gwfs(c->process, ss_global->tick_length);
-	c->process = ss_schedule_gwfs(NULL, c->process);
-	return c->process != NULL;
+	return ss_schedule_gwfs(NULL, c->process);
 }
 
 static bool ss_preempt(struct task_struct *p) {

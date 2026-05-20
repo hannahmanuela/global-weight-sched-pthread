@@ -10,6 +10,7 @@
 extern int scheduler;
 extern int num_groups;
 extern int ratio;
+extern bool delay_yield;
 
 void set_scheduler(char *s) {
 	if (strcmp(s, "gwfs") == 0) {
@@ -53,11 +54,15 @@ bool ss_schedule(struct sched_state *ss, struct core *c) {
 	return ss->sched.schedule(ss, c);
 }	
 
-void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t){
-	if(is_gwfs())
-		return ss->schedv1.yield(p, t);
-	assert(c->process == p);
-	return ss->sched.yield(ss, c, p, t);
+void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {
+	if(is_gwfs()) {
+		ss->schedv1.yield(p, t);
+		if (!delay_yield)
+			c->process = NULL;
+	} else {
+		assert(c->process == p);
+		ss->sched.yield(ss, c, p, t);
+	}
 }
 
 void ss_enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {

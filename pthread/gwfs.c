@@ -271,7 +271,6 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 		struct heap *h = mh_choose_heap(p->mh);
 		mh_add_process(p, h);
 		lock_release(&h->lk);
-		get_mycore()->process = NULL;
 	}
 }
 

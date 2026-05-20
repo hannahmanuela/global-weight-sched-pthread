@@ -22,7 +22,6 @@
 #define PROC3 3
 #define PROC5 5
 #define NCORE1 1
-#define NCORE2 2 
 
 int num_cores;
 extern bool debug;
@@ -174,7 +173,6 @@ void test_grp_fair_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
 	struct sched_state *ss = mk_mheap(1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -206,7 +204,6 @@ void test_grp_fair_sleep_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
 	struct sched_state *ss = mk_mheap(1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -241,7 +238,6 @@ void test_mheap_wakeup_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
 	struct sched_state *ss = mk_mheap(1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -276,7 +272,6 @@ void test_mheap_fair_lag() {
 	int tl = 1000;
 
 	int nheap = 1;
-	struct core *c[NCORE1] = {c_new(0, GRP3, 0)};
 	struct sched_state *ss = mk_mheap(1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
@@ -313,8 +308,6 @@ void test_running_lag() {
 
 	int nheap = 1;
 	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
-	// struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
-
 	struct sched_state *ss = ss_new(tl, nheap, c, num_cores);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(ss->mh, i, ws[i]);
@@ -349,8 +342,6 @@ void test_preempt() {
 	int tl = 1000;
 	struct group *gs[GRP2];
 	int ws[GRP2] = {1, 100};
-	// allocate many cores
-	struct core *c[NCORE2] = { c_new(0, GRP2, 0),  c_new(1, GRP2, 1) };
 	struct sched_state *ss = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
 	struct task_struct *p;
 
@@ -381,7 +372,6 @@ void test_mheap(int nheap, int nproc) {
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 20};
 	int tl = 1000;
-	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
 	struct sched_state *ss = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
 	struct task_struct *p;
 
@@ -426,7 +416,6 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 		ws[i] = (i+1)*5;
 		tot_w += ws[i];
 	}
-	struct core *c[NCORE1] = {c_new(0, ngrp, 0)};
 	struct sched_state *ss = mk_mheap(nheap, ngrp, nproc, tl, gs, ws);
 	long tot = 0;
 	for (int i = 0; i < n; i++) {

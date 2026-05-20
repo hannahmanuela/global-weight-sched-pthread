@@ -164,11 +164,10 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	return min_proc;
 }
 
-struct task_struct *ss_account_schedule_gwfs() {
-	struct core *c = get_mycore();
-	if (c->process != NULL)
-		ss_account_gwfs(c->process, ss_global->tick_length);
-	return ss_schedule_gwfs(NULL, c->process);
+struct task_struct *ss_account_schedule_gwfs(struct task_struct *prev) {
+	if (prev != NULL)
+		ss_account_gwfs(prev, ss_global->tick_length);
+	return ss_schedule_gwfs(NULL, prev);
 }
 
 static bool ss_preempt(struct task_struct *p) {

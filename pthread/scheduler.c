@@ -47,7 +47,7 @@ bool is_gq() {
 
 bool ss_schedule(struct sched_state *ss, struct core *c) {
 	if(is_gwfs()) {
-		c->process = ss->schedv1.schedule();
+		c->process = ss->schedv1.schedule(c->process);
 		return c->process == NULL;
 	}
 	return ss->sched.schedule(ss, c);

@@ -18,7 +18,7 @@ struct scheduler {
 };
 
 struct schedulerv1 {
-	struct task_struct *(*schedule)();
+	struct task_struct *(*schedule)(struct task_struct *prev);
 	void (*yield)(struct task_struct *p, t_t time_passed);
 	void (*enqueue)(struct task_struct *p);
 	void (*dequeue)(struct task_struct *p, t_t time_gotten);

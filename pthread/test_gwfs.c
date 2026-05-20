@@ -41,7 +41,7 @@ void ticks_getwork(t_t *ticks) {
 static struct task_struct *schedule_retry() {
 	struct task_struct *p;
 	for (int i = 0; i < 10; i++) {
-		if ((p = ss_account_schedule_gwfs()) != NULL) {
+		if ((p = ss_account_schedule_gwfs(NULL)) != NULL) {
 			return p;
 		}
 	}
@@ -136,7 +136,7 @@ void test_grp_sleep_wakeup() {
 
 	ss_dequeue_gwfs(p0, tl);
 
-	assert(!ss_account_schedule_gwfs());
+	assert(!ss_account_schedule_gwfs(NULL));
 	assert(ss->mh->h[0]->heap_size == 1);
 
 	ss_enqueue_gwfs(p0);
@@ -513,6 +513,8 @@ void test_worst(int nheap) {
 	#define NBIN 1000
 	static int bin[NBIN];
 
+	printf("== test_worst\n");
+
 	int seed = getpid();
 	for(int t = 0; t < n; t++) {
 		struct core *c[NCORE1] = {c_new(0, GRP1, seed)};
@@ -526,7 +528,7 @@ void test_worst(int nheap) {
 		ss_enqueue_gwfs(p);
 
 		for (int i = 0; ; i++) {
-			if (ss_schedule(ss, c[0])) {
+			if (ss_account_schedule_gwfs(NULL)) {
 				sum += i;
 				bin[i]++;
 				if(i > worst)
@@ -546,7 +548,7 @@ void test_worst(int nheap) {
 			break;
 		}
 	}
-	printf("== test_worst: avg %ld med %d worst %d\n", sum/n, median, worst);
+	printf("--- test_worst: avg %ld med %d worst %d\n", sum/n, median, worst);
 }
 
 

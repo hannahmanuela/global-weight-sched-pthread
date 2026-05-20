@@ -49,10 +49,11 @@ static struct task_struct *schedule_retry() {
 	assert(0);
 }
 
-static struct sched_state *mk_mheap(struct core *cs[], int ncore, int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
+static struct sched_state *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
+	struct core *cs[NCORE1] = {c_new(0, GRP1, getpid())};
 	scheduler = GWFS;  // must be set before invoking ss_new()
 	set_mycore(cs[0]);
-	struct sched_state *ss = ss_new(tl, nheap, cs, ncore);
+	struct sched_state *ss = ss_new(tl, nheap, cs, NCORE1);
 	ss_global = ss;
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(ss->mh, i, ws[i]);
@@ -79,7 +80,6 @@ void test_preempt_t() {
 }
 
 void test_load() {
-	struct core *c[NCORE1] = {c_new(0, GRP1, getpid())};
 	struct group *gs[GRP1];
 	int ws[GRP1] = {1};
 	int nheap = 8;
@@ -92,7 +92,7 @@ void test_load() {
 		int max = 0;
 		float a = 0.0;
 		for (int t = 0; t < ntrial; t++) {
-			struct sched_state *ss = mk_mheap(c, NCORE1, nheap, GRP1, PROC2, 0, gs, ws);
+			struct sched_state *ss = mk_mheap(nheap, GRP1, PROC2, 0, gs, ws);
 			for (int i = 0; i < nproc; i++) {
 				struct task_struct *p = grp_new_process(ss->mh, i, gs[0]);
 				struct heap *h = mh_choose_heap(ss->mh);
@@ -116,9 +116,7 @@ void test_grp_sleep_wakeup() {
 	int tl = 1000;
 	struct group *gs[GRP1];
 	int ws[GRP1] = {1};
-
-	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
-	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP1, PROC2, tl, gs, ws);
+	struct sched_state *ss = mk_mheap(1, GRP1, PROC2, tl, gs, ws);
 	struct task_struct *p0;
 	struct task_struct *p1;
 
@@ -131,7 +129,6 @@ void test_grp_sleep_wakeup() {
 
 	ss_dequeue_gwfs(p1, tl);
 
-	printf("zzz\n");
 	ss_yield_gwfs(p0, tl);
 	
 	assert(gs[0]->vruntime == 3 * tl);
@@ -140,7 +137,6 @@ void test_grp_sleep_wakeup() {
 
 	ss_dequeue_gwfs(p0, tl);
 
-	// XXX switch to new interface
 	assert(!ss_account_schedule_gwfs());
 	assert(ss->mh->h[0]->heap_size == 1);
 
@@ -179,7 +175,7 @@ void test_grp_fair_lag() {
 
 	int nheap = 1;
 	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
-	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP1, PROC3, tl, gs, ws);
+	struct sched_state *ss = mk_mheap(1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
 	for (int i = 0; i < GRP1; i++) {
@@ -211,7 +207,7 @@ void test_grp_fair_sleep_lag() {
 
 	int nheap = 1;
 	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
-	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP1, PROC3, tl, gs, ws);
+	struct sched_state *ss = mk_mheap(1, GRP1, PROC3, tl, gs, ws);
 
 	// run the groups to get off vt 0
 	for (int i = 0; i < GRP1; i++) {
@@ -246,7 +242,7 @@ void test_mheap_wakeup_lag() {
 
 	int nheap = 1;
 	struct core *c[NCORE2] = {c_new(0, GRP1, 0), c_new(0, GRP1, 0)};
-	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP3, PROC1, tl, gs, ws);
+	struct sched_state *ss = mk_mheap(1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
 	for (int i = 0; i < GRP3; i++) {
@@ -281,7 +277,7 @@ void test_mheap_fair_lag() {
 
 	int nheap = 1;
 	struct core *c[NCORE1] = {c_new(0, GRP3, 0)};
-	struct sched_state *ss = mk_mheap(c, NCORE1, 1, GRP3, PROC1, tl, gs, ws);
+	struct sched_state *ss = mk_mheap(1, GRP3, PROC1, tl, gs, ws);
 
 	// run the groups to get off vt 0
 	for (int i = 0; i < GRP3; i++) {
@@ -355,7 +351,7 @@ void test_preempt() {
 	int ws[GRP2] = {1, 100};
 	// allocate many cores
 	struct core *c[NCORE2] = { c_new(0, GRP2, 0),  c_new(1, GRP2, 1) };
-	struct sched_state *ss = mk_mheap(c, NCORE2, nheap, GRP2, nproc, tl, gs, ws);
+	struct sched_state *ss = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
 	struct task_struct *p;
 
 	// run the two groups to get off vt 0
@@ -386,7 +382,7 @@ void test_mheap(int nheap, int nproc) {
 	int ws[GRP2] = {10, 20};
 	int tl = 1000;
 	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
-	struct sched_state *ss = mk_mheap(c, NCORE1, nheap, GRP2, nproc, tl, gs, ws);
+	struct sched_state *ss = mk_mheap(nheap, GRP2, nproc, tl, gs, ws);
 	struct task_struct *p;
 
 	// run the two groups to get off vt 0
@@ -431,7 +427,7 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 		tot_w += ws[i];
 	}
 	struct core *c[NCORE1] = {c_new(0, ngrp, 0)};
-	struct sched_state *ss = mk_mheap(c, NCORE1, nheap, ngrp, nproc, tl, gs, ws);
+	struct sched_state *ss = mk_mheap(nheap, ngrp, nproc, tl, gs, ws);
 	long tot = 0;
 	for (int i = 0; i < n; i++) {
 		struct task_struct *p = schedule_retry();
@@ -453,7 +449,7 @@ void test_mheap_many_grp(int nheap, int ngrp, int nproc, bool rand) {
 	printf("-- test_%d_mheap_grp %d: OK\n", nheap, ngrp); 
 }
 
-void mheap_sleeper(struct core *c, struct sched_state *ss, int n, int sleep_id, int ticks[], int sleep[], struct group *gs[], int ngrp) {
+void mheap_sleeper(int n, int sleep_id, int ticks[], int sleep[], struct group *gs[], int ngrp) {
 	struct task_struct *sleeper = NULL;
 	int sleeping = 0;
 	for (int i = 0; i < n; i++) {
@@ -463,11 +459,11 @@ void mheap_sleeper(struct core *c, struct sched_state *ss, int n, int sleep_id, 
 		struct task_struct *p = schedule_retry();
 		//printf("%d: p %d gid %d\n", i, p->pid, p->group->gid);
 		if(p->group->gid != sleep_id) {
-			ss_yield_gwfs(p, ss->tick_length);
+			ss_yield_gwfs(p, ss_global->tick_length);
 			ticks[p->group->gid] += 1;
 		} else if (sleeper == NULL) {
 			//printf("%d: deque: %d\n", i, sleep_id, ticks[p->group->gid]);
-			ss_dequeue_gwfs(p, ss->tick_length);
+			ss_dequeue_gwfs(p, ss_global->tick_length);
 			//print(ss->mh, gs, ngrp);
 			ticks[p->group->gid] += 1;
 			sleeping = i;
@@ -497,9 +493,8 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 		ws[i] = 10*(i+1);
 		tot_ws += ws[i];
 	}
-	struct core *c[NCORE1] = {c_new(0, ngrp, 0)};
-	struct sched_state *ss = mk_mheap(c, NCORE1, nheap, ngrp, PROC1, tl, gs, ws);
-	mheap_sleeper(c[0], ss, n, sleep_id, ticks, sleep, gs, ngrp);
+	struct sched_state *ss = mk_mheap(nheap, ngrp, PROC1, tl, gs, ws);
+	mheap_sleeper(n, sleep_id, ticks, sleep, gs, ngrp);
 	for (int i = 0; i < ngrp; i++) {
 		if (i == sleep_id) {
 			float f = AVG(ticks[sleep_id],(n-sleep[sleep_id]));

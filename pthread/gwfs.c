@@ -125,8 +125,8 @@ void ss_account_gwfs(struct task_struct *p, u64 time_passed) {
 struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	struct task_struct *min_proc = NULL;
 
-	// XXX why isn't this in ss_account_gwfs?
 	if(prev) {
+		// XXX why isn't this in ss_account_gwfs?
 		prev->he.vruntime = proc_vt(prev);
 		if(debug) {
 			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", get_mycore()->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
@@ -264,10 +264,9 @@ void ss_enqueue_gwfs(struct task_struct *p) {
 void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 	if(do_preempt)
 		reset_preempt(p->he.weight);
-
-	upd_lag(p, time_passed);
-	p->he.vruntime = proc_vt(p);
 	if(!delay_yield) {
+		upd_lag(p, time_passed);
+		p->he.vruntime = proc_vt(p);
 		struct heap *h = mh_choose_heap(p->mh);
 		mh_add_process(p, h);
 		lock_release(&h->lk);

@@ -51,7 +51,7 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 		};
 		break;
 	case RR:
-		ss->sched = (struct scheduler) {
+		ss->schedv1 = (struct schedulerv1) {
 			ss_schedule_rr, ss_yield_rr, ss_enqueue_rr, ss_dequeue_rr
 		};
 		break;

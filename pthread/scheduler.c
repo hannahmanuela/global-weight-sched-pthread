@@ -47,7 +47,7 @@ bool is_gq() {
 }
 
 bool ss_schedule(struct sched_state *ss, struct core *c) {
-	if(is_gwfs()) {
+	if(is_gwfs() || is_rr()) {
 		c->process = ss->schedv1.schedule(c->process);
 		return c->process == NULL;
 	} else {
@@ -56,7 +56,7 @@ bool ss_schedule(struct sched_state *ss, struct core *c) {
 }	
 
 void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {
-	if(is_gwfs()) {
+	if(is_gwfs() || is_rr()) {
 		ss->schedv1.yield(p, t);
 		if (!delay_yield)
 			c->process = NULL;
@@ -67,14 +67,17 @@ void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t
 }
 
 void ss_enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {
-	if(is_gwfs())
+	if(is_gwfs() || is_rr())
 		return ss->schedv1.enqueue(p);
 	return ss->sched.enqueue(ss, c, p);
 }
 
 void ss_dequeue(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {
-	if(is_gwfs())
-		return ss->schedv1.dequeue(p, t);
-	assert(c->process == p);
-	return ss->sched.dequeue(ss, c, p, t);
+	if(is_gwfs() || is_rr()) {
+		ss->schedv1.dequeue(p, t);
+		c->process == NULL;
+	} else {
+		assert(c->process == p);
+		ss->sched.dequeue(ss, c, p, t);
+	}
 }

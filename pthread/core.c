@@ -131,13 +131,13 @@ void c_log_done(struct core *c) {
 	}
 }
 
-void c_lat(struct core *c, struct task_struct *p) {
+void c_lat(struct task_struct *p) {
 	if (!do_latency) return;
 
 	t_t lat = p->tsc - p->he.vruntime;
 	if (lat/Hz > NBIN_LAT) {
 		printf("adjust Hz or NBIN_LAT %d %d\n", lat/Hz, NBIN_LAT);
 	} else {
-		c->bin_latency[(lat / Hz)]++;
+		get_mycore()->bin_latency[(lat / Hz)]++;
 	}
 }

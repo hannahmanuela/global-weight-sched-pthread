@@ -13,26 +13,27 @@
 #define BAINDEX(cid) ((cid) / 8)
 #define BAOFFSET(cid) ((cid) % sizeof(unsigned long))
 
-bool preemptable_set(bitarray_t ba, int cid, struct core *c) {
+// only current core should call preemptable_set for itself
+bool preemptable_set(bitarray_t ba, int cid) {
 	unsigned long r = atomic_fetch_or(&ba[0], (1 << cid));
 	bool set = r & (1 << cid);
 	if (!set) {
-		c->npreempt_set++;
+		get_mycore()->npreempt_set++;
 	}
 	return !set;
 }
 
-bool preemptable_clear(bitarray_t ba, int cid, struct core *c) {
+bool preemptable_clear(bitarray_t ba, int cid) {
 	unsigned long mask = ~(1U << cid);
 	unsigned long r = atomic_fetch_and(&ba[0], mask);
 	bool ok = r & (1 << cid);
 	if(ok) {
-		c->npreempt_clear++;
+		get_mycore()->npreempt_clear++;
 	}
 	return ok;
 }
 
-int preemptable_find_and_clear(bitarray_t ba, struct core *c) {
+int preemptable_find_and_clear(bitarray_t ba) {
 	int cid = -1;
 	bool ok = false;
 	while (!ok) {
@@ -40,20 +41,20 @@ int preemptable_find_and_clear(bitarray_t ba, struct core *c) {
 			unsigned long word = atomic_load(&ba[i]);
 			int bit = __builtin_ffsl(word);
 			cid = CID(i, bit);
-			if (bit != 0 && cid != c->cid) {
+			if (bit != 0 && cid != get_mycore()->cid) {
 				break;
 			}
 		}
 		if (cid == -1) {
-			c->npreempt_find_fail++;
+			get_mycore()->npreempt_find_fail++;
 			return cid;
 		}
-		ok = preemptable_clear(ba, cid, c);
+		ok = preemptable_clear(ba, cid);
 		if (ok) {
-			c->npreempt_find_ok++;
+			get_mycore()->npreempt_find_ok++;
 		} else {
 			cid = -1;
-			c->npreempt_retry++;
+			get_mycore()->npreempt_retry++;
 		}
 	}
 	return cid;

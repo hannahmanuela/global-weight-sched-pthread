@@ -14,77 +14,80 @@
 #include "rr.h"
 
 //
-// approximate round robin with multiheap with 1 or two groups (i.e., priority levels)
+// approximate round robin with multiheap with 1 or two groups (i.e., 2 priority levels)
 //
 
 extern bool debug;
 extern bool do_preempt;
 extern int num_groups;
+extern struct sched_state *ss_global;
 
-static void enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {
+static void enqueue(struct task_struct *p) {
 	if(debug) {
+		struct core *c = get_mycore();
 		printf("%d: enqueue_rr %d(%d) %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
 		//mh_print(p->group->mh);
 	}
 	struct heap *h = mh_choose_heap(p->group->mh);
 	assert(p->h == NULL);
 	p->he.vruntime = safe_read_tsc();
-	mh_add_process(p, h);	
+	mh_add_process(p, h);
 	lock_release(&h->lk);
 }
 
-static struct task_struct *ss_schedule_mh_enq(struct sched_state *ss, struct mheap *mh, struct core *c, bool all) {
-	bool deq = (c->process != NULL) && c->process->mh == mh;
-	assert(!c->process || c->process->mh != NULL);
-	struct task_struct *p = mh_min_proc_enq(mh, deq ? c->process : NULL, all);
+static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, bool all) {
+	struct core *c = get_mycore();
+	bool deq = (prev != NULL) && prev->mh == mh;
+	assert(!prev || prev->mh != NULL);
+	struct task_struct *p = mh_min_proc_enq(mh, deq ? prev : NULL, all);
 	if(p != NULL) {
 		assert(p->mh == mh);
 		if(debug) {
 			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, mh, deq);
 		}
-		if (do_preempt && (c->process != NULL) && !deq) {
-			assert(c->process->group->gid == RR_LOW);
-			enqueue(ss, c, c->process);
+		if (do_preempt && (prev != NULL) && !deq) {
+			assert(prev->group->gid == RR_LOW);
+			enqueue(prev);
 		}
-		c->process = p;
-	} 
+	}
 	return p;
 }
 
-// Yield c->process, if any, and select new one, if there is a runnable one
-bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
+// Yield prev, if any, and select new one, if there is a runnable one
+struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 	struct task_struct *p;
 	bool low = false;
-	bool preempted = atomic_load(&c->preempted);
+	bool preempted = atomic_load(&get_mycore()->preempted);
 
 	if (do_preempt && preempted) {
-		c->npreempted += 1;
-		atomic_store(&c->preempted, false);
+		get_mycore()->npreempted += 1;
+		atomic_store(&get_mycore()->preempted, false);
 	}
 
-	if(c->process != NULL) {
-		c->process->he.vruntime = safe_read_tsc();
-		low = (c->process->group->gid == RR_LOW);
+	if(prev != NULL) {
+		prev->he.vruntime = safe_read_tsc();
+		low = (prev->group->gid == RR_LOW);
 		if (debug)
-			printf("%d: ss_schedule_rr: low %d prempted %d curp %d(%d)\n", c->cid, low, preempted, c->process->pid, c->process->group->gid);
+			printf("%d: ss_schedule_rr: low %d prempted %d curp %d(%d)\n", get_mycore()->cid, low, preempted, prev->pid, prev->group->gid);
 	} else {
 		if (debug)
-			printf("%d: ss_schedule_rr: low %d preempted %d idle\n", c->cid, low, preempted);
+			printf("%d: ss_schedule_rr: low %d preempted %d idle\n", get_mycore()->cid, low, preempted);
 	}
 
 
 	// try high priority mh first for runnable proc
-	if ((p = ss_schedule_mh_enq(ss, ss->mh, c, false)) != NULL) {
+	if ((p = ss_schedule_mh_enq(ss_global->mh, prev, false)) != NULL) {
 		assert(p->group->gid == RR_HIGH);
-		goto ok; 
+		goto ok;
 	}
 
 	// keep running high proc, if were running one
-	if (c->process != NULL && c->process->group->gid == RR_HIGH) {
+	if (prev != NULL && prev->group->gid == RR_HIGH) {
 		if (debug) {
-			printf("%d: ss_schedule_rr: locally run high %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
+			printf("%d: ss_schedule_rr: locally run high %d(%d)\n", get_mycore()->cid, prev->pid, prev->group->gid);
 		}
-		c->nlocal += 1;
+		p = prev;
+		get_mycore()->nlocal += 1;
 		goto ok;
 	}
 
@@ -93,86 +96,84 @@ bool ss_schedule_rr(struct sched_state *ss, struct core *c) {
 		// high (and didn't sample a new high) or we were running low
 		// and were preempted
 		bool check = !low || (low && preempted);
-		if (check && (p = ss_schedule_mh_enq(ss, ss->mh, c, true)) != NULL) { 
+		if (check && (p = ss_schedule_mh_enq(ss_global->mh, prev, true)) != NULL) {
 			assert(p->group->gid == RR_HIGH);
 			goto ok;
 		} else {
-			c->nrr_skip_high++;
+			get_mycore()->nrr_skip_high++;
 		}
-		
+
 		// no proc in high heaps; go for low
-		if ((p = ss_schedule_mh_enq(ss, ss->mh1, c, false)) != NULL) {
+		if ((p = ss_schedule_mh_enq(ss_global->mh1, prev, false)) != NULL) {
 			assert(p->group->gid == RR_LOW);
 			goto ok;
 		}
 
 		// keep running low proc, if were running one
-		if (c->process != NULL) {
-			assert(c->process->group->gid == RR_LOW);
+		if (prev != NULL) {
+			assert(prev->group->gid == RR_LOW);
 			if (debug) {
-				printf("%d: locally run low %d(%d) %p\n", c->cid, c->process->pid, c->process->group->gid, ss->mh1);
+				printf("%d: locally run low %d(%d) %p\n", get_mycore()->cid, prev->pid, prev->group->gid, ss_global->mh1);
 			}
-			c->nlocal += 1;
+			get_mycore()->nlocal += 1;
+			p = prev;
 			goto ok;
 		}
 	}
-	c->nsched_null += 1;
-	return false;
+	get_mycore()->nsched_null += 1;
+	return NULL;
 
 ok:
 	if(debug) {
-		printf("%d: running %d(%d)\n", c->cid, c->process->pid, c->process->group->gid);
+		printf("%d: running %d(%d)\n", get_mycore()->cid, prev->pid, prev->group->gid);
 	}
-	if(debug && (c->process->h != NULL)) {
-		printf("%d: c->process->h %p\n", c->cid, c->process->h);
-		assert(c->process->mh != NULL);
+	if(debug && (prev->h != NULL)) {
+		printf("%d: prev->h %p\n", get_mycore()->cid, prev->h);
+		assert(prev->mh != NULL);
 		assert(0);
 	}
-	if (do_preempt && (c->process->group->gid == RR_LOW)) {
+	if (do_preempt && (prev->group->gid == RR_LOW)) {
 		// reset preemtable if switching from high to
 		// a low proc, or if were prempted
-		if(!low || preempted) 
-			preemptable_set(ss->preemptable, c->cid, c);
+		if(!low || preempted)
+			preemptable_set(ss_global->preemptable, get_mycore()->cid);
 	}
 		
-	c_lat(c, p);
-	if(c->fd > 0) {
-		c_log_append(c->process);
+	c_lat(p);
+	if(get_mycore()->fd > 0) {
+		c_log_append(prev);
 	}
-	return true;
+	return p;
 }
 
 // p wokeup: enqueue p at the ends of its group's queue
-void ss_enqueue_rr(struct sched_state *ss, struct core *c, struct task_struct *p) {
+void ss_enqueue_rr(struct task_struct *p) {
+	struct core *c = get_mycore();
 	int cid = -1;
 	assert(p->mh != NULL);
 	if (do_preempt && p->group->gid == RR_HIGH) {
-		cid = preemptable_find_and_clear(ss->preemptable, c);
+		cid = preemptable_find_and_clear(ss_global->preemptable);
 	}
 	if (debug) {
 		printf("%d: ss_enqueue_rr %d(%d) dopreempt? %d\n", c->cid, p->pid, p->group->gid, cid);
 	}
 	if (cid != -1) {
-		atomic_store(&ss->cs[cid]->preempted, true);
+		atomic_store(&ss_global->cs[cid]->preempted, true);
 	}
-	enqueue(ss, c, p);
+	enqueue(p);
 }
 
 // p yields after it ran for a tick, do nothing until ss_schedule()
-void ss_yield_rr(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
+void ss_yield_rr(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 }
 
 // process p goes to sleep
-void ss_dequeue_rr(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed) {
-	assert(c->process == p);
+void ss_dequeue_rr(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {
-		printf("%d: %d(%d): dequeue %ld\n", c->cid, p->pid, p->group->gid, time_passed);
+		printf("%d: %d(%d): dequeue %ld\n", get_mycore()->cid, p->pid, p->group->gid, time_passed);
 		//mh_print(p->group->mh);
 	}
 	assert(p->h == NULL);
-	c->process = NULL;
 }
-
-

@@ -10,8 +10,8 @@
 
 typedef atomic_long bitarray_t[NBITARRAY];
 
-bool preemptable_set(bitarray_t, int cid, struct core *c);
-bool preemptable_clear(bitarray_t, int cid, struct core *c);
-int preemptable_find_and_clear(bitarray_t, struct core *c);
+bool preemptable_set(bitarray_t, int cid);
+bool preemptable_clear(bitarray_t, int cid);
+int preemptable_find_and_clear(bitarray_t);
 
 #endif

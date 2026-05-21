@@ -21,34 +21,36 @@ bitarray_t ba __calign__;
 
 void test_ba() {
 	bool ok;
-	struct core *c = cores[0];
-	
-	int i = preemptable_find_and_clear(ba, c);
+
+	set_mycore(cores[0]);
+
+	int i = preemptable_find_and_clear(ba);
 	assert(i == -1);
-	assert(c->npreempt_find_fail > 0);
-	ok = preemptable_set(ba, 3, c);
+	assert(get_mycore()->npreempt_find_fail > 0);
+	ok = preemptable_set(ba, 3);
 	assert(ok);
-	i = preemptable_find_and_clear(ba, c);
+	i = preemptable_find_and_clear(ba);
 	assert(i == 3);
-	assert(c->npreempt_find_ok > 0);
-	i = preemptable_find_and_clear(ba, c);
+	assert(get_mycore()->npreempt_find_ok > 0);
+	i = preemptable_find_and_clear(ba);
 	assert(i == -1);
 
-	ok = preemptable_set(ba, 0, c);
+	ok = preemptable_set(ba, 0);
 	assert(ok);
-	i = preemptable_find_and_clear(ba, c);
+	i = preemptable_find_and_clear(ba);
 	assert(i == 0);
 
-	ok = preemptable_set(ba, 3, c);
+	ok = preemptable_set(ba, 3);
 	assert(ok);
-	ok = preemptable_set(ba, 3, c);
+	ok = preemptable_set(ba, 3);
 	assert(!ok);
-	i = preemptable_find_and_clear(ba, c);
+	i = preemptable_find_and_clear(ba);
 	assert(i == 3);
 }
 
 void *run_core(void* core) {
 	struct core *mycore = (struct core *) core;
+	set_mycore(mycore);
 
 	// pin to an actual core per the selected policy
 	int cpu_want = calc_pin_cpu(mycore->cid);
@@ -59,13 +61,14 @@ void *run_core(void* core) {
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0)
 		error("couldn't set affininity\n");
 
+
 	double start = now();
 	int cid = 1;
 	for (int i = 0; now() - start < time_to_run; i++) {
 		if (mycore->cid == cid) {
-			preemptable_set(ba, cid, mycore);
+			preemptable_set(ba, cid);
 		} else {
-			int i = preemptable_find_and_clear(ba, mycore);
+			int i = preemptable_find_and_clear(ba);
 			assert((i == cid) || (i == -1));
 		}
 	}

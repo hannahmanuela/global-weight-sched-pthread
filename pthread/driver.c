@@ -171,7 +171,7 @@ void rr_groups() {
 			assert(p->mh != NULL);
 			if(is_pcrq()) ss_enqueue_pcrq(gs->ss, gs->cores[0], p);
 			else if (is_gq()) ss_enqueue_gq(gs->ss, gs->cores[0], p);
-			else ss_enqueue_rr(gs->ss, gs->cores[0], p);
+			else ss_enqueue_rr(p);
 		}
 	}
 }	
@@ -263,7 +263,7 @@ void main(int argc, char *argv[]) {
 	int nheap = 0;
 	int tick_length = 1000;
 
-	while ((opt = getopt(argc, argv, "2adpyb::g:w:h:r:l:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "2adpyb:g:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case '2':
 			use_power2_insert = false;

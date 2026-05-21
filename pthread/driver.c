@@ -161,6 +161,11 @@ void rr_groups() {
 		ns[1] = 2*num_threads_p_group;
 	}
 
+	if(is_rr()) {
+		// always true
+		delay_yield = true;
+	}
+
 	for (int i = 0; i < num_groups; i++) {
 		struct mheap *mh = gs->ss->mh;
 		if(i == RR_LOW) mh = gs->ss->mh1;

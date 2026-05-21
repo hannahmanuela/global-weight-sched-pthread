@@ -125,14 +125,9 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 
 ok:
 	if(debug) {
-		printf("%d: running %d(%d)\n", get_mycore()->cid, prev->pid, prev->group->gid);
+		printf("%d: running %d(%d)\n", get_mycore()->cid, p->pid, p->group->gid);
 	}
-	if(debug && (prev->h != NULL)) {
-		printf("%d: prev->h %p\n", get_mycore()->cid, prev->h);
-		assert(prev->mh != NULL);
-		assert(0);
-	}
-	if (do_preempt && (prev->group->gid == RR_LOW)) {
+	if (do_preempt && (p->group->gid == RR_LOW)) {
 		// reset preemtable if switching from high to
 		// a low proc, or if were prempted
 		if(!low || preempted)

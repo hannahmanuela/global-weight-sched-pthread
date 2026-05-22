@@ -14,6 +14,8 @@
 
 #define __calign__ __attribute__((aligned(CACHE_LINE_SZ)))
 
+#define ALIGN_UP(sz, align) (((sz) + (align) - 1) & ~((align) - 1))
+
 #define container_of(ptr, type, member) ({ \
     const typeof(((type *)0)->member) *__mptr = (ptr); \
     (type *)((char *)__mptr - offsetof(type, member)); \

@@ -16,7 +16,7 @@ static void heap_alloc(struct heap *h) {
 }
 
 struct heap *heap_new() {
-	struct heap *h = aligned_alloc(CACHE_LINE_SZ, (sizeof(struct heap)));
+	struct heap *h = aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct heap), CACHE_LINE_SZ));
 	h->heap_size = 0;
 	h->heap_capacity = 0;
 	h->last_vt = 0;

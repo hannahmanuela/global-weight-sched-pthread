@@ -27,7 +27,7 @@ extern bool debug;
 
 struct mheap *mh_new(int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
-	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap) * n);
+	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct heap) * n, CACHE_LINE_SZ));
 	for (int i=0; i < n; i++) {
 		mh->h[i] = heap_new();
 		mh->h[i]->id = i;

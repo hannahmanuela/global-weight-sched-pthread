@@ -151,7 +151,7 @@ void action(struct sched_state *ss, struct core *mycore, int choice) {
 
 void rr_groups() {
 	int ns[2];
-	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
+	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
 	assert(num_groups <= 2);
 	if(ratio == 1)  {
 		ns[0] = num_threads_p_group;
@@ -206,7 +206,7 @@ void rr_sched_action(struct core *mycore) {
 }
 
 void ss_groups() {
-	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct group *)*num_groups);
+	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
 	w_t w = base_weight;
 	for (int i = 0; i < num_groups; i++) {
 		struct group *g = grp_new(gs->ss->mh, i, w);
@@ -323,7 +323,7 @@ void main(int argc, char *argv[]) {
 	num_threads_p_group = num_threads/num_groups;
 
 	gs = malloc(sizeof(struct global_state));
-	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
+	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
 	for (int i = 0; i < num_cores; i++) {
 		gs->cores[i] = c_new(i, num_groups, i);
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);

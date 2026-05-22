@@ -124,7 +124,7 @@ int main(int argc, char *argv[]) {
 	num_cores = atoi(argv[1]);
 	assert(num_cores <= NCORES);
 
-	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*NCORES);
+	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*NCORES, CACHE_LINE_SZ));
 	for (int i = 0; i < NCORES; i++) {
 		cores[i] = c_new(i, 1, i);
 	}

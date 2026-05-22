@@ -25,7 +25,7 @@ static void grp_add_process(struct task_struct *p) {
 }
 
 struct task_struct *grp_new_process(struct mheap *mh, int id, struct group *group) {
-	struct task_struct *p = aligned_alloc(CACHE_LINE_SZ, (sizeof(struct task_struct)));
+	struct task_struct *p = aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct task_struct), CACHE_LINE_SZ));
 	p->pid = id;
 	p->runtime = 0;
 	p->group = group;

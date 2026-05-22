@@ -12,9 +12,9 @@ extern int num_cores;
 
 struct mcntr *mc_new() {
 	struct mcntr *mc = malloc(sizeof(struct mcntr));
-	mc->c = (struct cntr **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct cntr) * num_cores);
+	mc->c = (struct cntr **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct cntr) * num_cores, CACHE_LINE_SZ));
 	for (int i = 0; i < num_cores; i++) {
-		mc->c[i] = (struct cntr *) aligned_alloc(CACHE_LINE_SZ, (sizeof(struct cntr)));
+		mc->c[i] = (struct cntr *) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct cntr), CACHE_LINE_SZ));
 	}
 	mc->n = num_cores;
 	return mc;

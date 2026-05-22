@@ -5,6 +5,7 @@ CC=gcc
 CFLAGS += -I. -MMD -MP
 #CFLAGS += -g
 #CFLAGS += -O2
+# CFLAGS += -fsanitize=thread
 CFLAGS += -g -O2 -fno-omit-frame-pointer
 DEPS = $(wildcard *.d)
 -include $(DEPS)

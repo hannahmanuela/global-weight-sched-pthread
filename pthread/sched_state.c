@@ -33,7 +33,7 @@ int scheduler;
 struct sched_state *ss_global;
 
 struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int ncore) {
-	struct sched_state *ss = aligned_alloc(CACHE_LINE_SZ, sizeof(struct sched_state));
+	struct sched_state *ss = aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct sched_state), CACHE_LINE_SZ));
 	ss_global = ss;
 	ss->tick_length = tick_length;
 	ss->mh = mh_new(nheap);

@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 	num_cores = atoi(argv[1]);
 	if (num_cores < 2)
 		usage(argv[0]);
-	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, sizeof(struct core *)*num_cores);
+	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
 	for (int i = 0; i < num_cores; i++) {
 		cores[i] = c_new(i, 1, i);
 	}

@@ -80,7 +80,7 @@ void ss_enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {
 void ss_dequeue(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {
 	if(is_gwfs() || is_rr()) {
 		ss->schedv1.dequeue(p, t);
-		c->process == NULL;
+		c->process = NULL;
 	} else {
 		assert(c->process == p);
 		ss->sched.dequeue(ss, c, p, t);

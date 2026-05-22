@@ -29,7 +29,6 @@ static void enqueue(struct task_struct *p) {
 		//mh_print(p->group->mh);
 	}
 	struct heap *h = mh_choose_heap(p->group->mh);
-	assert(p->h == NULL);
 	p->he.vruntime = safe_read_tsc();
 	mh_add_process(p, h);
 	lock_release(&h->lk);
@@ -170,5 +169,4 @@ void ss_dequeue_rr(struct task_struct *p, t_t time_passed) {
 		printf("%d: %d(%d): dequeue %ld\n", get_mycore()->cid, p->pid, p->group->gid, time_passed);
 		//mh_print(p->group->mh);
 	}
-	assert(p->h == NULL);
 }

@@ -67,9 +67,14 @@ void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t
 }
 
 void ss_enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {
-	if(is_gwfs() || is_rr())
-		return ss->schedv1.enqueue(p);
-	return ss->sched.enqueue(ss, c, p);
+	if(is_gwfs() || is_rr()) {
+		ss->schedv1.enqueue(p);
+		if(c->process == p) {
+			c->process = NULL;
+		}
+	} else {
+		ss->sched.enqueue(ss, c, p);
+	}
 }
 
 void ss_dequeue(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {

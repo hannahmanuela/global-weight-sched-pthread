@@ -116,6 +116,18 @@ void mh_print(struct mheap *mh) {
 	printf("=\n");
 }
 
+void mh_check_notlocked(struct mheap *mh)  {
+	for (int i = 0; i < mh->nheap; i++) {
+		void *p = lock_holder(&(mh->h[i]->lk));
+		if (p == get_mycore()) {
+			printf("check heap %p(%d) core %d\n", mh, i, get_mycore()->cid);
+			printf("\n");
+			fflush(stdout);
+			assert(0);
+		}
+	}
+}
+
 float mh_load(struct mheap *mh, int *maxl) {
 	long tot = 0;
 	for (int i = 0; i < mh->nheap; i++) {
@@ -322,6 +334,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_all_min_proc(struct mh
 		struct heap *h = mh->h[MH_IND(mh, i+s)];
 		vt_t vt = atomic_load_explicit(&h->heap[0].vruntime, __ATOMIC_RELAXED);
 		if (vt != DUMMY && ((p = mh_try_del_min(h, vt)) != NULL)) {
+			lock_release(&h->lk);
 			break;
 		}
 	}
@@ -364,7 +377,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 		}
 		mh_add_process(curp, h);
 		lock_release(&h->lk);
-	} else {
+	} else if (p != NULL) {
 		// XXX pretend we added and removed to_add from the heap
 		// h->last_vt = to_add->vruntime;
 	}

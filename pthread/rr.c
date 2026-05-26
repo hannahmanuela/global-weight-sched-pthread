@@ -135,7 +135,7 @@ ok:
 		
 	c_lat(p);
 	if(get_mycore()->fd > 0) {
-		c_log_append(prev);
+		c_log_append(p);
 	}
 	return p;
 }

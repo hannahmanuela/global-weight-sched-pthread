@@ -17,6 +17,7 @@ struct mheap *mh_new(int n);
 void mh_stats(struct mheap *mh);
 void mh_free(struct mheap *mh);
 void mh_print(struct mheap *mh);
+void mh_check_notlocked(struct mheap *mh);
 struct heap *mh_heap(struct mheap *mh, int i);
 vt_t mh_min_vt(struct heap *h);
 vt_t mh_last_vt(struct heap *h);

@@ -11,6 +11,7 @@
 #define N 4
 
 bool do_affinity = false;
+bool do_latency = false;
 
 struct elem {
 	int id;

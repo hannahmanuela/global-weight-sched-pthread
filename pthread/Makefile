@@ -18,7 +18,7 @@ schedule: driver.o $(OBJ)
 test-gwfs: test_gwfs.o $(OBJ)
 	$(CC) -o $@ $^
 
-test-heap: test_heap.o heap.o lock.o
+test-heap: test_heap.o heap.o lock.o core.o
 	$(CC) -o $@ $^
 
 test-mcntr: test_mcntr.o mcounter.o lock.o core.o util.o

@@ -10,13 +10,6 @@
 
 struct sched_state;
 
-struct scheduler {
-	bool (*schedule)(struct sched_state *ss, struct core *c);
-	void (*yield)(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed);
-	void (*enqueue)(struct sched_state *ss, struct core *c, struct task_struct *p);
-	void (*dequeue)(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_gotten);
-};
-
 struct schedulerv1 {
 	struct task_struct *(*schedule)(struct task_struct *prev);
 	void (*yield)(struct task_struct *p, t_t time_passed);
@@ -25,7 +18,6 @@ struct schedulerv1 {
 };
 
 struct sched_state {
-	struct scheduler sched;
 	struct schedulerv1 schedv1;
 	struct core **cs;
 	int ncore;

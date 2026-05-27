@@ -47,24 +47,24 @@ bool is_gq() {
 }
 
 bool ss_schedule(struct sched_state *ss, struct core *c) {
-	c->process = ss->schedv1.schedule(c->process);
+	c->process = ss->sched.schedule(c->process);
 	return c->process == NULL;
 }	
 
 void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {
-	ss->schedv1.yield(p, t);
+	ss->sched.yield(p, t);
 	if (!delay_yield)
 		c->process = NULL;
 }
 
 void ss_enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {
-	ss->schedv1.enqueue(p);
+	ss->sched.enqueue(p);
 	if(c->process == p) {
 		c->process = NULL;
 	}
 }
 
 void ss_dequeue(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {
-	ss->schedv1.dequeue(p, t);
+	ss->sched.dequeue(p, t);
 	c->process = NULL;
 }

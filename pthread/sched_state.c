@@ -46,22 +46,22 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 
 	switch (scheduler) {
 	case GWFS:
-		ss->schedv1 = (struct schedulerv1) {
+		ss->sched = (struct scheduler) {
 			ss_account_schedule_gwfs, ss_yield_gwfs, ss_enqueue_gwfs, ss_dequeue_gwfs
 		};
 		break;
 	case RR:
-		ss->schedv1 = (struct schedulerv1) {
+		ss->sched = (struct scheduler) {
 			ss_schedule_rr, ss_yield_rr, ss_enqueue_rr, ss_dequeue_rr
 		};
 		break;
 	case PCRQ:
-		ss->schedv1 = (struct schedulerv1) {
+		ss->sched = (struct scheduler) {
 			ss_schedule_pcrq, ss_yield_pcrq, ss_enqueue_pcrq, ss_dequeue_pcrq
 		};
 		break;
 	case GQ:
-		ss->schedv1 = (struct schedulerv1) {
+		ss->sched = (struct scheduler) {
 			ss_schedule_gq, ss_yield_gq, ss_enqueue_gq, ss_dequeue_gq
 		};
 		break;

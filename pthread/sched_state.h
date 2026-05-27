@@ -10,7 +10,7 @@
 
 struct sched_state;
 
-struct schedulerv1 {
+struct scheduler {
 	struct task_struct *(*schedule)(struct task_struct *prev);
 	void (*yield)(struct task_struct *p, t_t time_passed);
 	void (*enqueue)(struct task_struct *p);
@@ -18,7 +18,7 @@ struct schedulerv1 {
 };
 
 struct sched_state {
-	struct schedulerv1 schedv1;
+	struct scheduler sched;
 	struct core **cs;
 	int ncore;
 	int tick_length;

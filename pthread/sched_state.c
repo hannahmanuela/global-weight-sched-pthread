@@ -56,7 +56,7 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 		};
 		break;
 	case PCRQ:
-		ss->sched = (struct scheduler) {
+		ss->schedv1 = (struct schedulerv1) {
 			ss_schedule_pcrq, ss_yield_pcrq, ss_enqueue_pcrq, ss_dequeue_pcrq
 		};
 		break;

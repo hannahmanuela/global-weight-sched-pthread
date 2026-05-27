@@ -161,7 +161,7 @@ void rr_groups() {
 		ns[1] = 2*num_threads_p_group;
 	}
 
-	if(is_rr()) {
+	if(is_rr() || is_pcrq()) {
 		// always true
 		delay_yield = true;
 	}
@@ -174,7 +174,7 @@ void rr_groups() {
 		for (int j = 0; j < ns[i]; j++) {
 			struct task_struct *p = grp_new_process(mh, i*ns[0]+j, g);
 			assert(p->mh != NULL);
-			if(is_pcrq()) ss_enqueue_pcrq(gs->ss, gs->cores[0], p);
+			if(is_pcrq()) ss_enqueue_pcrq(p);
 			else if (is_gq()) ss_enqueue_gq(gs->ss, gs->cores[0], p);
 			else ss_enqueue_rr(p);
 		}

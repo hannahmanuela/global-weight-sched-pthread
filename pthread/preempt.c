@@ -18,7 +18,7 @@ bool preemptable_set(bitarray_t ba, int cid) {
 	unsigned long r = atomic_fetch_or(&ba[0], (1 << cid));
 	bool set = r & (1 << cid);
 	if (!set) {
-		get_mycore()->npreempt_set++;
+		mycore()->npreempt_set++;
 	}
 	return !set;
 }
@@ -28,7 +28,7 @@ bool preemptable_clear(bitarray_t ba, int cid) {
 	unsigned long r = atomic_fetch_and(&ba[0], mask);
 	bool ok = r & (1 << cid);
 	if(ok) {
-		get_mycore()->npreempt_clear++;
+		mycore()->npreempt_clear++;
 	}
 	return ok;
 }
@@ -41,20 +41,20 @@ int preemptable_find_and_clear(bitarray_t ba) {
 			unsigned long word = atomic_load(&ba[i]);
 			int bit = __builtin_ffsl(word);
 			cid = CID(i, bit);
-			if (bit != 0 && cid != get_mycore()->cid) {
+			if (bit != 0 && cid != mycore()->cid) {
 				break;
 			}
 		}
 		if (cid == -1) {
-			get_mycore()->npreempt_find_fail++;
+			mycore()->npreempt_find_fail++;
 			return cid;
 		}
 		ok = preemptable_clear(ba, cid);
 		if (ok) {
-			get_mycore()->npreempt_find_ok++;
+			mycore()->npreempt_find_ok++;
 		} else {
 			cid = -1;
-			get_mycore()->npreempt_retry++;
+			mycore()->npreempt_retry++;
 		}
 	}
 	return cid;

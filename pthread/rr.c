@@ -24,7 +24,7 @@ extern struct sched_state *ss_global;
 
 static void enqueue(struct task_struct *p) {
 	if(debug) {
-		struct core *c = get_mycore();
+		struct core *c = mycore();
 		printf("%d: enqueue_rr %d(%d) %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
 		//mh_print(p->group->mh);
 	}
@@ -35,7 +35,7 @@ static void enqueue(struct task_struct *p) {
 }
 
 static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, bool all) {
-	struct core *c = get_mycore();
+	struct core *c = mycore();
 	bool deq = (prev != NULL) && prev->mh == mh;
 	assert(!prev || prev->mh != NULL);
 	struct task_struct *p = mh_min_proc_enq(mh, deq ? prev : NULL, all);
@@ -56,21 +56,21 @@ static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_stru
 struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 	struct task_struct *p;
 	bool low = false;
-	bool preempted = atomic_load(&get_mycore()->preempted);
+	bool preempted = atomic_load(&mycore()->preempted);
 
 	if (do_preempt && preempted) {
-		get_mycore()->npreempted += 1;
-		atomic_store(&get_mycore()->preempted, false);
+		mycore()->npreempted += 1;
+		atomic_store(&mycore()->preempted, false);
 	}
 
 	if(prev != NULL) {
 		prev->he.vruntime = safe_read_tsc();
 		low = (prev->group->gid == RR_LOW);
 		if (debug)
-			printf("%d: ss_schedule_rr: low %d prempted %d curp %d(%d)\n", get_mycore()->cid, low, preempted, prev->pid, prev->group->gid);
+			printf("%d: ss_schedule_rr: low %d prempted %d curp %d(%d)\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid);
 	} else {
 		if (debug)
-			printf("%d: ss_schedule_rr: low %d preempted %d idle\n", get_mycore()->cid, low, preempted);
+			printf("%d: ss_schedule_rr: low %d preempted %d idle\n", mycore()->cid, low, preempted);
 	}
 
 
@@ -83,10 +83,10 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 	// keep running high proc, if were running one
 	if (prev != NULL && prev->group->gid == RR_HIGH) {
 		if (debug) {
-			printf("%d: ss_schedule_rr: locally run high %d(%d)\n", get_mycore()->cid, prev->pid, prev->group->gid);
+			printf("%d: ss_schedule_rr: locally run high %d(%d)\n", mycore()->cid, prev->pid, prev->group->gid);
 		}
 		p = prev;
-		get_mycore()->nlocal += 1;
+		mycore()->nlocal += 1;
 		goto ok;
 	}
 
@@ -99,7 +99,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 			assert(p->group->gid == RR_HIGH);
 			goto ok;
 		} else {
-			get_mycore()->nrr_skip_high++;
+			mycore()->nrr_skip_high++;
 		}
 
 		// no proc in high heaps; go for low
@@ -112,29 +112,29 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 		if (prev != NULL) {
 			assert(prev->group->gid == RR_LOW);
 			if (debug) {
-				printf("%d: locally run low %d(%d) %p\n", get_mycore()->cid, prev->pid, prev->group->gid, ss_global->mh1);
+				printf("%d: locally run low %d(%d) %p\n", mycore()->cid, prev->pid, prev->group->gid, ss_global->mh1);
 			}
-			get_mycore()->nlocal += 1;
+			mycore()->nlocal += 1;
 			p = prev;
 			goto ok;
 		}
 	}
-	get_mycore()->nsched_null += 1;
+	mycore()->nsched_null += 1;
 	return NULL;
 
 ok:
 	if(debug) {
-		printf("%d: running %d(%d)\n", get_mycore()->cid, p->pid, p->group->gid);
+		printf("%d: running %d(%d)\n", mycore()->cid, p->pid, p->group->gid);
 	}
 	if (do_preempt && (p->group->gid == RR_LOW)) {
 		// reset preemtable if switching from high to
 		// a low proc, or if were prempted
 		if(!low || preempted)
-			preemptable_set(ss_global->preemptable, get_mycore()->cid);
+			preemptable_set(ss_global->preemptable, mycore()->cid);
 	}
 		
 	c_lat(p);
-	if(get_mycore()->fd > 0) {
+	if(mycore()->fd > 0) {
 		c_log_append(p);
 	}
 	return p;
@@ -142,7 +142,7 @@ ok:
 
 // p wokeup: enqueue p at the ends of its group's queue
 void ss_enqueue_rr(struct task_struct *p) {
-	struct core *c = get_mycore();
+	struct core *c = mycore();
 	int cid = -1;
 	assert(p->mh != NULL);
 	if (do_preempt && p->group->gid == RR_HIGH) {
@@ -166,7 +166,7 @@ void ss_yield_rr(struct task_struct *p, t_t time_passed) {
 void ss_dequeue_rr(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {
-		printf("%d: %d(%d): dequeue %ld\n", get_mycore()->cid, p->pid, p->group->gid, time_passed);
+		printf("%d: %d(%d): dequeue %ld\n", mycore()->cid, p->pid, p->group->gid, time_passed);
 		//mh_print(p->group->mh);
 	}
 }

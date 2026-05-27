@@ -21,7 +21,7 @@ void set_mycore(struct core *c) {
 	tl_mycore = c;
 }
 
-struct core *get_mycore() {
+struct core *mycore() {
 	return tl_mycore;
 }
 
@@ -69,7 +69,7 @@ void c_print(struct core *c, int num_groups) {
 
 int c_rand(int n) {
        double dr;
-       struct core *c = get_mycore();
+       struct core *c = mycore();
        drand48_r(&c->randBuffer, &dr);
        int r = (int) (dr * n);
        // int r = rand_r(&c->seed) % n;
@@ -100,7 +100,7 @@ void c_log_init(struct core *c, char *name) {
 }
 
 void c_log_append(struct task_struct *p) {
-	struct core *c = get_mycore();
+	struct core *c = mycore();
 	if(c->log_nentry == LOG_NENTRY) {
 		int n = write(c->fd, c->log, sizeof(struct log_entry) * LOG_NENTRY);
 		if (n <= 0) {
@@ -138,6 +138,6 @@ void c_lat(struct task_struct *p) {
 	if (lat/Hz > NBIN_LAT) {
 		printf("adjust Hz or NBIN_LAT %d %d\n", lat/Hz, NBIN_LAT);
 	} else {
-		get_mycore()->bin_latency[(lat / Hz)]++;
+		mycore()->bin_latency[(lat / Hz)]++;
 	}
 }

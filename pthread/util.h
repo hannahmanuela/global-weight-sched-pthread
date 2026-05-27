@@ -23,7 +23,7 @@
 
 struct core;
 
-struct core *get_core();
+struct core *mycore();
 void error(char *);
 double now();
 long safe_read_tsc();

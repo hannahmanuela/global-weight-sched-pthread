@@ -24,7 +24,7 @@ extern bool delay_yield;
 extern struct sched_state *ss_global;
 
 static void set_preempt(struct task_struct *p) {
-	struct core *c = get_mycore();
+	struct core *c = mycore();
 	while(1) {
 		preempt_t pre = atomic_load(&ss_global->preempt);
 		if(WEIGHT(pre) < p->he.weight)
@@ -51,7 +51,7 @@ static void set_preempt(struct task_struct *p) {
 }
 
 static void reset_preempt(w_t w) {
-	struct core *c = get_mycore();
+	struct core *c = mycore();
 	while(1) {
 		preempt_t pre = atomic_load(&ss_global->preempt);
 		if(WEIGHT(pre) != w)
@@ -90,7 +90,7 @@ static vt_t sub_lag(struct task_struct *p, vt_t wvt, vt_t *lag) {
 			if (__atomic_compare_exchange_n(&p->group->lag, &v, v-*lag, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 				break;
 			}
-			struct core *c = get_mycore();
+			struct core *c = mycore();
 			atomic_fetch_add_explicit(&c->lag_sub_retry, 1, __ATOMIC_RELAXED);
 		}
 	}
@@ -129,7 +129,7 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		// XXX why isn't this in ss_account_gwfs?
 		prev->he.vruntime = proc_vt(prev);
 		if(debug) {
-			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", get_mycore()->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
+			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", mycore()->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
 		}
 	}
 
@@ -137,25 +137,25 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	// get affinity by rescheduling prev
 	if(do_affinity && ss_global->mh->nheap > 1 && prev) {
 		assert(0);
-		min_proc = mh_min_affinity(get_mycore());
+		min_proc = mh_min_affinity(mycore());
 	}
 
 	if (min_proc == NULL) {
 		min_proc = mh_min_proc_enq(ss_global->mh, prev, false);
 	}
 	if (min_proc == NULL && prev != NULL) {
-		get_mycore()->nlocal  += 1;
+		mycore()->nlocal  += 1;
 		min_proc = prev;  // for debug
 	} else if (min_proc == NULL) {
-		get_mycore()->nsched_null += 1;
+		mycore()->nsched_null += 1;
 		return NULL;
 	}
 
 	if(debug) {
-		printf("%d: schedule %d(%d) vt %lld\n", get_mycore()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
+		printf("%d: schedule %d(%d) vt %lld\n", mycore()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 		mh_print(min_proc->mh);
 	}
-	if(get_mycore()->fd > 0) {
+	if(mycore()->fd > 0) {
 		c_log_append(min_proc);
 	}
 	if(do_preempt) {
@@ -291,7 +291,7 @@ static void account_sleep_gwfs(struct task_struct *p) {
 	}
 
 	p->h = NULL;
-	get_mycore()->process = NULL;
+	mycore()->process = NULL;
 
 	lock_release(&h->lk);	
 }

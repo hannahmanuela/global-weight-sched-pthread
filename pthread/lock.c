@@ -32,7 +32,7 @@ lock_acquire(struct spinlock *lk)
 	while (atomic_flag_test_and_set_explicit(&lk->locked, __ATOMIC_ACQUIRE))
 		;
 	assert(lk->holder == NULL);
-	lk->holder = get_mycore();
+	lk->holder = mycore();
 }
 
 int
@@ -40,7 +40,7 @@ lock_try_acquire(struct spinlock *lk)
 {
 	int r = atomic_flag_test_and_set_explicit(&lk->locked,  __ATOMIC_ACQUIRE);
 	if(r == 0) {
-		lk->holder = get_mycore();
+		lk->holder = mycore();
 	}
 	return r;
 }
@@ -48,7 +48,7 @@ lock_try_acquire(struct spinlock *lk)
 void
 lock_release(struct spinlock *lk)
 {
-	assert(lk->holder == get_mycore());
+	assert(lk->holder == mycore());
 	lk->holder = NULL;
 	atomic_flag_clear_explicit(&lk->locked, __ATOMIC_RELEASE);
 }

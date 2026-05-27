@@ -26,12 +26,12 @@ void test_ba() {
 
 	int i = preemptable_find_and_clear(ba);
 	assert(i == -1);
-	assert(get_mycore()->npreempt_find_fail > 0);
+	assert(mycore()->npreempt_find_fail > 0);
 	ok = preemptable_set(ba, 3);
 	assert(ok);
 	i = preemptable_find_and_clear(ba);
 	assert(i == 3);
-	assert(get_mycore()->npreempt_find_ok > 0);
+	assert(mycore()->npreempt_find_ok > 0);
 	i = preemptable_find_and_clear(ba);
 	assert(i == -1);
 

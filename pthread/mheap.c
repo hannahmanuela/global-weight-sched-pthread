@@ -119,8 +119,8 @@ void mh_print(struct mheap *mh) {
 void mh_check_notlocked(struct mheap *mh)  {
 	for (int i = 0; i < mh->nheap; i++) {
 		void *p = lock_holder(&(mh->h[i]->lk));
-		if (p == get_mycore()) {
-			printf("check heap %p(%d) core %d\n", mh, i, get_mycore()->cid);
+		if (p == mycore()) {
+			printf("check heap %p(%d) core %d\n", mh, i, mycore()->cid);
 			printf("\n");
 			fflush(stdout);
 			assert(0);
@@ -143,7 +143,7 @@ void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, int *i, int *j)
 	*i = c_rand(mh->nheap);
 	*j = c_rand(mh->nheap);
 	while (*i == *j) {
-		get_mycore()->nrand++;
+		mycore()->nrand++;
 		*j = c_rand(mh->nheap);
 	}
 }
@@ -151,7 +151,7 @@ void  __attribute__ ((noinline)) mh_rand_heaps(struct mheap *mh, int *i, int *j)
 static void __attribute__ ((noinline)) mh_rand_heap(struct mheap *mh, int i, int *j) {
 	*j = c_rand(mh->nheap);
 	while (i == *j) {
-		get_mycore()->nrand++;
+		mycore()->nrand++;
 		*j = c_rand(mh->nheap);
 	}
 }
@@ -185,7 +185,7 @@ retry:
 		r++;
 		goto retry;
 	}
-	get_mycore()->nretry_ins += r;
+	mycore()->nretry_ins += r;
 	return h;
 }
 
@@ -210,14 +210,14 @@ static struct task_struct *mh_remove_min(struct heap *h) {
 static struct task_struct *mh_del_min_process(struct heap *h) {
 	struct task_struct *p = mh_remove_min(h);
 	if(do_affinity) {
-		struct core *c = get_mycore();
+		struct core *c = mycore();
 		atomic_store_explicit(&p->cid, c->cid, __ATOMIC_RELAXED);
 	}
 	return p;
 }
 
 static void mh_upd_stat(struct task_struct *p, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
-	struct core *c = get_mycore();
+	struct core *c = mycore();
 
 	p->other_hid = other;
 	p->other_vt = other_vt;
@@ -305,7 +305,7 @@ static struct task_struct *mh_keep_running_or_switch(struct heap *h, vt_t vt, in
 		p = mh_del_min_process(h);
 		assert(p != NULL);
 		if (to_add != NULL)  {
-			get_mycore()->ndelay_yield++;
+			mycore()->ndelay_yield++;
 			mh_add_process(to_add, h);
 		}
 	}

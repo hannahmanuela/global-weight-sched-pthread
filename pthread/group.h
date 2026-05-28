@@ -14,7 +14,7 @@
 
 struct group {
 	vt_t vruntime  __calign__;
-	vt_t lag;
+	vt_t offset;
 
 	vt_t min_vt_deq __calign__;
 	int nthread; // number of threads in the group
@@ -34,8 +34,8 @@ void grp_stats(struct group *g, long tot);
 void grp_print(struct group *g);
 void grp_set_vruntime(struct task_struct *p, vt_t min);
 vt_t grp_add_vruntime(struct task_struct *p, vt_t min);
-vt_t grp_add_lag(struct task_struct *p, vt_t min);
-vt_t grp_load_lag(struct task_struct *p);
+vt_t grp_add_offset(struct task_struct *p, vt_t min);
+vt_t grp_load_offset(struct task_struct *p);
 
 #endif
 

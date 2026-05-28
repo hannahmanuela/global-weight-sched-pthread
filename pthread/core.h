@@ -70,7 +70,7 @@ struct core {
 	long max_retry_del_lock;
 	long nrand;
 
-	long lag_sub_retry;
+	long offset_sub_retry;
 
 	long npreempt_set;
 	long npreempt_clear;

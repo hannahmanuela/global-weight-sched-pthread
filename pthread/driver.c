@@ -366,7 +366,7 @@ void main(int argc, char *argv[]) {
 	long max_retry_del = 0;
 	long max_retry_del_lock = 0;
 	long nnrand = 0;
-	long lag_sub_retry = 0;
+	long offset_sub_retry = 0;
 	long npreempt_retry = 0;
 	long npreempt_set = 0;
 	long npreempt_clear = 0;
@@ -402,7 +402,7 @@ void main(int argc, char *argv[]) {
 		rdel_l = MIN(rdel_l, s);
 		nretry_del += (c->nretry_del + c->nretry_del_lock);
 		nretry_del_lock += c->nretry_del_lock;
-		lag_sub_retry += c->lag_sub_retry;
+		offset_sub_retry += c->offset_sub_retry;
 		npreempt_retry += c->npreempt_retry;
 		npreempt_set += c->npreempt_set;
 		npreempt_clear += c->npreempt_clear;
@@ -434,7 +434,7 @@ void main(int argc, char *argv[]) {
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
 	printf("    max retry locked %ld stale %ld avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
-	printf("  retry lag sub %ld\n", lag_sub_retry);
+	printf("  retry grp offset sub %ld\n", offset_sub_retry);
 	printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld preempted %d\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry, npreempted);
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
 	if(do_affinity)

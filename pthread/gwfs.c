@@ -73,25 +73,25 @@ static void reset_preempt(w_t w) {
 	}
 }
 
-static vt_t sub_lag(struct task_struct *p, vt_t wvt, vt_t *lag) {
+static vt_t sub_offset(struct task_struct *p, vt_t wvt, vt_t *offset) {
 	vt_t vt = wvt;
-	*lag = 0;
+	*offset = 0;
 	while(1) {
-		vt_t v = atomic_load(&p->group->lag);
-		*lag = v;
+		vt_t v = atomic_load(&p->group->offset);
+		*offset = v;
 		assert(v <= 0);
 		if(v == 0)
 			break;
 		if(v < 0) {
 			if(v < -wvt) {
-				*lag = -wvt;
+				*offset = -wvt;
 			}
-			vt = wvt + *lag;
-			if (__atomic_compare_exchange_n(&p->group->lag, &v, v-*lag, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+			vt = wvt + *offset;
+			if (__atomic_compare_exchange_n(&p->group->offset, &v, v-*offset, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 				break;
 			}
 			struct core *c = mycore();
-			atomic_fetch_add_explicit(&c->lag_sub_retry, 1, __ATOMIC_RELAXED);
+			atomic_fetch_add_explicit(&c->offset_sub_retry, 1, __ATOMIC_RELAXED);
 		}
 	}
 	return vt;
@@ -99,26 +99,26 @@ static vt_t sub_lag(struct task_struct *p, vt_t wvt, vt_t *lag) {
 
 static vt_t proc_vt(struct task_struct *p) {
 	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
-	vt_t lag;
-	vt_t vt = sub_lag(p, wvt, &lag);
-	vt_t my_vt = grp_add_vruntime(p, vt) + lag;
+	vt_t offset;
+	vt_t vt = sub_offset(p, wvt, &offset);
+	vt_t my_vt = grp_add_vruntime(p, vt) + offset;
 	assert(my_vt >= p->he.vruntime);  // overflow?
 	return my_vt;
 }	
 
 // proc may have run for less than its allocated time; in that
 // case adjust the proc's group vruntime.
-static void upd_lag(struct task_struct *p, t_t time_passed) {
+static void upd_offset(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	vt_t vt = calc_delta(time_passed, p->he.weight);
 	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
 	if (wvt > vt) {
-		grp_add_lag(p, -(wvt-vt));
+		grp_add_offset(p, -(wvt-vt));
 	}
 }
 
 void ss_account_gwfs(struct task_struct *p, u64 time_passed) {
-	upd_lag(p, time_passed);
+	upd_offset(p, time_passed);
 }
 
 // XXX why runq?
@@ -133,7 +133,7 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		}
 	}
 
-	// XXX kill this case?  for light load we get
+	// TODO: kill this case?  for light load we get:
 	// get affinity by rescheduling prev
 	if(do_affinity && ss_global->mh->nheap > 1 && prev) {
 		assert(0);
@@ -228,18 +228,17 @@ static void account_wakeup_gwfs(struct task_struct *p) {
 		ticks_gettime(p->group->time);
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
-		vt_t lag = p->group->vruntime - p->group->min_vt_deq;
+		vt_t offset = p->group->vruntime - p->group->min_vt_deq;
 		vt_t h_min = min_vt(mh_heap(p->mh, 0));
 		if(p->group->min_vt_deq > h_min) {
-			lag += (p->group->min_vt_deq-h_min);
+			offset += (p->group->min_vt_deq-h_min);
 		}
-		vt_t vt = h_min + lag;
+		vt_t vt = h_min + offset;
 		grp_set_vruntime(p, vt);
 	}
 }
 
 static void put_task_in_rq_gwfs(struct task_struct *p) {
-	// XXX run test and driver group setup in pthread
 	struct heap *h = mh_choose_heap(p->mh);
 	assert(p->h == NULL);
 	p->he.vruntime = proc_vt(p);
@@ -265,7 +264,7 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 	if(do_preempt)
 		reset_preempt(p->he.weight);
 	if(!delay_yield) {
-		upd_lag(p, time_passed);
+		upd_offset(p, time_passed);
 		p->he.vruntime = proc_vt(p);
 		struct heap *h = mh_choose_heap(p->mh);
 		mh_add_process(p, h);
@@ -274,7 +273,7 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 }
 
 // XXX why is time_passed not an argument?
-// XXX who does upd_lag()
+// XXX who does upd_offset()
 // XXX update_curr_gw isn't part of interface?
 static void account_sleep_gwfs(struct task_struct *p) {
 	if(do_preempt)
@@ -303,7 +302,7 @@ void ss_dequeue_gwfs(struct task_struct *p, t_t time_passed) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
 		mh_print(p->group->mh);
 	}
-	upd_lag(p, time_passed);
+	upd_offset(p, time_passed);
 	account_sleep_gwfs(p);
 }
 

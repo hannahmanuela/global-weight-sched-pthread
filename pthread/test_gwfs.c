@@ -164,8 +164,8 @@ void test_grp_sleep_wakeup() {
 	printf("-- test_sleep_wakeup ok\n");
 }
 
-void test_grp_fair_lag() {
-	printf("== test_grp_fair_lag start\n");
+void test_grp_fair_offset() {
+	printf("== test_grp_fair_offset start\n");
 
 	struct group *gs[GRP1];
 	int ws[GRP1] = {10};
@@ -195,8 +195,8 @@ void test_grp_fair_lag() {
 	assert(p0->he.vruntime > 300);
 }
 
-void test_grp_fair_sleep_lag() {
-	printf("== test_grp_fair_sleep_lag start\n");
+void test_grp_fair_sleep_offset() {
+	printf("== test_grp_fair_sleep_offset start\n");
 
 	struct group *gs[GRP1];
 	int ws[GRP1] = {10};
@@ -229,8 +229,8 @@ void test_grp_fair_sleep_lag() {
 	assert(p1->he.vruntime == 320);
 }
 
-void test_mheap_wakeup_lag() {
-	printf("== test_wakeup_lag start\n");
+void test_mheap_wakeup_offset() {
+	printf("== test_wakeup_offset start\n");
 
 	struct group *gs[GRP3];
 	int ws[GRP3] = {10, 5, 1};
@@ -263,8 +263,8 @@ void test_mheap_wakeup_lag() {
 	assert(p0->he.vruntime == 200);
 }
 
-void test_mheap_fair_lag() {
-	printf("== test_fair_lag start\n");
+void test_mheap_fair_offset() {
+	printf("== test_fair_offset start\n");
 
 	struct group *gs[GRP3];
 	int ws[GRP3] = {10, 5, 1};
@@ -297,8 +297,8 @@ void test_mheap_fair_lag() {
 	assert(p0->he.vruntime == 200);
 }
 
-void test_running_lag() {
-	printf("== test_running_lag start\n");
+void test_running_offset() {
+	printf("== test_running_offset start\n");
 
 	struct group *gs[GRP2];
 	int ws[GRP2] = {10, 5};
@@ -563,10 +563,10 @@ void main(int argc, char *argv[]) {
 	test_preempt_t();
         test_preempt();
 	//exit(1);
-	test_grp_fair_lag();
-	test_grp_fair_sleep_lag();
-	test_mheap_wakeup_lag();
-	test_running_lag();
+	test_grp_fair_offset();
+	test_grp_fair_sleep_offset();
+	test_mheap_wakeup_offset();
+	test_running_offset();
 	test_mheap(1, PROC1);
 	test_mheap(1, PROC2);
 	test_mheap(2, PROC1);

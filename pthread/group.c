@@ -42,7 +42,7 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 	struct group *g = malloc(sizeof(struct group));
 	g->gid = id;
 	g->vruntime = 0;
-	g->lag = 0;
+	g->offset = 0;
 	g->weight = weight;
 	g->nthread = 0;
 	g->procs = NULL;
@@ -68,12 +68,12 @@ vt_t grp_add_vruntime(struct task_struct *p, vt_t vt) {
 	return atomic_fetch_add_explicit(&p->group->vruntime, vt, __ATOMIC_RELAXED);
 }
 
-vt_t grp_add_lag(struct task_struct *p, vt_t vt) {
-	return atomic_fetch_add_explicit(&p->group->lag, vt, __ATOMIC_RELAXED);
+vt_t grp_add_offset(struct task_struct *p, vt_t vt) {
+	return atomic_fetch_add_explicit(&p->group->offset, vt, __ATOMIC_RELAXED);
 }
 
-vt_t grp_load_lag(struct task_struct *p) {
-	return atomic_load(&p->group->lag);
+vt_t grp_load_offset(struct task_struct *p) {
+	return atomic_load(&p->group->offset);
 }
 
 static float grp_runtime(struct group *g, long t) {
@@ -94,7 +94,7 @@ static float grp_runtime(struct group *g, long t) {
 }
 
 void grp_print(struct group *g) {
-	printf("[%d: n %d vt %lld lag %lld min_vt_deq %lld]", g->gid, g->nthread, g->vruntime, g->lag, g->min_vt_deq);
+	printf("[%d: n %d vt %lld offset %lld min_vt_deq %lld]", g->gid, g->nthread, g->vruntime, g->offset, g->min_vt_deq);
 }
 
 void grp_stats(struct group *g, long sum) {

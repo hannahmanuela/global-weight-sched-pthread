@@ -73,34 +73,29 @@ static void reset_preempt(w_t w) {
 	}
 }
 
-static vt_t sub_offset(struct task_struct *p, vt_t wvt, vt_t *offset) {
+static vt_t capped_offset(struct task_struct *p, vt_t wvt) {
 	vt_t vt = wvt;
-	*offset = 0;
+	vt_t offset = 0;
 	while(1) {
 		vt_t v = atomic_load(&p->group->offset);
-		*offset = v;
 		assert(v <= 0);
 		if(v == 0)
 			break;
 		if(v < 0) {
-			if(v < -wvt) {
-				*offset = -wvt;
-			}
-			vt = wvt + *offset;
-			if (__atomic_compare_exchange_n(&p->group->offset, &v, v-*offset, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+			offset = MAX(v, -wvt);
+			if (__atomic_compare_exchange_n(&p->group->offset, &v, v-offset, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
 				break;
 			}
-			struct core *c = mycore();
-			atomic_fetch_add_explicit(&c->offset_sub_retry, 1, __ATOMIC_RELAXED);
+			atomic_fetch_add_explicit(&mycore()->offset_sub_retry, 1, __ATOMIC_RELAXED);
 		}
 	}
-	return vt;
+	return offset;
 }
 
 static vt_t proc_vt(struct task_struct *p) {
 	vt_t wvt = calc_delta(ss_global->tick_length, p->he.weight);
-	vt_t offset;
-	vt_t vt = sub_offset(p, wvt, &offset);
+	vt_t offset = capped_offset(p, wvt);
+	vt_t vt = wvt + offset;
 	vt_t my_vt = grp_add_vruntime(p, vt) + offset;
 	assert(my_vt >= p->he.vruntime);  // overflow?
 	return my_vt;

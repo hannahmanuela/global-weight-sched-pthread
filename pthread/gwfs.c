@@ -116,12 +116,12 @@ void ss_account_gwfs(struct task_struct *p, u64 time_passed) {
 	upd_offset(p, time_passed);
 }
 
-// XXX why runq?
+// XXX kernel API: why runq?
 struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	struct task_struct *min_proc = NULL;
 
 	if(prev) {
-		// XXX why isn't this in ss_account_gwfs?
+		// XXX kernel API: why isn't this in ss_account_gwfs?
 		prev->he.vruntime = proc_vt(prev);
 		if(debug) {
 			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", mycore()->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
@@ -201,7 +201,7 @@ static bool ss_preempt_slow(struct task_struct *p) {
 }
 
 
-// XXX min 
+// XXX kernel API: no min?
 static vt_t min_vt(struct heap *h) {
 	vt_t h_min = mh_min_vt(h);
 	if (h_min == DUMMY) {
@@ -216,7 +216,6 @@ static vt_t min_vt(struct heap *h) {
 	return h_min;
 }
 
-// XXX should min_vt take the heap that p will be inserted in?
 static void account_wakeup_gwfs(struct task_struct *p) {
 	int old_nthread = atomic_fetch_add(&p->group->nthread, 1);
 	if(old_nthread == 0) {  // group has become runnable
@@ -224,6 +223,8 @@ static void account_wakeup_gwfs(struct task_struct *p) {
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
 		vt_t offset = p->group->vruntime - p->group->min_vt_deq;
+                // XXX kernel API: no min, so min_vt doesn't the heap that p will be inserted in,
+		// defaulting to heap 0
 		vt_t h_min = min_vt(mh_heap(p->mh, 0));
 		if(p->group->min_vt_deq > h_min) {
 			offset += (p->group->min_vt_deq-h_min);
@@ -267,9 +268,8 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 	}
 }
 
-// XXX why is time_passed not an argument?
-// XXX who does upd_offset()
-// XXX update_curr_gw isn't part of interface?
+// XXX kernel API: who does upd_offset()? gwfs has dequeue do it
+// XXX kernel API: kernel update_curr_gw isn't part of interface?
 static void account_sleep_gwfs(struct task_struct *p) {
 	if(do_preempt)
 		reset_preempt(p->he.weight);

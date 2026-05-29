@@ -6,6 +6,7 @@
 #include <sched.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #include "util.h"
 #include "core.h"
@@ -14,6 +15,7 @@
 int num_cores = 2;
 bool do_affinity = false;
 bool do_latency = false;
+bool use_rapids = false;
 struct core **cores;
 int time_to_run = 2;
 
@@ -126,17 +128,27 @@ void usage(char *s) {
 }
 
 int main(int argc, char *argv[]) {
-	if (argc != 2) {
+	int opt;
+	
+	while ((opt = getopt(argc, argv, "r")) != -1) {
+		switch(opt) {
+		case 'r':
+			use_rapids = true;
+			break;
+		}
+	}
+	if (argc - optind != 1) {
 		usage(argv[0]);
 	}
-	num_cores = atoi(argv[1]);
+
+	num_cores = atoi(argv[optind]);
 	if (num_cores < 2)
 		usage(argv[0]);
 	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
 	for (int i = 0; i < num_cores; i++) {
 		cores[i] = c_new(i, 1, i);
 	}
-	//test_atomics();
+	if (use_rapids) test_atomics();
 	test_ba();
 	test_parallel("set_find", run_set_find);
 	test_parallel("set", run_set);

@@ -18,6 +18,18 @@ struct core **cores;
 int time_to_run = 2;
 
 bitarray_t ba __calign__;
+void (*parallel_func)(int);
+
+void test_atomics() {
+	int dst = 1;   
+	int src = 1;
+
+	aadd(src, dst);
+	printf("%d\n", dst);
+	dst = 0;
+	aor((1 << 2), dst);
+	printf("%x\n", dst);
+}
 
 void test_ba() {
 	bool ok;
@@ -48,6 +60,20 @@ void test_ba() {
 	assert(i == 3);
 }
 
+void run_set_find(int cid) {
+	int c = 1;
+	if (cid == c) {
+		preemptable_set(ba, c);
+	} else {
+		int i = preemptable_find_and_clear(ba);
+		assert((i == c) || (i == -1));
+	}
+}
+
+void run_set(int cid) {
+	preemptable_set(ba, cid);
+}
+
 void *run_core(void* core) {
 	struct core *mycore = (struct core *) core;
 	set_mycore(mycore);
@@ -61,20 +87,16 @@ void *run_core(void* core) {
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0)
 		error("couldn't set affininity\n");
 
-
 	double start = now();
-	int cid = 1;
+	int cid = mycore->cid;
 	for (int i = 0; now() - start < time_to_run; i++) {
-		if (mycore->cid == cid) {
-			preemptable_set(ba, cid);
-		} else {
-			int i = preemptable_find_and_clear(ba);
-			assert((i == cid) || (i == -1));
-		}
+		(*parallel_func)(cid);
 	}
 }
 
-void test_parallel() {
+void test_parallel(char *str, void (*f)(int)) {
+	parallel_func = f;
+	printf("parallel_func %p\n", parallel_func);
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(cores[i]));
@@ -94,7 +116,7 @@ void test_parallel() {
 		find_fail += c->npreempt_find_fail;
 	}
 	printf("set %d find %d %d\n", set, find_ok, find_fail);
-	printf("tp %0.2fM/s find_fail %d retry %d\n", AVG(find_ok+set, time_to_run)/1000000, find_fail, nretry);
+	printf("%s: tp %0.2fM/s find_fail %d retry %d\n", str, AVG(find_ok+set, time_to_run)/1000000, find_fail, nretry);
 }
 
 void usage(char *s) {
@@ -104,18 +126,6 @@ void usage(char *s) {
 }
 
 int main(int argc, char *argv[]) {
-int dst = 1;   
-int src = 1;
-
-// aadd: dst is a memory location, src is reg
-asm ("mov %1, %%eax; aadd %%eax, %0"
-     : "=m" (dst)
-     : "r" (src)
-     :"%eax"
-	);
-
-printf("%d\n", dst);
-
 	if (argc != 2) {
 		usage(argv[0]);
 	}
@@ -126,6 +136,8 @@ printf("%d\n", dst);
 	for (int i = 0; i < num_cores; i++) {
 		cores[i] = c_new(i, 1, i);
 	}
+	//test_atomics();
 	test_ba();
-	test_parallel();
+	test_parallel("set_find", run_set_find);
+	test_parallel("set", run_set);
 }

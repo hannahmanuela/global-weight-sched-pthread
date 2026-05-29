@@ -104,6 +104,18 @@ void usage(char *s) {
 }
 
 int main(int argc, char *argv[]) {
+int dst = 1;   
+int src = 1;
+
+// aadd: dst is a memory location, src is reg
+asm ("mov %1, %%eax; aadd %%eax, %0"
+     : "=m" (dst)
+     : "r" (src)
+     :"%eax"
+	);
+
+printf("%d\n", dst);
+
 	if (argc != 2) {
 		usage(argv[0]);
 	}

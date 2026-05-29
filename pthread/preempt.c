@@ -9,18 +9,30 @@
 // XXX implement with new reduction instructions (AOR)?
 //
 
+extern bool use_rapids;
+
 #define CID(i, bit)  ((i) * (sizeof(unsigned long) * 8) + bit - 1)
 #define BAINDEX(cid) ((cid) / 8)
 #define BAOFFSET(cid) ((cid) % sizeof(unsigned long))
 
 // only current core should call preemptable_set for itself
-bool preemptable_set(bitarray_t ba, int cid) {
-	unsigned long r = atomic_fetch_or(&ba[0], (1 << cid));
-	bool set = r & (1 << cid);
-	if (!set) {
-		mycore()->npreempt_set++;
+void preemptable_set(bitarray_t ba, int cid) {
+	if (use_rapids) {
+		aor((1 << cid), ba[0]);
+	} else {
+		unsigned long r = atomic_fetch_or(&ba[0], (1 << cid));
+		bool set = r & (1 << cid);
+		if (!set) {
+			mycore()->npreempt_set++;
+		}
 	}
-	return !set;
+}
+
+// for testing
+bool preemptable_is_set(bitarray_t ba, int cid) {
+	unsigned long word = atomic_load(&ba[0]);
+	bool set = word & (1 << cid);
+	return set;
 }
 
 bool preemptable_clear(bitarray_t ba, int cid) {

@@ -10,9 +10,10 @@
 
 typedef atomic_long bitarray_t[NBITARRAY];
 
-bool preemptable_set(bitarray_t, int cid);
+void preemptable_set(bitarray_t, int cid);
 bool preemptable_clear(bitarray_t, int cid);
 int preemptable_find_and_clear(bitarray_t);
+bool preemptable_is_set(bitarray_t, int cid);
 
 static inline void aadd(int src, int dst) {
         // aadd: dst is a memory location, src is reg

@@ -41,7 +41,8 @@ void test_ba() {
 	int i = preemptable_find_and_clear(ba);
 	assert(i == -1);
 	assert(mycore()->npreempt_find_fail > 0);
-	ok = preemptable_set(ba, 3);
+	preemptable_set(ba, 3);
+	ok = preemptable_is_set(ba, 3);
 	assert(ok);
 	i = preemptable_find_and_clear(ba);
 	assert(i == 3);
@@ -49,17 +50,11 @@ void test_ba() {
 	i = preemptable_find_and_clear(ba);
 	assert(i == -1);
 
-	ok = preemptable_set(ba, 0);
+	preemptable_set(ba, 0);
+	ok = preemptable_is_set(ba, 0);
 	assert(ok);
 	i = preemptable_find_and_clear(ba);
 	assert(i == 0);
-
-	ok = preemptable_set(ba, 3);
-	assert(ok);
-	ok = preemptable_set(ba, 3);
-	assert(!ok);
-	i = preemptable_find_and_clear(ba);
-	assert(i == 3);
 }
 
 void run_set_find(int cid) {

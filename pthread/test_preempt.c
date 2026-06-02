@@ -15,7 +15,7 @@
 int num_cores = 2;
 bool do_affinity = false;
 bool do_latency = false;
-bool use_rapids = false;
+bool use_rao_int = false;
 struct core **cores;
 int time_to_run = 2;
 
@@ -93,7 +93,6 @@ void *run_core(void* core) {
 
 void test_parallel(char *str, void (*f)(int)) {
 	parallel_func = f;
-	printf("parallel_func %p\n", parallel_func);
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(cores[i]));
@@ -128,7 +127,7 @@ int main(int argc, char *argv[]) {
 	while ((opt = getopt(argc, argv, "r")) != -1) {
 		switch(opt) {
 		case 'r':
-			use_rapids = true;
+			use_rao_int = true;
 			break;
 		}
 	}
@@ -143,7 +142,7 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < num_cores; i++) {
 		cores[i] = c_new(i, 1, i);
 	}
-	if (use_rapids) test_atomics();
+	if (use_rao_int) test_atomics();
 	test_ba();
 	test_parallel("set_find", run_set_find);
 	test_parallel("set", run_set);

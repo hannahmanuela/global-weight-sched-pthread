@@ -5,11 +5,7 @@
 #include "preempt.h"
 #include "core.h"
 
-//
-// XXX implement with new reduction instructions (AOR)?
-//
-
-extern bool use_rapids;
+extern bool use_rao_int;  // for atomic instructions such as AOR
 
 #define CID(i, bit)  ((i) * (sizeof(unsigned long) * 8) + bit - 1)
 #define BAINDEX(cid) ((cid) / 8)
@@ -17,7 +13,7 @@ extern bool use_rapids;
 
 // only current core should call preemptable_set for itself
 void preemptable_set(bitarray_t ba, int cid) {
-	if (use_rapids) {
+	if (use_rao_int) {
 		aor((1 << cid), ba[0]);
 	} else {
 		unsigned long r = atomic_fetch_or(&ba[0], (1 << cid));

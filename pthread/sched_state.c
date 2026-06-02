@@ -29,6 +29,7 @@ bool use_power2_insert = true;
 int num_groups = DEF_NUM_GROUPS;
 int ratio = 1;
 bool do_latency = false;
+bool use_rao_int = false;
 int scheduler;
 struct sched_state *ss_global;
 

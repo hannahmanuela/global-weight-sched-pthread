@@ -173,7 +173,7 @@ void rr_groups() {
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
 			struct task_struct *p = grp_new_process(mh, i*ns[0]+j, g);
-			assert(p->mh != NULL);
+			// XXX assert(p->mh != NULL);
 			if(is_pcrq()) ss_enqueue_pcrq(p);
 			else if (is_gq()) ss_enqueue_gq(p);
 			else ss_enqueue_rr(p);

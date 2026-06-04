@@ -19,7 +19,6 @@
 extern bool debug;
 extern struct sched_state *ss_global;
 
-// Select next process to run from mh
 struct task_struct *ss_schedule_q(queue_t *q) {
 	struct task_struct *min_proc = NULL;
 
@@ -41,8 +40,13 @@ struct task_struct *ss_schedule_q(queue_t *q) {
 
 static void enq_proc_vt(struct task_struct *p) {
 	p->he.vruntime = safe_read_tsc();
+	queue_t *q = &ss_global->q_h;
+	if (p->group->gid == RR_LOW) {
+		q = &ss_global->q_l;
+	}
+	
 	while(1) {
-		if(queue_push(&ss_global->q, p))
+		if(queue_push(q, p))
 			break;
 	}
 	// assert(ok);
@@ -57,7 +61,14 @@ struct task_struct *ss_schedule_gq(struct task_struct *prev) {
 		}
 		enq_proc_vt(prev);
 	}
-	return ss_schedule_q(&ss_global->q);
+	struct task_struct *p = ss_schedule_q(&ss_global->q_h);
+	if (p != NULL) {
+		return p;
+	}
+	if ((p = ss_schedule_q(&ss_global->q_l)) != NULL) {
+			mycore()->nrr_skip_high++;
+	}
+	return p;
 }
 
 // Enqueue p at the ends of its group's queue
@@ -72,7 +83,6 @@ void ss_enqueue_gq(struct task_struct *p) {
 // Process p yields after it ran for a tick, append it to the end of its queue
 void ss_yield_gq(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
-
 }
 
 // Process p is not runnable and yields core

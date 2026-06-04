@@ -27,7 +27,8 @@ struct sched_state {
 	struct mheap *mh;
 	struct mheap *mh1;   // for low priority rr procs
 
-	queue_t q __calign__;
+	queue_t q_h __calign__;
+	queue_t q_l __calign__;
 
 	dllist_t preemptq __calign__;
 

@@ -19,25 +19,6 @@
 extern bool debug;
 extern struct sched_state *ss_global;
 
-struct task_struct *ss_schedule_q(queue_t *q) {
-	struct task_struct *min_proc = NULL;
-
-	min_proc = queue_pop(q);
-	if (min_proc == NULL) {
-		mycore()->process = NULL;
-		mycore()->nsched_null += 1;
-		return NULL;
-	}
-
-	if(debug) {
-		printf("%d: schedule_gq %d(%d) vt %lld\n", mycore()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
-	}
-	if(mycore()->fd > 0) {
-		c_log_append(min_proc);
-	}
-	return min_proc;
-}
-
 static void enq_proc_vt(struct task_struct *p) {
 	p->he.vruntime = safe_read_tsc();
 	queue_t *q = &ss_global->q_h;
@@ -50,7 +31,6 @@ static void enq_proc_vt(struct task_struct *p) {
 			break;
 	}
 	// assert(ok);
-	mycore()->process = NULL;
 }
 
 // Select next process to run
@@ -59,14 +39,39 @@ struct task_struct *ss_schedule_gq(struct task_struct *prev) {
 		if(debug) {
 			printf("%d(%d): yield_gq \n", prev->pid, prev->group->gid);
 		}
-		enq_proc_vt(prev);
 	}
-	struct task_struct *p = ss_schedule_q(&ss_global->q_h);
+	struct task_struct *p = queue_pop(&ss_global->q_h);
 	if (p != NULL) {
-		return p;
+		if(prev != NULL) {
+			enq_proc_vt(prev);
+		}
+		goto ok;
 	}
-	if ((p = ss_schedule_q(&ss_global->q_l)) != NULL) {
-			mycore()->nrr_skip_high++;
+	if (prev != NULL && prev->group->gid == RR_HIGH) {
+		p = prev;
+		mycore()->nlocal += 1;
+		goto ok;
+	}
+
+	mycore()->nrr_skip_high++;
+	if ((p = queue_pop(&ss_global->q_l)) != NULL) {
+		if(prev != NULL) {
+			enq_proc_vt(prev);
+		}
+		goto ok;
+	} else if (prev != NULL) {
+		p = prev;
+		mycore()->nlocal += 1;
+		goto ok;
+	}
+	mycore()->nsched_null += 1;
+	return NULL;
+ok:
+	if(debug) {
+		printf("%d: schedule_gq %d(%d) vt %lld\n", mycore()->cid, p->pid, p->group->gid, p->he.vruntime);
+	}
+	if(mycore()->fd > 0) {
+		c_log_append(p);
 	}
 	return p;
 }

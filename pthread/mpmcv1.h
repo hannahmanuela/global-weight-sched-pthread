@@ -9,6 +9,7 @@
 
 // Lock-free MPMC ring buffer (Vyukov, 2010).
 // Fixed capacity; no malloc. QUEUE_CAPACITY must be a power of 2.
+// Using turn design
 
 #ifndef QUEUE_CAPACITY
 #define QUEUE_CAPACITY 1024

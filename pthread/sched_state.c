@@ -74,11 +74,6 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	return ss;
 }
 
-struct core *ss_choose_core(struct sched_state *ss, struct core *c) {
-	int i = c_rand(ss->ncore);
-	return ss->cs[i];
-}
-
 void ss_print(struct sched_state *ss, struct group *grps[], int n) {
 	mh_print(ss->mh);
 	printf("= groups %d:\n", n);

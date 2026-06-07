@@ -25,7 +25,7 @@ int time_to_run = 2;
 struct mheap *mh __calign__;
 
 void *run_core(void* core) {
-	#define N 16
+	#define N 64
 
 	struct core *mycore = (struct core *) core;
 	set_mycore(mycore);

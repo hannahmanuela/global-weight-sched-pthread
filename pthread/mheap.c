@@ -118,18 +118,6 @@ void mh_print(struct mheap *mh) {
 	printf("=\n");
 }
 
-void mh_check_notlocked(struct mheap *mh)  {
-	for (int i = 0; i < mh->nheap; i++) {
-		void *p = lock_holder(&(mh->h[i]->lk));
-		if (p == mycore()) {
-			printf("check heap %p(%d) core %d\n", mh, i, mycore()->cid);
-			printf("\n");
-			fflush(stdout);
-			assert(0);
-		}
-	}
-}
-
 float mh_load(struct mheap *mh, int *maxl) {
 	long tot = 0;
 	for (int i = 0; i < mh->nheap; i++) {

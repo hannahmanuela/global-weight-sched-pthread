@@ -91,7 +91,7 @@ void *run_core(void* core) {
 
 void test_parallel() {
 
-	#define N 16
+	#define N 64
 
 	queue_init(&q);
 	for (long i = 0; i < N; i++) {

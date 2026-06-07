@@ -35,7 +35,8 @@ static inline void queue_init(queue_t *q) {
 
 #define TURN(s) ((s)/QUEUE_CAPACITY)
 
-// Returns false if queue is full.
+// Returns false if queue is full.  Note push can return full, even if
+// there is space in the queue when there is a pop/push race.
 static inline bool queue_push(queue_t *q, void *val) {
 	size_t pos = atomic_load_explicit(&q->tail, memory_order_acquire);
 	for (;;) {
@@ -62,7 +63,8 @@ static inline bool queue_push(queue_t *q, void *val) {
 	}
 }
 
-// Returns NULL if empty.
+// Returns NULL if empty.  Note that pop can return NULL even if there
+// are items in the queue, if push/pop race.
 static inline void *queue_pop(queue_t *q) {
 	size_t pos = atomic_load_explicit(&q->head, memory_order_acquire);
 	for (;;) {

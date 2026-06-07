@@ -73,9 +73,18 @@ void *run_core(void* core) {
 
 	for (int i = 0; now() - start < time_to_run; i++) {
 		void *val = queue_pop(&q);
-		printf("val %d\n", (long) val);
-		assert(val != NULL);
+		// pop may return NULL, even if there items in the queue, retry
+		// because there are items in the q
+		while (val == NULL) {
+			val = queue_pop(&q);
+		}
+		mycore->ndeq++;
+		// similiarly push may return !ok, even when there is space
 		bool ok = queue_push(&q, val);
+		while (!ok) {
+			ok = queue_push(&q, val);
+		}
+		mycore->nenq++;
 		assert(ok);
 	}
 }
@@ -93,22 +102,15 @@ void test_parallel() {
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(cores[i]));
 	}
-	long nretry = 0;
-	long clear = 0;
-	long find_ok = 0;
-	long find_fail = 0;
-	long set = 0;
+	long nenq = 0;
+	long ndeq = 0;
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = cores[i];
 		pthread_join(threads[c->cid], NULL);
-		nretry += c->npreempt_retry;
-		clear += c->npreempt_clear;
-		set += c->npreempt_set;
-		find_ok += c->npreempt_find_ok;
-		find_fail += c->npreempt_find_fail;
+		nenq += c->nenq;
+		ndeq += c->ndeq;
 	}
-	printf("set %d find %d %d\n", set, find_ok, find_fail);
-	printf("tp %0.2fM/s find_fail %d retry %d\n", AVG(find_ok+set, time_to_run)/1000000, find_fail, nretry);
+	printf("tp %0.2fM/s\n", AVG(nenq+ndeq, time_to_run)/1000000);
 }
 
 void usage(char *s) {

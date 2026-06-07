@@ -9,22 +9,24 @@
 
 #include "util.h"
 #include "core.h"
-#include "mcounter.h"
+#include "mpmcv1.h"
+#include "mheap.h"
 
-int num_cores = 2;
+#define NCORES 10
+
+int num_cores;
 bool do_affinity = false;
 bool do_latency = false;
+bool debug = false;
+bool use_power2_insert = true;
 struct core **cores;
-int time_to_run = 1;
-struct mcntr *mc;
+int time_to_run = 2;
 
-void test_mc() {
-	mc_dec(mc, cores[0]);
-	bool b = mc_is_zero(mc, cores[0]);
-	printf("%d %d\n", b, mc_val(mc));
-}
+struct mheap *mh __calign__;
 
 void *run_core(void* core) {
+	#define N 16
+
 	struct core *mycore = (struct core *) core;
 	set_mycore(mycore);
 
@@ -37,36 +39,48 @@ void *run_core(void* core) {
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0)
 		error("couldn't set affininity\n");
 
-	int cont = 1;
+	if (mycore->cid == 0) {
+		for (long i = 0; i < N; i++) {
+			struct task_struct *p = proc_new(mh, i, 0);
+			p->he.vruntime = safe_read_tsc();
+			mh_insert_proc(mh, p);
+		}
+	}
+
 	double start = now();
+
 	for (int i = 0; now() - start < time_to_run; i++) {
-		mc_is_zero(mc, mycore);
-		mc_inc(mc, mycore);
-		mc_dec(mc, mycore);
+		struct task_struct *p = mh_min_proc_enq(mh, NULL, false);
+		while (p == NULL) {
+			p = mh_min_proc_enq(mh, NULL, false);	
+		}
+		mycore->ndeq++;
+
+		p->he.vruntime = safe_read_tsc();
+		mh_insert_proc(p->mh, p);
+		mycore->nenq++;
 	}
 }
 
 void test_parallel() {
+	mh = mh_new(num_cores * 2);
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(cores[i]));
 	}
-	long nis_zero = 0;
-	long ndec = 0;
-	long ninc = 0;
+	long nenq = 0;
+	long ndeq = 0;
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = cores[i];
 		pthread_join(threads[c->cid], NULL);
-		nis_zero += c->nmc_is_zero;
-		ndec += c->nmc_dec;
-		ninc += c->nmc_inc;
+		nenq += c->nenq;
+		ndeq += c->ndeq;
 	}
-	long tot = nis_zero + ndec + ninc;
-	printf("tp %0.2fM/s\n", AVG(tot, time_to_run)/1000000);
+	printf("tp %0.2fM/s\n", AVG(nenq+ndeq, time_to_run)/1000000);
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s: <num_cores>, where num_cores > 1\n", s);
+	fprintf(stderr, "%s: <num_cores>\n", s);
 	exit(1);
 
 }
@@ -76,15 +90,11 @@ int main(int argc, char *argv[]) {
 		usage(argv[0]);
 	}
 	num_cores = atoi(argv[1]);
-	if (num_cores < 2)
-		usage(argv[0]);
-	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
-	for (int i = 0; i < num_cores; i++) {
+	assert(num_cores <= NCORES);
+
+	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*NCORES, CACHE_LINE_SZ));
+	for (int i = 0; i < NCORES; i++) {
 		cores[i] = c_new(i, 1, i);
 	}
-	mc = mc_new();
-	assert(mc_is_zero(mc, cores[0]));
-
-	test_mc();
 	test_parallel();
 }

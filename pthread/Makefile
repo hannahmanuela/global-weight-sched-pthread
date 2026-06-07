@@ -1,4 +1,4 @@
-OBJ = sched_state.o gwfs.o rr.o pcrq.o gq.o process.o group.o mheap.o heap.o util.c ticks.o core.o lock.o mcounter.o scheduler.o preempt.o dllist.o
+OBJ = sched_state.o gwfs.o rr.o pcrq.o gq.o process.o group.o mheap.o heap.o util.o ticks.o core.o lock.o mcounter.o scheduler.o preempt.o dllist.o
 
 CC=gcc
 
@@ -33,8 +33,8 @@ test-dllist: test_dllist.o dllist.o lock.o core.o util.o
 test-gq: test_gq.o  lock.o core.o util.o
 	$(CC) -o $@ $^
 
-test-mheap: test_mheap.o process.o mheap.o heap.o lock.o core.o util.o ticks.o
-	$(CC) $(CFLAGS) -o $@ $^
+test-mheap: test_mheap.o process.o mheap.o heap.o ticks.o core.o util.o lock.o
+	$(CC) -o $@ $^
 
 logmerge: logmerge.o
 	$(CC) -o $@ $^

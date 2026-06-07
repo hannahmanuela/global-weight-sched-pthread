@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -190,9 +192,9 @@ retry:
 }
 
 // caller must hold heap lock
-void mh_add_process(struct task_struct *p, struct heap *h) {
-	p->h = h;
+static void mh_add_process(struct task_struct *p, struct heap *h) {
 	assert(p->mh != NULL);
+	p->h = h;
 	heap_push(h, &p->he);
 	if (debug) {
 		printf("%d(%d): add to heap %d\n", p->pid, p->group->gid, h->id);
@@ -288,7 +290,7 @@ static bool mh_keep_running_proc(vt_t vt0, int w, struct task_struct *curp) {
 		return true;
 	if (vt0 < curp->he.vruntime)
 		return false;
-	if ((vt0 == curp->he.vruntime) && (w > curp->group->weight))
+	if ((vt0 == curp->he.vruntime) && (w > curp->he.weight))
 		return false;
 	return true;
 }
@@ -409,92 +411,9 @@ struct task_struct *mh_min_proc_enq(struct mheap *mh, struct task_struct *to_add
 	return mh_sample_min_proc_enq(mh, to_add, all);
 }
 
-//
-// schedule with affinity: remember last process run on a core; if the core
-// sees it later at the front of the heap, it selects it, if another random queue
-// has a process of the same weight at the front (or no process at all).
-//
-
-static struct heap  __attribute__ ((noinline)) *mh_select_affinity(struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
-	vt_t ovt;
-	struct heap *h_i = mh->h[i];
-	struct heap *h_j = mh->h[j];
-	struct heap_elem *he_i = &(h_i->heap[0]);
-	struct heap_elem *he_j = &(h_j->heap[0]);
-	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
-	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
-	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
-	int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
-	if (vt_j == DUMMY) {
-		ovt = DUMMY;
-	} else if (w_i == w_j) {
-		ovt = vt_j;
-	} else {
-		if (vt_i > vt_j) {
-			ovt = vt_i;
-			vt_i = vt_j;
-			h_i = h_j;
-		} else {
-			ovt = vt_j;
-		}
-	}
-	*vt = vt_i;
-	*other_vt = ovt;
-	return h_i;
-}
-
-struct task_struct *mh_min_affinity(struct core *c) {
-	struct task_struct *cp = c->process;
-	struct heap *h = cp->h;
-	int cid = atomic_load_explicit(&cp->cid, __ATOMIC_RELAXED);
-	if (cid != c->cid) {  // some other core is running cp or has run it
-		c->miss[cp->group->gid]++;
-		return NULL;
-	}
-	if(atomic_load_explicit(&h->heap[0].elem, __ATOMIC_RELAXED) != cp) {
-		c->miss[cp->group->gid]++;
-		return NULL;
-	}
-	struct task_struct *p = NULL;
-	lock_acquire(&h->lk);
-	if((h->heap[0].elem != cp) || (cp->cid != c->cid)) {
-		c->miss[cp->group->gid]++;
-		goto end;
-	}
-	long r = 0;
-	long r_lock = 0;
-retry:
-	int j;
-	vt_t vt;
-	vt_t other_vt;
-	mh_rand_heap(cp->mh, h->id, &j);
-	struct heap *h1 = mh_select_affinity(cp->mh, h->id, j, &vt, &other_vt);
-	if (h1 == h) {
-		// printf("hit %d(%d) %d(%d):", h->id, vt, j, other_vt);
-		// mh_print_min(cp->mh);
-		c->hit[cp->group->gid]++;
-		p = mh_remove_min(h);
-		assert(cp == p);
-		assert(p->cid == cid);
-		mh_upd_stat(p, j, vt, other_vt, r, r_lock);
-		goto end;
-	}
-	int l = lock_try_acquire(&h1->lk);
-	if (l != 0) {
-		r++;
-		goto retry;
-	}
-	vt_t vt0 = h1->heap[0].vruntime;
-	if (vt != vt0) {
-		r_lock++;
-		lock_release(&h1->lk);
-		goto retry;
-	}	
-	c->miss[cp->group->gid]++;
-	p = mh_del_min_process(h1);
-	lock_release(&h1->lk);
-	mh_upd_stat(p, j, vt, other_vt, r, r_lock);
-end:
+void mh_insert_proc(struct mheap *mh, struct task_struct *p) {
+	struct heap *h = mh_choose_heap(p->mh);
+	mh_add_process(p, h);
 	lock_release(&h->lk);
-	return p;
 }
+

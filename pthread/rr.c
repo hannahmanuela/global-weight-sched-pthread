@@ -28,10 +28,8 @@ static void enqueue(struct task_struct *p) {
 		printf("%d: enqueue_rr %d(%d) %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
 		//mh_print(p->group->mh);
 	}
-	struct heap *h = mh_choose_heap(p->group->mh);
 	p->he.vruntime = safe_read_tsc();
-	mh_add_process(p, h);
-	lock_release(&h->lk);
+	mh_insert_proc(p->mh, p);
 }
 
 static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, bool all) {

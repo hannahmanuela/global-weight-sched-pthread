@@ -235,12 +235,9 @@ static void account_wakeup_gwfs(struct task_struct *p) {
 }
 
 static void put_task_in_rq_gwfs(struct task_struct *p) {
-	struct heap *h = mh_choose_heap(p->mh);
-	assert(p->h == NULL);
 	p->he.vruntime = proc_vt(p);
-	mh_add_process(p, h);
-	lock_release(&h->lk);
-
+	assert(p->h == NULL);
+	mh_insert_proc(p->mh, p);
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 		mh_print(p->group->mh);
@@ -262,9 +259,7 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 	if(!delay_yield) {
 		upd_offset(p, time_passed);
 		p->he.vruntime = proc_vt(p);
-		struct heap *h = mh_choose_heap(p->mh);
-		mh_add_process(p, h);
-		lock_release(&h->lk);
+		mh_insert_proc(p->mh, p);
 	}
 }
 

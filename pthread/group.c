@@ -6,6 +6,7 @@
 #include "util.h"
 #include "vt.h"
 #include "driver.h"
+#include "process.h"
 #include "heap.h"
 #include "mheap.h"
 #include "group.h"
@@ -25,15 +26,9 @@ static void grp_add_process(struct task_struct *p) {
 }
 
 struct task_struct *grp_new_process(struct mheap *mh, int id, struct group *group) {
-	struct task_struct *p = aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct task_struct), CACHE_LINE_SZ));
-	p->pid = id;
-	p->runtime = 0;
+	struct task_struct *p = proc_new(mh, id, group->weight);
 	p->group = group;
 	p->next = NULL;
-	heap_elem_init(&p->he, 0, group->weight, p);
-	// lock_init(&p->lk);
-	p->mh = mh;
-	p->h = NULL;
 	grp_add_process(p);
 	return p;
 }
@@ -53,10 +48,6 @@ struct group *grp_new(struct mheap *mh, int id, int weight) {
 	g->mh = mh;
 	return g;
 }
-
-void proc_print(struct task_struct *p) {
-	printf("[pid %d(%d) vt %lld w %d]", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
-}	
 
 void grp_set_vruntime(struct task_struct *p, vt_t vt) {
 	if(debug)

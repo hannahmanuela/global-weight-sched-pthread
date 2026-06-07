@@ -94,10 +94,8 @@ void test_load() {
 			struct sched_state *ss = mk_mheap(nheap, GRP1, PROC2, 0, gs, ws);
 			for (int i = 0; i < nproc; i++) {
 				struct task_struct *p = grp_new_process(ss->mh, i, gs[0]);
-				struct heap *h = mh_choose_heap(ss->mh);
 				p->he.vruntime = safe_read_tsc();
-				mh_add_process(p, h);
-				lock_release(&h->lk);
+				mh_insert_proc(ss->mh, p);
 			}
 			int maxl = 0;
 			float avg = mh_load(ss->mh, &maxl);

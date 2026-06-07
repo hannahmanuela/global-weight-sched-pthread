@@ -29,9 +29,8 @@ struct task_struct {
 	
 } __calign__;
 
-struct group *grp_new(struct mheap *mh, int id, int weight);
 void proc_print(struct task_struct *p);
-struct task_struct *grp_new_process(struct mheap *mh, int id, struct group *g);
+struct task_struct *proc_new(struct mheap *mh, int id, int weight);
 int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
 
 #endif

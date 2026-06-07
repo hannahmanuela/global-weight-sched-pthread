@@ -30,6 +30,8 @@ struct group {
 } __calign__;
 
 
+struct group *grp_new(struct mheap *mh, int id, int weight);
+struct task_struct *grp_new_process(struct mheap *mh, int id, struct group *group);
 void grp_stats(struct group *g, long tot);
 void grp_print(struct group *g);
 void grp_set_vruntime(struct task_struct *p, vt_t min);

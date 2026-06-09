@@ -8,7 +8,7 @@
 #include "heap.h"
 #include "util.h"
 
-#define N 4
+#define N 8
 
 bool do_affinity = false;
 bool do_latency = false;
@@ -20,7 +20,7 @@ struct elem {
 	
 void heap_elem_print(struct heap_elem *he) {
 	struct elem *e = container_of(he, struct elem, he);
-	printf("id %d vt %lld\n", e->id, he->vruntime);
+	printf("id %d vt %lld %p\n", e->id, he->vruntime, he);
 }
 
 void heap_print(struct heap *heap) {
@@ -31,24 +31,18 @@ void heap_print(struct heap *heap) {
 static struct elem* make_elem(int id, int vt) {
 	struct elem *e = malloc(sizeof(struct elem));
 	e->id = id;
-	heap_elem_init(&e->he, vt, 0, e);
+	heap_elem_init(&e->he, vt, 0);
 	return e;
 }
 
-int cmp_elem(struct heap_elem *a, struct heap_elem *b) {
-        if (a->vruntime < b->vruntime) return -1;
-        if (a->vruntime > b->vruntime) return 1;
-	return 0;
-}
-
-int main() {
+void test_min() {
 	struct heap *heap = heap_new();
 	struct elem *elems[N];
 	int i;
 
 	for (i = 0; i < N; i++) {
 		elems[i] = make_elem(i, i*N);
-		heap_push(heap, &(elems[i]->he));
+		heap_push(heap, &elems[i]->he);
 	}
     
 	assert(heap->heap_size == N);
@@ -59,7 +53,7 @@ int main() {
 	for (i = 0; i < N; i ++) {
 		he = heap_remove_min(heap);
 		assert(he->vruntime == i * N);
-		struct elem *e = (struct elem *) he->elem;
+		struct elem *e = container_of(he, struct elem, he);
 		assert(he->vruntime == e->he.vruntime);
 		e->he.vruntime += N*N;
 	}
@@ -70,17 +64,44 @@ int main() {
 		heap_push(heap, &(elems[i]->he));
 	}
 
-	heap_print(heap);
+	//heap_print(heap);
 
 	for (i = 0; i < N; i ++) {
 		he = heap_remove_min(heap);
 		assert(he->vruntime == (i * N) + N*N);
-		struct elem *e = (struct elem *) he->elem;
+		struct elem *e = container_of(he, struct elem, he);
 		assert(he->vruntime == e->he.vruntime);		
 		e->he.vruntime += N*N;
 	}
+	printf("heap tests min passed\n");
 
-	printf("heap tests passed\n");
+}
+
+void test_erase() {
+	struct heap *heap = heap_new();
+	struct elem *elems[N];
+	int i;
+
+	for (i = 0; i < N; i++) {
+		elems[i] = make_elem(i, i*N);
+		heap_push(heap, &(elems[i]->he));
+	}
+    
+	assert(heap->heap_size == N);
+	// int o = N/2;
+	int o = 1;
+	for (i = o; i < N + o; i++) {
+		printf("erase :");
+		heap_elem_print(&(elems[i%N]->he));
+		heap_print(heap);
+		bool ok = heap_erase(heap, &(elems[i % N])->he);
+		assert(ok);
+	}
+}
+
+int main() {
+	test_min();
+	test_erase();
 	return 0;
 }
 

@@ -31,6 +31,7 @@ struct task_struct *ss_schedule_pcrq(struct task_struct *prev) {
 	if(c->fd > 0) {
 		c_log_append(p);
 	}
+	p->h = ss_global->mh->h[c->cid];
 	return p;
 }
 

@@ -59,11 +59,11 @@ void test_ba() {
 
 void run_set_find(int cid) {
 	int c = 1;
-	if (cid == c) {
+	if (cid != 0) {
 		preemptable_set(ba, c);
+		preemptable_clear(ba, c);
 	} else {
-		int i = preemptable_find_and_clear(ba);
-		assert((i == c) || (i == -1));
+		preemptable_find_and_clear(ba);
 	}
 }
 

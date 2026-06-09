@@ -30,6 +30,8 @@ struct sched_state {
 	queue_t q_h __calign__;
 	queue_t q_l __calign__;
 
+	struct mheap *mh_r __calign__;
+
 	dllist_t preemptq __calign__;
 
 	preempt_t preempt __calign__;

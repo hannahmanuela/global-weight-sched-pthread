@@ -24,7 +24,7 @@ struct task_struct *ss_schedule_pcrq(struct task_struct *prev) {
 	struct heap_elem *he = heap_remove_min(ss_global->mh->h[c->cid]);
 	if(he == NULL)
 		return NULL;
-	struct task_struct *p = (struct task_struct *) he->elem;
+	struct task_struct *p = container_of(he, struct task_struct, he);
 	if(debug) {
 		printf("%d: schedule %d(%d)\n", c->cid, p->pid, p->group->gid);
 	}

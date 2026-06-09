@@ -36,7 +36,7 @@ struct mheap *mh_new(int n) {
 		lock_init(&(mh->h[i]->lk));
 		// insert a dummy element so that the heap always has one elemement
 		struct heap_elem* he = malloc(sizeof(struct heap_elem));
-		heap_elem_init(he, DUMMY, W_DUMMY, NULL);
+		heap_elem_init(he, DUMMY, W_DUMMY);
 		heap_push(mh->h[i], he);
 	}
 	mh->nheap = n;
@@ -72,7 +72,7 @@ vt_t mh_last_vt(struct heap *h) {
 static vt_t heap_check(struct heap *h) {
 	vt_t min = mh_min_vt(h);
 	for (int i = 0; i < h->heap_size; i++) {
-		assert(min <= h->heap[i].vruntime);
+		assert(min <= h->heap[i]->vruntime);
 	}
 }
 
@@ -92,7 +92,7 @@ static void print_elem(struct heap_elem *e) {
 		printf("[dummy vt %lld w %d]", e->vruntime, e->weight);
 		return;
 	}
-	struct task_struct *p = (struct task_struct *) e->elem;
+	struct task_struct *p = container_of(e, struct task_struct, he);
 	printf("("); proc_print(p); printf(")");
 }
 
@@ -101,7 +101,7 @@ void mh_print_min(struct mheap *mh) {
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
 		printf("%d(%d): ", i, h->heap_size);
-		print_elem(&h->heap[0]);
+		print_elem(h->heap[0]);
 		printf("\n");
 	}
 	printf("=\n");
@@ -193,7 +193,7 @@ static void mh_add_process(struct task_struct *p, struct heap *h) {
 static struct task_struct *mh_remove_min(struct heap *h) {
 	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
-	return (struct task_struct *) he->elem;
+	return container_of(he, struct task_struct, he);
 }
 
 // caller must hold heap lock
@@ -223,8 +223,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int 
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	vt_t vt_i = atomic_load_explicit(&h_i->heap[0].vruntime, __ATOMIC_RELAXED);
-	vt_t vt_j = atomic_load_explicit(&h_j->heap[0].vruntime, __ATOMIC_RELAXED);
+	vt_t vt_i = atomic_load_explicit(&h_i->heap[0]->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&h_j->heap[0]->vruntime, __ATOMIC_RELAXED);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
 		return NULL;
 	}
@@ -239,8 +239,8 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int 
 			h_i = h_j;
 		} else if (vt_i == vt_j) {
 			ovt = vt_i;
-			struct heap_elem *he_i = &h_i->heap[0];
-			struct heap_elem *he_j = &h_j->heap[0];
+			struct heap_elem *he_i = h_i->heap[0];
+			struct heap_elem *he_j = h_j->heap[0];
 			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
 			int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
 			if (w_j > w_i) {	
@@ -260,7 +260,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min(struct hea
 	if (l != 0) {
 		return NULL;
 	}
-	vt_t vt0 = h->heap[0].vruntime;
+	vt_t vt0 = h->heap[0]->vruntime;
 	// vt_t vt0 = h->min_vt;
 	if (vt != vt0) {
 		lock_release(&h->lk);
@@ -286,7 +286,7 @@ static bool mh_keep_running_proc(vt_t vt0, int w, struct task_struct *curp) {
 // caller must have h locked
 static struct task_struct *mh_keep_running_or_switch(struct heap *h, vt_t vt, int w, struct task_struct *to_add) {
 	struct task_struct *p = NULL;
-	if (mh_keep_running_proc(vt, h->heap[0].weight, to_add)) {
+	if (mh_keep_running_proc(vt, h->heap[0]->weight, to_add)) {
 		// pretend we added and removed to_add from the heap
 		h->last_vt = to_add->he.vruntime;
 		to_add->h = h;
@@ -307,13 +307,13 @@ static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(s
 	if (l != 0) {
 		return NULL;
 	}
-	vt_t vt0 = h->heap[0].vruntime;
+	vt_t vt0 = h->heap[0]->vruntime;
 	// vt_t vt0 = h->min_vt;
 	if (vt != vt0) {
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct task_struct *p = mh_keep_running_or_switch(h, vt, h->heap[0].weight, to_add);
+	struct task_struct *p = mh_keep_running_or_switch(h, vt, h->heap[0]->weight, to_add);
 	lock_release(&h->lk);
 	return p;
 }
@@ -322,7 +322,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_all_min_proc(struct mh
 	struct task_struct *p = NULL;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[MH_IND(mh, i+s)];
-		vt_t vt = atomic_load_explicit(&h->heap[0].vruntime, __ATOMIC_RELAXED);
+		vt_t vt = atomic_load_explicit(&h->heap[0]->vruntime, __ATOMIC_RELAXED);
 		if (vt != DUMMY && ((p = mh_try_del_min(h, vt)) != NULL)) {
 			lock_release(&h->lk);
 			break;
@@ -405,3 +405,9 @@ void mh_insert_proc(struct mheap *mh, struct task_struct *p) {
 	lock_release(&h->lk);
 }
 
+void mh_remove_proc(struct mheap *mh, struct task_struct *p) {
+	struct heap *h = p->h;
+	lock_acquire(&h->lk);
+	heap_erase(h, &p->he);
+	lock_release(&h->lk);
+}

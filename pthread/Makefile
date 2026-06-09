@@ -27,6 +27,9 @@ test-mcntr: test_mcntr.o mcounter.o lock.o core.o util.o
 test-preempt: test_preempt.o preempt.o lock.o core.o util.o
 	$(CC) -o $@ $^
 
+test-running: test_running.o running.o process.o mheap.o heap.o ticks.o lock.o core.o util.o
+	$(CC) -o $@ $^
+
 test-dllist: test_dllist.o dllist.o lock.o core.o util.o
 	$(CC) -o $@ $^
 

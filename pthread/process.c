@@ -14,7 +14,7 @@ struct task_struct *proc_new(struct mheap *mh, int id, int w) {
 	p->runtime = 0;
 	p->group = NULL;
 	p->next = NULL;
-	heap_elem_init(&p->he, 0, w, p);
+	heap_elem_init(&p->he, 0, w);
 	// lock_init(&p->lk);
 	p->mh = mh;
 	p->h = NULL;

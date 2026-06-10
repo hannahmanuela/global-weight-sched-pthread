@@ -26,6 +26,7 @@ bool do_affinity = false;
 bool do_preempt = false;
 bool delay_yield = false;
 bool use_power2_insert = true;
+bool use_runningq = false;
 int num_groups = DEF_NUM_GROUPS;
 int ratio = 1;
 bool do_latency = false;
@@ -38,7 +39,9 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	ss_global = ss;
 	ss->tick_length = tick_length;
 	ss->mh = mh_new(nheap);
-	if(is_rr()) ss->mh1 = mh_new(nheap);
+	if(is_rr()) {
+		ss->mh_l = mh_new(nheap);
+	}
 	ss->cs = cs;
 	ss->ncore = ncore;
 	ss->preempt = PREEMPT(0, MAXWEIGHT, 0);
@@ -46,6 +49,9 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	if(is_gq()) {
 		queue_init(&ss->q_h);
 		queue_init(&ss->q_l);
+	}
+	if(use_runningq) {
+		ss->mh_r = mh_new(nheap);
 	}
 
 	switch (scheduler) {

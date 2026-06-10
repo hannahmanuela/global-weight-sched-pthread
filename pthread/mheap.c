@@ -180,16 +180,6 @@ retry:
 }
 
 // caller must hold heap lock
-static void mh_add_process(struct task_struct *p, struct heap *h) {
-	assert(p->mh != NULL);
-	p->h = h;
-	heap_push(h, &p->he);
-	if (debug) {
-		printf("%d(%d): add to heap %d\n", p->pid, p->group->gid, h->id);
-	}
-}
-
-// caller must hold heap lock
 static struct task_struct *mh_remove_min(struct heap *h) {
 	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
@@ -296,7 +286,8 @@ static struct task_struct *mh_keep_running_or_switch(struct heap *h, vt_t vt, in
 		assert(p != NULL);
 		if (to_add != NULL)  {
 			mycore()->ndelay_yield++;
-			mh_add_process(to_add, h);
+			heap_push(h, &to_add->he);
+			to_add->h = h;
 		}
 	}
 	return p;
@@ -365,7 +356,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 		if(lock_try_acquire(&h->lk) != 0) {
 			h = mh_choose_heap(mh);
 		}
-		mh_add_process(curp, h);
+		heap_push(h, &curp->he);
 		lock_release(&h->lk);
 	} else if (p != NULL) {
 		// XXX pretend we added and removed to_add from the heap
@@ -399,15 +390,16 @@ struct task_struct *mh_min_proc_enq(struct mheap *mh, struct task_struct *to_add
 	return mh_sample_min_proc_enq(mh, to_add, all);
 }
 
-void mh_insert_proc(struct mheap *mh, struct task_struct *p) {
-	struct heap *h = mh_choose_heap(p->mh);
-	mh_add_process(p, h);
+// returns chosen h for e, so that caller can pass it to mh_remove_elem
+struct heap *mh_insert_elem(struct mheap *mh, struct heap_elem *e) {
+	struct heap *h = mh_choose_heap(mh);
+	heap_push(h, e);
 	lock_release(&h->lk);
+	return h;
 }
 
-void mh_remove_proc(struct mheap *mh, struct task_struct *p) {
-	struct heap *h = p->h;
+void mh_remove_elem(struct heap *h, struct heap_elem *e) {
 	lock_acquire(&h->lk);
-	heap_erase(h, &p->he);
+	heap_erase(h, e);
 	lock_release(&h->lk);
 }

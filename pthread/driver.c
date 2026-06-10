@@ -42,6 +42,7 @@ extern int num_groups;
 extern bool debug;
 extern bool do_affinity;
 extern bool do_preempt;
+extern bool use_runningq;
 extern bool rr;
 extern bool use_power2_insert;
 extern int scheduler;
@@ -168,7 +169,7 @@ void rr_groups() {
 
 	for (int i = 0; i < num_groups; i++) {
 		struct mheap *mh = gs->ss->mh;
-		if(i == RR_LOW) mh = gs->ss->mh1;
+		if(i == RR_LOW) mh = gs->ss->mh_l;
 		struct group *g = grp_new(mh, i, 10);
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
@@ -192,6 +193,7 @@ void rr_sched_action(struct core *mycore) {
 		} else if (benchmark == 2) {
 			bool high = (mycore->process != NULL) && (mycore->process->group->gid == RR_HIGH);
 			if(high) {
+				// if LC go to sleep;  likely to run BE
 				action(gs->ss, mycore, SLEEP);
 				doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 				if(time_work > 0) usleep(time_work);
@@ -268,7 +270,7 @@ void main(int argc, char *argv[]) {
 	int nheap = 0;
 	int tick_length = 1000;
 
-	while ((opt = getopt(argc, argv, "2adpyb:g:w:h:r:l:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "2adpqyb:g:w:h:r:l:t:")) != -1) {
 		switch(opt) {
 		case '2':
 			use_power2_insert = false;
@@ -281,6 +283,9 @@ void main(int argc, char *argv[]) {
 			break;
 		case 'p':
 			do_preempt = true;
+			break;
+		case 'q':
+			use_runningq = true;
 			break;
 		case 'y':
 			delay_yield = true;

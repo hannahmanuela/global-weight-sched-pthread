@@ -1,6 +1,6 @@
-#ifndef _PREEMPT_H_
+#ifndef _RUNNING_H_
 
-#define _PREEMPT_H_
+#define _RUNNING_H_
 
 #include "core.h"
 #include "process.h"

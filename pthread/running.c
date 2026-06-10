@@ -1,20 +1,23 @@
 #include <stdio.h>
 #include <stdatomic.h>
+#include <assert.h>
 
 #include "running.h"
 #include "core.h"
 
 void running_set(struct mheap *mh, struct task_struct *p, int cid) {
+	assert(p->cid == -1);
 	p->cid = cid;
 	p->he.vruntime = safe_read_tsc();
-	mh_insert_proc(mh, p);
+	mh_insert_elem(mh, &p->he);
 	mycore()->npreempt_set++;
 }
 
 bool running_clear(struct mheap *mh, struct task_struct *p) {
+	assert(p->cid >= 0);
 	p->cid = -1;
 	mycore()->npreempt_clear++;
-	mh_remove_proc(mh, p);
+	mh_remove_elem(p->h, &p->he);
 }
 
 int running_find_and_clear(struct mheap *mh) {

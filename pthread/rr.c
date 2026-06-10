@@ -10,6 +10,7 @@
 #include "sched_state.h"
 #include "core.h"
 #include "preempt.h"
+#include "running.h"
 #include "mheap.h"
 #include "rr.h"
 
@@ -20,6 +21,7 @@
 extern bool debug;
 extern bool do_preempt;
 extern int num_groups;
+extern bool use_runningq;
 extern struct sched_state *ss_global;
 
 static void enqueue(struct task_struct *p) {
@@ -29,7 +31,7 @@ static void enqueue(struct task_struct *p) {
 		//mh_print(p->group->mh);
 	}
 	p->he.vruntime = safe_read_tsc();
-	mh_insert_proc(p->mh, p);
+	p->h = mh_insert_elem(p->mh, &p->he);
 }
 
 static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, bool all) {
@@ -44,6 +46,7 @@ static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_stru
 		}
 		if (do_preempt && (prev != NULL) && !deq) {
 			assert(prev->group->gid == RR_LOW);
+			running_clear(ss_global->mh_r, p);
 			enqueue(prev);
 		}
 	}
@@ -101,7 +104,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 		}
 
 		// no proc in high heaps; go for low
-		if ((p = ss_schedule_mh_enq(ss_global->mh1, prev, false)) != NULL) {
+		if ((p = ss_schedule_mh_enq(ss_global->mh_l, prev, false)) != NULL) {
 			assert(p->group->gid == RR_LOW);
 			goto ok;
 		}
@@ -110,7 +113,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 		if (prev != NULL) {
 			assert(prev->group->gid == RR_LOW);
 			if (debug) {
-				printf("%d: locally run low %d(%d) %p\n", mycore()->cid, prev->pid, prev->group->gid, ss_global->mh1);
+				printf("%d: locally run low %d(%d) %p\n", mycore()->cid, prev->pid, prev->group->gid, ss_global->mh_l);
 			}
 			mycore()->nlocal += 1;
 			p = prev;
@@ -125,10 +128,14 @@ ok:
 		printf("%d: running %d(%d)\n", mycore()->cid, p->pid, p->group->gid);
 	}
 	if (do_preempt && (p->group->gid == RR_LOW)) {
-		// reset preemtable if switching from high to
-		// a low proc, or if were prempted
-		if(!low || preempted)
-			preemptable_set(ss_global->preemptable, mycore()->cid);
+		if (use_runningq) {
+			running_set(ss_global->mh_r, p, mycore()->cid);
+		} else {
+			// reset preemtable if switching from high to
+			// a low proc, or if were prempted
+			if(!low || preempted)
+				preemptable_set(ss_global->preemptable, mycore()->cid);
+		}
 	}
 		
 	c_lat(p);
@@ -144,7 +151,11 @@ void ss_enqueue_rr(struct task_struct *p) {
 	int cid = -1;
 	assert(p->mh != NULL);
 	if (do_preempt && p->group->gid == RR_HIGH) {
-		cid = preemptable_find_and_clear(ss_global->preemptable);
+		if (use_runningq) {
+			cid = running_find_and_clear(ss_global->mh_r);
+		} else {
+			cid = preemptable_find_and_clear(ss_global->preemptable);
+		}
 	}
 	if (debug) {
 		printf("%d: ss_enqueue_rr %d(%d) dopreempt? %d\n", c->cid, p->pid, p->group->gid, cid);
@@ -161,6 +172,7 @@ void ss_yield_rr(struct task_struct *p, t_t time_passed) {
 }
 
 // process p goes to sleep
+// XXX remove from preemtable and running
 void ss_dequeue_rr(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {

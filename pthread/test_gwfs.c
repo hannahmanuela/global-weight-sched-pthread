@@ -95,7 +95,7 @@ void test_load() {
 			for (int i = 0; i < nproc; i++) {
 				struct task_struct *p = grp_new_process(ss->mh, i, gs[0]);
 				p->he.vruntime = safe_read_tsc();
-				mh_insert_proc(ss->mh, p);
+				mh_insert_elem(ss->mh, &p->he);
 			}
 			int maxl = 0;
 			float avg = mh_load(ss->mh, &maxl);

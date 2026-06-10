@@ -27,7 +27,7 @@ struct heap *mh_choose_heap(struct mheap *mh);
 struct task_struct *mh_min_affinity(struct core *c);
 float mh_load(struct mheap *mh, int *maxl);
 void mh_rand_heaps(struct mheap *mh, int *i, int *j);
-void mh_insert_proc(struct mheap *mh, struct task_struct *p);
-void mh_remove_proc(struct mheap *mh, struct task_struct *p);
+struct heap *mh_insert_elem(struct mheap *mh, struct heap_elem *e);
+void mh_remove_elem(struct heap *h, struct heap_elem *e);
 
 #endif

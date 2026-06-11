@@ -10,12 +10,18 @@
 struct group;
 
 struct task_struct {
+	// for runnable mheap
 	struct heap_elem he;
 	struct heap *h;
 
+	// for running mheap
+	struct heap_elem he_r;
+	struct heap *h_r;
+
 	t_t runtime;  // __calign__;  // number of us the process ran
 
-	struct mheap *mh;
+	struct mheap *mh; 
+
 	struct group *group;
 
 	int pid;

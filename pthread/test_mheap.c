@@ -42,8 +42,8 @@ void *run_core(void* core) {
 	if (mycore->cid == 0) {
 		for (long i = 0; i < N; i++) {
 			struct task_struct *p = proc_new(mh, i, 0);
-			p->he_r.vruntime = safe_read_tsc();
-			mh_insert_elem(mh, &p->he_r);
+			p->he.vruntime = safe_read_tsc();
+			mh_insert_elem(mh, &p->he);
 		}
 	}
 
@@ -56,8 +56,8 @@ void *run_core(void* core) {
 		}
 		mycore->ndeq++;
 
-		p->he_r.vruntime = safe_read_tsc();
-		mh_insert_elem(p->mh, &p->he_r);
+		p->he.vruntime = safe_read_tsc();
+		mh_insert_elem(mh, &p->he);
 		mycore->nenq++;
 	}
 }

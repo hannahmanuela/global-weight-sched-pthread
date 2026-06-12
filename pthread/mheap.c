@@ -31,6 +31,7 @@ struct mheap *mh_new(int n) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct heap) * n, CACHE_LINE_SZ));
 	for (int i=0; i < n; i++) {
+
 		mh->h[i] = heap_new();
 		mh->h[i]->id = i;
 		lock_init(&(mh->h[i]->lk));
@@ -339,6 +340,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 			break;
 		} 
 		if ((p = mh_try_del_min_enq_prev(h, vt, curp)) != NULL) {
+			p->h = h;
 			curp = NULL;
 			break;
 		}
@@ -357,6 +359,7 @@ static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(st
 			h = mh_choose_heap(mh);
 		}
 		heap_push(h, &curp->he);
+		curp->h = h;
 		lock_release(&h->lk);
 	} else if (p != NULL) {
 		// XXX pretend we added and removed to_add from the heap
@@ -372,6 +375,7 @@ struct task_struct *mh_min_proc_one_heap(struct mheap *mh, struct task_struct *t
 	struct heap_elem *he = mh_min(h);
 	struct task_struct *p = mh_keep_running_or_switch(h, he->vruntime, he->weight, to_add);
 	lock_release(&h->lk);
+	if(p) p->h = h;
 	return p;
 }
 

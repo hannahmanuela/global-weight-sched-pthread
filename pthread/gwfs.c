@@ -145,10 +145,10 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		mycore()->nsched_null += 1;
 		return NULL;
 	}
-
+	assert(min_proc->h != NULL);
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %lld\n", mycore()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
-		mh_print(min_proc->mh);
+		mh_print(min_proc->group->mh);
 	}
 	if(mycore()->fd > 0) {
 		c_log_append(min_proc);
@@ -225,7 +225,7 @@ static void account_wakeup_gwfs(struct task_struct *p) {
 		vt_t offset = p->group->vruntime - p->group->min_vt_deq;
                 // XXX kernel API: no min, so min_vt doesn't the heap that p will be inserted in,
 		// defaulting to heap 0
-		vt_t h_min = min_vt(mh_heap(p->mh, 0));
+		vt_t h_min = min_vt(mh_heap(p->group->mh, 0));
 		if(p->group->min_vt_deq > h_min) {
 			offset += (p->group->min_vt_deq-h_min);
 		}
@@ -237,7 +237,7 @@ static void account_wakeup_gwfs(struct task_struct *p) {
 static void put_task_in_rq_gwfs(struct task_struct *p) {
 	p->he.vruntime = proc_vt(p);
 	assert(p->h == NULL);
-	mh_insert_elem(p->mh, &p->he);
+	mh_insert_elem(p->group->mh, &p->he);
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 		mh_print(p->group->mh);
@@ -259,7 +259,7 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 	if(!delay_yield) {
 		upd_offset(p, time_passed);
 		p->he.vruntime = proc_vt(p);
-		p->h = mh_insert_elem(p->mh, &p->he);
+		p->h = mh_insert_elem(p->group->mh, &p->he);
 	}
 }
 

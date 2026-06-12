@@ -12,15 +12,13 @@ struct group;
 struct task_struct {
 	// for runnable mheap
 	struct heap_elem he;
-	struct heap *h;
+	struct heap *h;   // for gwfs and pcrq
 
 	// for running mheap
 	struct heap_elem he_r;
 	struct heap *h_r;
 
 	t_t runtime;  // __calign__;  // number of us the process ran
-
-	struct mheap *mh; 
 
 	struct group *group;
 
@@ -36,7 +34,7 @@ struct task_struct {
 } __calign__;
 
 void proc_print(struct task_struct *p);
-struct task_struct *proc_new(struct mheap *mh, int id, int weight);
+struct task_struct *proc_new(int id, int weight);
 int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
 
 #endif

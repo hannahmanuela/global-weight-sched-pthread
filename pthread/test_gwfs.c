@@ -57,7 +57,7 @@ static struct sched_state *mk_mheap(int nheap, int ngrp, int nproc, int tl, stru
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(ss->mh, i, ws[i]);
 		for (int j = 0; j < nproc; j++) {
-			struct task_struct *p = grp_new_process(ss->mh, i * nproc + j, gs[i]);
+			struct task_struct *p = grp_new_process(i * nproc + j, gs[i]);
 			ss_enqueue_gwfs(p);
 		}
 	}
@@ -93,7 +93,7 @@ void test_load() {
 		for (int t = 0; t < ntrial; t++) {
 			struct sched_state *ss = mk_mheap(nheap, GRP1, PROC2, 0, gs, ws);
 			for (int i = 0; i < nproc; i++) {
-				struct task_struct *p = grp_new_process(ss->mh, i, gs[0]);
+				struct task_struct *p = grp_new_process(i, gs[0]);
 				p->he.vruntime = safe_read_tsc();
 				mh_insert_elem(ss->mh, &p->he);
 			}
@@ -311,8 +311,8 @@ void test_running_offset() {
 		gs[i] = grp_new(ss->mh, i, ws[i]);
 	}
 
-	struct task_struct *p1 = grp_new_process(ss->mh, 0, gs[0]);
-	struct task_struct *p2 = grp_new_process(ss->mh, 1, gs[1]);
+	struct task_struct *p1 = grp_new_process(0, gs[0]);
+	struct task_struct *p2 = grp_new_process(1, gs[1]);
 
 	ss_enqueue_gwfs(p1);
 
@@ -522,7 +522,7 @@ void test_worst(int nheap) {
 		gs[0] = grp_new(ss->mh, 0, 10);
 		struct heap *h = mh_choose_heap(ss->mh);
 
-		struct task_struct *p = grp_new_process(ss->mh, 1, gs[0]);
+		struct task_struct *p = grp_new_process(1, gs[0]);
 		ss_enqueue_gwfs(p);
 
 		for (int i = 0; ; i++) {

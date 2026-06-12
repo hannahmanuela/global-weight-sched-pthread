@@ -81,7 +81,7 @@ void ss_enqueue_gq(struct task_struct *p) {
 	enq_proc_vt(p);
 
 	if(debug) {
-		printf("%d(%d): enqueue_gq %p\n", p->pid, p->group->gid, p->group->mh);
+		printf("%d(%d): enqueue_gq\n", p->pid, p->group->gid);
 	}
 }
 

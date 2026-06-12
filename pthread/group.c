@@ -25,8 +25,8 @@ static void grp_add_process(struct task_struct *p) {
 	}
 }
 
-struct task_struct *grp_new_process(struct mheap *mh, int id, struct group *group) {
-	struct task_struct *p = proc_new(mh, id, group->weight);
+struct task_struct *grp_new_process(int id, struct group *group) {
+	struct task_struct *p = proc_new(id, group->weight);
 	p->group = group;
 	p->next = NULL;
 	grp_add_process(p);

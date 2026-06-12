@@ -28,19 +28,17 @@ static void enqueue(struct task_struct *p) {
 	if(debug) {
 		struct core *c = mycore();
 		printf("%d: enqueue_rr %d(%d) %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
-		//mh_print(p->group->mh);
 	}
 	p->he.vruntime = safe_read_tsc();
-	p->h = mh_insert_elem(p->mh, &p->he);
+	p->h = mh_insert_elem(p->group->mh, &p->he);
 }
 
 static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, bool all) {
 	struct core *c = mycore();
-	bool deq = (prev != NULL) && prev->mh == mh;
-	assert(!prev || prev->mh != NULL);
+	bool deq = (prev != NULL);
 	struct task_struct *p = mh_min_proc_enq(mh, deq ? prev : NULL, all);
 	if(p != NULL) {
-		assert(p->mh == mh);
+		assert(p->group->mh == mh);
 		if(debug) {
 			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, mh, deq);
 		}
@@ -149,7 +147,6 @@ ok:
 void ss_enqueue_rr(struct task_struct *p) {
 	struct core *c = mycore();
 	int cid = -1;
-	assert(p->mh != NULL);
 	if (do_preempt && p->group->gid == RR_HIGH) {
 		if (use_runningq) {
 			cid = running_find_and_clear(ss_global->mh_r);

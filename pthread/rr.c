@@ -44,7 +44,9 @@ static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_stru
 		}
 		if (do_preempt && (prev != NULL) && !deq) {
 			assert(prev->group->gid == RR_LOW);
-			running_clear(ss_global->mh_r, p);
+			if (use_runningq) {
+				running_clear(ss_global->mh_r, p);
+			}
 			enqueue(prev);
 		}
 	}

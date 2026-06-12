@@ -35,7 +35,7 @@ static void enqueue(struct task_struct *p) {
 
 static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, bool all) {
 	struct core *c = mycore();
-	bool deq = (prev != NULL);
+	bool deq = (prev != NULL) && (prev->group->mh == mh);
 	struct task_struct *p = mh_min_proc_enq(mh, deq ? prev : NULL, all);
 	if(p != NULL) {
 		assert(p->group->mh == mh);

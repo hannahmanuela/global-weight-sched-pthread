@@ -38,6 +38,8 @@ int base_weight = 10;
 bool do_ts_op;
 int benchmark = 0;
 
+pthread_barrier_t init_barrier;
+
 extern int num_groups;
 extern bool debug;
 extern bool do_affinity;
@@ -173,8 +175,7 @@ void rr_groups() {
 		struct group *g = grp_new(mh, i, 10);
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
-			struct task_struct *p = grp_new_process(mh, i*ns[0]+j, g);
-			// XXX assert(p->mh != NULL);
+			struct task_struct *p = grp_new_process(i*ns[0]+j, g);
 			if(is_pcrq()) ss_enqueue_pcrq(p);
 			else if (is_gq()) ss_enqueue_gq(p);
 			else ss_enqueue_rr(p);
@@ -215,7 +216,7 @@ void ss_groups() {
 		w  += base_weight * (ratio - 1);
 		gs->grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {
-			struct task_struct *p = grp_new_process(gs->ss->mh, i*num_threads_p_group+j, g);
+			struct task_struct *p = grp_new_process(i*num_threads_p_group+j, g);
 			ss_enqueue(gs->ss, gs->cores[0], p);
 		}
 	}
@@ -246,6 +247,8 @@ void *run_core(void* core) {
 		if (is_rr() || is_pcrq() || is_gq()) rr_groups();
 		else ss_groups();
 	}
+	
+	pthread_barrier_wait(&init_barrier);
 
 	int cont = 1;
 	double start = now();
@@ -336,6 +339,8 @@ void main(int argc, char *argv[]) {
 	gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores);
 
 	// printf("==="); mh_print(gs->ss->mh);
+
+	pthread_barrier_init(&init_barrier, NULL, num_cores);
 
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&gs->cores[i]->tid, NULL, run_core, (void*)(gs->cores[i]));

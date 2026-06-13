@@ -5,6 +5,10 @@
 #include "running.h"
 #include "core.h"
 
+//
+// maintain a queue of running processes using mheap
+//
+
 void running_set(struct mheap *mh, struct task_struct *p, int cid) {
 	assert(p->cid == -1);
 	p->cid = cid;

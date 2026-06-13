@@ -45,7 +45,10 @@ static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_stru
 		if (do_preempt && (prev != NULL) && !deq) {
 			assert(prev->group->gid == RR_LOW);
 			if (use_runningq) {
-				running_clear(ss_global->mh_r, p);
+				if (debug) {
+					printf("%d: %d(%d) remove from runq %d\n", mycore()->cid, prev->pid, prev->group->gid, prev->cid);
+				}
+				running_clear(ss_global->mh_r, prev);
 			}
 			enqueue(prev);
 		}
@@ -129,7 +132,14 @@ ok:
 	}
 	if (do_preempt && (p->group->gid == RR_LOW)) {
 		if (use_runningq) {
-			running_set(ss_global->mh_r, p, mycore()->cid);
+			if (p->cid != -1) {
+				if (debug)  {
+					printf("%d: %d(%d) continue running cid %d\n", mycore()->cid,
+				       p->pid, p->group->gid, p->cid);
+				}
+			} else {
+				running_set(ss_global->mh_r, p, mycore()->cid);
+			}
 		} else {
 			// reset preemtable if switching from high to
 			// a low proc, or if were prempted

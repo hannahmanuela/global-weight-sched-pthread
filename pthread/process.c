@@ -11,6 +11,7 @@ void proc_print(struct task_struct *p) {
 struct task_struct *proc_new(int id, int w) {
 	struct task_struct *p = aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct task_struct), CACHE_LINE_SZ));
 	p->pid = id;
+	p->cid = -1;
 	p->runtime = 0;
 	p->group = NULL;
 	p->next = NULL;
@@ -18,5 +19,6 @@ struct task_struct *proc_new(int id, int w) {
 	heap_elem_init(&p->he_r, 0, 0);
 	// lock_init(&p->lk);
 	p->h = NULL;
+	p->h_r = NULL;
 	return p;
 }

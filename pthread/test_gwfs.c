@@ -69,15 +69,6 @@ static void cleanup(struct mheap *mh) {
 }
 
 
-void test_preempt_t() {
-	preempt_t pre;
-
-	pre = PREEMPT(10, 1, 2);
-	assert(NCORE(pre) == 10);
-	assert(WEIGHT(pre) == 1);
-	assert(CORE(pre) == 2);
-}
-
 void test_grp_sleep_wakeup() {
 	printf("== test_sleep_wakeup start\n");
 
@@ -332,7 +323,6 @@ void test_preempt() {
 
 	// measure kick
 	// check the process running on that core
-
 }
 
 void test_mheap(int nheap, int nproc) {
@@ -480,7 +470,6 @@ void main(int argc, char *argv[]) {
 	srandom(getpid());
 
 	test_grp_sleep_wakeup();
-	test_preempt_t();
         test_preempt();
 	//exit(1);
 	test_grp_fair_offset();

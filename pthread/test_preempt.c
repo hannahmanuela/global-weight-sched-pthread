@@ -22,6 +22,15 @@ int time_to_run = 2;
 bitarray_t ba __calign__;
 void (*parallel_func)(int);
 
+void test_preempt_t() {
+	preempt_t pre;
+
+	pre = PREEMPT(10, 1, 2);
+	assert(NCORE(pre) == 10);
+	assert(WEIGHT(pre) == 1);
+	assert(CORE(pre) == 2);
+}
+
 void test_atomics() {
 	int dst = 1;   
 	int src = 1;

@@ -78,35 +78,6 @@ void test_preempt_t() {
 	assert(CORE(pre) == 2);
 }
 
-void test_load() {
-	struct group *gs[GRP1];
-	int ws[GRP1] = {1};
-	int nheap = 8;
-	int ntrial = 100;
-	
-	extern bool use_power2_insert;
-	
-	use_power2_insert = true;
-	for (int nproc = 2; nproc < 2029; nproc += nproc) {
-		int max = 0;
-		float a = 0.0;
-		for (int t = 0; t < ntrial; t++) {
-			struct sched_state *ss = mk_mheap(nheap, GRP1, PROC2, 0, gs, ws);
-			for (int i = 0; i < nproc; i++) {
-				struct task_struct *p = grp_new_process(i, gs[0]);
-				p->he.vruntime = safe_read_tsc();
-				mh_insert_elem(ss->mh, &p->he);
-			}
-			int maxl = 0;
-			float avg = mh_load(ss->mh, &maxl);
-			if (maxl > max)
-				max = maxl;
-			a = avg;
-		}
-		printf("n: %d avg %0.2f max %d max load %d\n", nproc, a, max, max- (int) a);
-	}
-}
-
 void test_grp_sleep_wakeup() {
 	printf("== test_sleep_wakeup start\n");
 
@@ -509,7 +480,6 @@ void main(int argc, char *argv[]) {
 	srandom(getpid());
 
 	test_grp_sleep_wakeup();
-	test_load();
 	test_preempt_t();
         test_preempt();
 	//exit(1);

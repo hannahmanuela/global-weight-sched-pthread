@@ -88,6 +88,36 @@ void test_parallel() {
 	printf("tp %0.2fM/s\n", AVG(nenq+ndeq, time_to_run)/1000000);
 }
 
+void test_load() {
+	int nheap = 8;
+	int ntrial = 100;
+	
+	extern bool use_power2_insert;
+	use_power2_insert = true;
+
+	set_mycore(cores[0]);
+
+	for (int nproc = 2; nproc < 2029; nproc += nproc) {
+		int max = 0;
+		float a = 0.0;
+		for (int t = 0; t < ntrial; t++) {
+			mh = mh_new(nheap);
+			for (int i = 0; i < nproc; i++) {
+				struct task_struct *p = proc_new(i, 0);
+				p->he.vruntime = safe_read_tsc();
+				mh_insert_elem(mh, &p->he);
+			}
+			int maxl = 0;
+			float avg = mh_load(mh, &maxl);
+			if (maxl > max)
+				max = maxl;
+			a = avg;
+		}
+		printf("n: %d avg %0.2f max %d max load diff %d\n", nproc, a, max, max- (int) a);
+	}
+}
+
+
 void test_worst() {
 	int n = 10000;
 	long sum = 0;
@@ -100,7 +130,6 @@ void test_worst() {
 	printf("== test_worst\n");
 
 	set_mycore(cores[0]);
-	int seed = getpid();
 
 	for(int t = 0; t < n; t++) {
 		mh = mh_new(nheap);
@@ -150,6 +179,7 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < NCORES; i++) {
 		cores[i] = c_new(i, 1, i);
 	}
-	test_parallel();
+	test_load();
 	test_worst();
+	test_parallel();
 }

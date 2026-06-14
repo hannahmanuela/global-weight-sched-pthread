@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
 
 	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*NCORES, CACHE_LINE_SZ));
 	for (int i = 0; i < NCORES; i++) {
-		cores[i] = c_new(i, 1, i);
+		cores[i] = c_new(i, 1, getpid() + i);
 	}
 	test_load();
 	test_worst();

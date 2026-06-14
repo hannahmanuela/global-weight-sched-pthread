@@ -6,6 +6,7 @@
 #include <sched.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <unistd.h>
 
 #include "util.h"
 #include "core.h"
@@ -24,6 +25,8 @@ int time_to_run = 2;
 
 struct mheap *mh __calign__;
 
+pthread_barrier_t init_barrier;
+
 void *run_core(void* core) {
 	#define N 64
 
@@ -39,6 +42,7 @@ void *run_core(void* core) {
 	if (pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset) != 0)
 		error("couldn't set affininity\n");
 
+
 	if (mycore->cid == 0) {
 		for (long i = 0; i < N; i++) {
 			struct task_struct *p = proc_new(i, 0);
@@ -46,6 +50,8 @@ void *run_core(void* core) {
 			mh_insert_elem(mh, &p->he);
 		}
 	}
+
+	pthread_barrier_wait(&init_barrier);
 
 	double start = now();
 
@@ -64,6 +70,9 @@ void *run_core(void* core) {
 
 void test_parallel() {
 	mh = mh_new(num_cores * 2);
+
+	pthread_barrier_init(&init_barrier, NULL, num_cores);
+
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(cores[i]));
@@ -77,6 +86,51 @@ void test_parallel() {
 		ndeq += c->ndeq;
 	}
 	printf("tp %0.2fM/s\n", AVG(nenq+ndeq, time_to_run)/1000000);
+}
+
+void test_worst() {
+	int n = 10000;
+	long sum = 0;
+	int worst = 0;
+	int nheap = 56 * 2;
+	
+	#define NBIN 1000
+	static int bin[NBIN];
+
+	printf("== test_worst\n");
+
+	set_mycore(cores[0]);
+	int seed = getpid();
+
+	for(int t = 0; t < n; t++) {
+		mh = mh_new(nheap);
+		struct task_struct *p = proc_new(t, 0);
+		p->he.vruntime = safe_read_tsc();
+		mh_insert_elem(mh, &p->he);
+		for (int i = 0; ; i++) {
+			struct task_struct *p = mh_min_proc_enq(mh, NULL, false);
+			if(p) {
+				sum += i;
+				bin[i]++;
+				if(i > worst)
+					worst = i;
+				break;
+			}
+		}
+		mh_free(mh);
+
+	}
+	int median;
+	int t = 0;
+	for (int i = 0; i < NBIN; i++) {
+		//printf("%d: %d\n", i, bin[i]);
+		t += bin[i];
+		if(t >= n / 2) {
+			median = i;
+			break;
+		}
+	}
+	printf("--- test_worst: avg %ld med %d worst %d\n", sum/n, median, worst);
 }
 
 void usage(char *s) {
@@ -97,4 +151,5 @@ int main(int argc, char *argv[]) {
 		cores[i] = c_new(i, 1, i);
 	}
 	test_parallel();
+	test_worst();
 }

@@ -501,54 +501,6 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 	printf("-- test_%d_mheap_sleep grp %d: OK\n", nheap, ngrp); 
 }
 
-void test_worst(int nheap) {
-	int n = 10000;
-	//int n = 1;
-	int tl = 1000;
-	int worst = 0;
-	long sum = 0;
-
-	#define NBIN 1000
-	static int bin[NBIN];
-
-	printf("== test_worst\n");
-
-	int seed = getpid();
-	for(int t = 0; t < n; t++) {
-		struct core *c[NCORE1] = {c_new(0, GRP1, seed)};
-		seed = rand_r(&seed);
-		struct sched_state *ss = ss_new(tl, nheap, c, NCORE1);
-		struct group *gs[GRP1];
-		gs[0] = grp_new(ss->mh, 0, 10);
-		struct heap *h = mh_choose_heap(ss->mh);
-
-		struct task_struct *p = grp_new_process(1, gs[0]);
-		ss_enqueue_gwfs(p);
-
-		for (int i = 0; ; i++) {
-			if (ss_account_schedule_gwfs(NULL)) {
-				sum += i;
-				bin[i]++;
-				if(i > worst)
-					worst = i;
-				break;
-			}
-		}
-		cleanup(ss->mh);
-	}
-	int median;
-	int t = 0;
-	for (int i = 0; i < NBIN; i++) {
-		//printf("%d: %d\n", i, bin[i]);
-		t += bin[i];
-		if(t >= n / 2) {
-			median = i;
-			break;
-		}
-	}
-	printf("--- test_worst: avg %ld med %d worst %d\n", sum/n, median, worst);
-}
-
 
 void main(int argc, char *argv[]) {
         // debug = true;
@@ -576,6 +528,5 @@ void main(int argc, char *argv[]) {
 	test_mheap_sleep(1, 0, GRP2);
 	test_mheap_sleep(1, 1, GRP2);
 	test_mheap_sleep(1, 2, 3);
-	test_worst(112);
 }
 

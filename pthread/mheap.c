@@ -177,8 +177,6 @@ static struct heap_elem *mh_remove_min(struct heap *h) {
 	return he;
 }
 
-
-
 static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];

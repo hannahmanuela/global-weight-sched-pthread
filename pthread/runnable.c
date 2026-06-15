@@ -20,7 +20,7 @@
 //
 
 struct task_struct *runnable_deq_proc_all(struct mheap *mh, struct task_struct *prev, bool all) {
-	struct heap_elem *he = mh_min_elem_enq(mh, &prev->he, all);
+	struct heap_elem *he = mh_deq_min_elem_enq(mh, &prev->he, all);
 	return container_of(he, struct task_struct, he);
 }
 

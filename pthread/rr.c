@@ -10,6 +10,7 @@
 #include "sched_state.h"
 #include "core.h"
 #include "preempt.h"
+#include "runnable.h"
 #include "running.h"
 #include "mheap.h"
 #include "rr.h"
@@ -30,17 +31,17 @@ static void enqueue(struct task_struct *p) {
 		printf("%d: enqueue_rr %d(%d) %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
 	}
 	p->he.vruntime = safe_read_tsc();
-	p->h = mh_insert_elem(p->group->mh, &p->he);
+	mh_insert_elem(p->group->mh, &p->he);
 }
 
 static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, bool all) {
 	struct core *c = mycore();
 	bool deq = (prev != NULL) && (prev->group->mh == mh);
-	struct task_struct *p = mh_min_proc_enq(mh, deq ? prev : NULL, all);
+	struct task_struct *p = runnable_deq_proc_all(mh, deq ? prev : NULL, all);
 	if(p != NULL) {
 		assert(p->group->mh == mh);
 		if(debug) {
-			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, mh, deq);
+			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld mh %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, mh, deq);
 		}
 		if (do_preempt && (prev != NULL) && !deq) {
 			assert(prev->group->gid == RR_LOW);

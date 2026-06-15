@@ -25,9 +25,10 @@ bool running_clear(struct mheap *mh, struct task_struct *p) {
 }
 
 int running_find_and_clear(struct mheap *mh) {
-	struct task_struct *p = mh_min_proc_enq(mh, NULL, false);
-	if(p != NULL) {
+	struct heap_elem *he = mh_min_elem_enq(mh, NULL, false);
+	if(he != NULL) {
 		mycore()->npreempt_find_ok++;
+		struct task_struct *p =  container_of(he, struct task_struct, he);
 		return p->cid;
 	}
 	mycore()->npreempt_find_fail++;

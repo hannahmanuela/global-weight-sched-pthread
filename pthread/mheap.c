@@ -10,7 +10,6 @@
 #include "vt.h"
 #include "driver.h"
 #include "core.h"
-#include "group.h"
 #include "heap.h"
 #include "mheap.h"
 #include "util.h"
@@ -181,22 +180,14 @@ retry:
 }
 
 // caller must hold heap lock
-static struct task_struct *mh_remove_min(struct heap *h) {
+static struct heap_elem *mh_remove_min(struct heap *h) {
 	struct heap_elem *he = heap_remove_min(h);
 	assert(h->heap_size > 0);  // dummy should stay on heap
-	return container_of(he, struct task_struct, he);
+	return he;
 }
 
-// caller must hold heap lock
-static struct task_struct *mh_del_min_process(struct heap *h) {
-	struct task_struct *p = mh_remove_min(h);
-	if(do_affinity) {
-		struct core *c = mycore();
-		atomic_store_explicit(&p->cid, c->cid, __ATOMIC_RELAXED);
-	}
-	return p;
-}
 
+// XXX fix
 static void mh_upd_stat(struct task_struct *p, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
 	struct core *c = mycore();
 
@@ -246,7 +237,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int 
 }
 
 // del min proc from h; may fail because some other core grabbed the min vt
-static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min(struct heap *h, vt_t vt) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_try_del_min(struct heap *h, vt_t vt) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
@@ -257,44 +248,42 @@ static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min(struct hea
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct task_struct *p = mh_del_min_process(h);
-	p->tsc = safe_read_tsc();
-	return p;
+	struct heap_elem *he = mh_remove_min(h);
+	// XXX p->tsc = safe_read_tsc();
+	return he;
 }
 
-static bool mh_keep_running_proc(vt_t vt0, int w, struct task_struct *curp) {
-	if (curp == NULL)
+static bool is_to_add_min(vt_t vt0, int w, struct heap_elem *to_add) {
+	if (to_add == NULL)
 		return false;
 	if (vt0 == DUMMY)
 		return true;
-	if (vt0 < curp->he.vruntime)
+	if (vt0 < to_add->vruntime)
 		return false;
-	if ((vt0 == curp->he.vruntime) && (w > curp->he.weight))
+	if ((vt0 == to_add->vruntime) && (w > to_add->weight))
 		return false;
 	return true;
 }
 
 // caller must have h locked
-static struct task_struct *mh_keep_running_or_switch(struct heap *h, vt_t vt, int w, struct task_struct *to_add) {
-	struct task_struct *p = NULL;
-	if (mh_keep_running_proc(vt, h->heap[0]->weight, to_add)) {
+static struct heap_elem *mh_keep_running_or_switch(struct heap *h, vt_t vt, int w, struct heap_elem *to_add) {
+	struct heap_elem *he = NULL;
+	if (is_to_add_min(vt, h->heap[0]->weight, to_add)) {
 		// pretend we added and removed to_add from the heap
-		h->last_vt = to_add->he.vruntime;
-		to_add->h = h;
-		p = to_add;
+		h->last_vt = to_add->vruntime;
+		he = to_add;
 	} else if (vt != DUMMY) { 
-		p = mh_del_min_process(h);
-		assert(p != NULL);
+		he = mh_remove_min(h);
+		assert(he != NULL);
 		if (to_add != NULL)  {
 			mycore()->ndelay_yield++;
-			heap_push(h, &to_add->he);
-			to_add->h = h;
+			heap_push(h, to_add);
 		}
 	}
-	return p;
+	return he;
 }
 
-static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(struct heap *h, vt_t vt, struct task_struct *to_add) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_try_del_min_enq(struct heap *h, vt_t vt, struct heap_elem *to_add) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
@@ -305,93 +294,89 @@ static struct task_struct  __attribute__ ((noinline)) *mh_try_del_min_enq_prev(s
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct task_struct *p = mh_keep_running_or_switch(h, vt, h->heap[0]->weight, to_add);
+	struct heap_elem *he = mh_keep_running_or_switch(h, vt, h->heap[0]->weight, to_add);
 	lock_release(&h->lk);
-	return p;
+	return he;
 }
 
-static struct task_struct  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, int s) {
-	struct task_struct *p = NULL;
+static struct heap_elem  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, int s) {
+	struct heap_elem *he = NULL;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[MH_IND(mh, i+s)];
 		vt_t vt = atomic_load_explicit(&h->heap[0]->vruntime, __ATOMIC_RELAXED);
-		if (vt != DUMMY && ((p = mh_try_del_min(h, vt)) != NULL)) {
+		if (vt != DUMMY && ((he = mh_try_del_min(h, vt)) != NULL)) {
 			lock_release(&h->lk);
 			break;
 		}
 	}
-	return p;
+	return he;
 }
 
-static struct task_struct  __attribute__ ((noinline)) *mh_sample_min_proc_enq(struct mheap *mh, struct task_struct *curp, bool all) {
-	long r = 0;
-	long r_lock = 0;  // XXX delete?
-	struct task_struct *p;
+static struct heap_elem  __attribute__ ((noinline)) *mh_sample_min_enq(struct mheap *mh, struct heap_elem *to_add, bool all) {
+	struct heap_elem *he;
 	struct heap *h;
+	long r = 0;
 	int i, j;
 	vt_t vt;
 	vt_t other_vt;
 
 	while(true) {
-		p = NULL;
+		he = NULL;
 		mh_rand_heaps(mh, &i, &j);
 		if ((h = mh_select(mh, i, j, &vt, &other_vt)) == NULL) {
-			if(all) p = mh_all_min_proc(mh, i);
+			if(all) he = mh_all_min_proc(mh, i);
 			break;
 		} 
-		if ((p = mh_try_del_min_enq_prev(h, vt, curp)) != NULL) {
-			p->h = h;
-			curp = NULL;
+		if ((he = mh_try_del_min_enq(h, vt, to_add)) != NULL) {
+			to_add = NULL;   // to avoid inserting below
 			break;
 		}
 		r++;
 	}
 
-	if(p != NULL) {
+	if(he != NULL) {
 		// h could be NULL after mh_all_min_proc
-		mh_upd_stat(p, (h && (h->id == i)) ? j  : i, vt, other_vt, r, r_lock); 
+		// mh_upd_stat(p, (h && (h->id == i)) ? j  : i, vt, other_vt, r, r_lock); 
 	}
 
-	if ((p != NULL) && (curp != NULL)) {
+	if ((he != NULL) && (to_add != NULL)) {
 		i = mh_least_loaded(mh, i, j);
 		struct heap *h = mh->h[i];
 		if(lock_try_acquire(&h->lk) != 0) {
 			h = mh_choose_heap(mh);
 		}
-		heap_push(h, &curp->he);
-		curp->h = h;
+		heap_push(h, to_add);
 		lock_release(&h->lk);
-	} else if (p != NULL) {
+	} else if (he != NULL) {
 		// XXX pretend we added and removed to_add from the heap
 		// h->last_vt = to_add->vruntime;
 	}
-	return p;
+	return he;
 }
 
-struct task_struct *mh_min_proc_one_heap(struct mheap *mh, struct task_struct *to_add) {
+struct heap_elem *mh_min_one_heap(struct mheap *mh, struct heap_elem *to_add) {
 	struct heap *h = mh->h[0];
 
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
-	struct task_struct *p = mh_keep_running_or_switch(h, he->vruntime, he->weight, to_add);
+	he = mh_keep_running_or_switch(h, he->vruntime, he->weight, to_add);
 	lock_release(&h->lk);
-	if(p) p->h = h;
-	return p;
+	return he;
 }
 
-struct task_struct *mh_min_proc(struct mheap *mh, bool all) {
+struct heap_elem *mh_min_elem(struct mheap *mh, bool all) {
 	if (mh->nheap == 1) {
-		return mh_min_proc_one_heap(mh, NULL);
+		return mh_min_one_heap(mh, NULL);
 	}
-	return mh_sample_min_proc_enq(mh, NULL, all);
+	return mh_sample_min_enq(mh, NULL, all);
 }
 
 // if there is a min, grab it and enqueue p
-struct task_struct *mh_min_proc_enq(struct mheap *mh, struct task_struct *to_add, bool all) {
+struct heap_elem *mh_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, bool all) {
 	if (mh->nheap == 1) {
-		return mh_min_proc_one_heap(mh, to_add);
+		return mh_min_one_heap(mh, to_add);
 	}
-	return mh_sample_min_proc_enq(mh, to_add, all);
+	return mh_sample_min_enq(mh, to_add, all);
 }
 
 // returns chosen h for e, so that caller can pass it to mh_remove_elem

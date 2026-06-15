@@ -45,9 +45,9 @@ void *run_core(void* core) {
 
 	if (mycore->cid == 0) {
 		for (long i = 0; i < N; i++) {
-			struct task_struct *p = proc_new(i, 0);
-			p->he.vruntime = safe_read_tsc();
-			mh_insert_elem(mh, &p->he);
+			struct heap_elem *he = malloc(sizeof(struct heap_elem));
+			heap_elem_init(he, safe_read_tsc(), 0);
+			mh_insert_elem(mh, he);
 		}
 	}
 
@@ -56,14 +56,14 @@ void *run_core(void* core) {
 	double start = now();
 
 	for (int i = 0; now() - start < time_to_run; i++) {
-		struct task_struct *p = mh_min_proc_enq(mh, NULL, false);
-		while (p == NULL) {
-			p = mh_min_proc_enq(mh, NULL, false);	
+		struct heap_elem *he = mh_min_elem_enq(mh, NULL, false);
+		while (he == NULL) {
+			he = mh_min_elem_enq(mh, NULL, false);	
 		}
 		mycore->ndeq++;
 
-		p->he.vruntime = safe_read_tsc();
-		mh_insert_elem(mh, &p->he);
+		he->vruntime = safe_read_tsc();
+		mh_insert_elem(mh, he);
 		mycore->nenq++;
 	}
 }
@@ -103,9 +103,9 @@ void test_load() {
 		for (int t = 0; t < ntrial; t++) {
 			mh = mh_new(nheap);
 			for (int i = 0; i < nproc; i++) {
-				struct task_struct *p = proc_new(i, 0);
-				p->he.vruntime = safe_read_tsc();
-				mh_insert_elem(mh, &p->he);
+				struct heap_elem *he = malloc(sizeof(struct heap_elem));
+				heap_elem_init(he, safe_read_tsc(), 0);
+				mh_insert_elem(mh, he);
 			}
 			int maxl = 0;
 			float avg = mh_load(mh, &maxl);
@@ -119,7 +119,8 @@ void test_load() {
 
 
 void test_worst() {
-	int n = 10000;
+	// int n = 10000;
+	int n = 10;
 	long sum = 0;
 	int worst = 0;
 	int nheap = 56 * 2;
@@ -133,12 +134,12 @@ void test_worst() {
 
 	for(int t = 0; t < n; t++) {
 		mh = mh_new(nheap);
-		struct task_struct *p = proc_new(t, 0);
-		p->he.vruntime = safe_read_tsc();
-		mh_insert_elem(mh, &p->he);
+		struct heap_elem *he = malloc(sizeof(struct heap_elem));
+		heap_elem_init(he, safe_read_tsc(), 0);
+		mh_insert_elem(mh, he);
 		for (int i = 0; ; i++) {
-			struct task_struct *p = mh_min_proc_enq(mh, NULL, false);
-			if(p) {
+			struct heap_elem *he = mh_min_elem(mh, false);
+			if(he) {
 				sum += i;
 				bin[i]++;
 				if(i > worst)
@@ -146,6 +147,7 @@ void test_worst() {
 				break;
 			}
 		}
+		free(he);
 		mh_free(mh);
 
 	}

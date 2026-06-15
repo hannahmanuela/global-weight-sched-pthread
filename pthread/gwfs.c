@@ -11,6 +11,7 @@
 #include "core.h"
 #include "group.h"
 #include "mheap.h"
+#include "runnable.h"
 #include "gwfs.h"
 
 //
@@ -128,16 +129,7 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		}
 	}
 
-	// TODO: kill this case?  for light load we get:
-	// get affinity by rescheduling prev
-	if(do_affinity && ss_global->mh->nheap > 1 && prev) {
-		assert(0);
-		min_proc = mh_min_affinity(mycore());
-	}
-
-	if (min_proc == NULL) {
-		min_proc = mh_min_proc_enq(ss_global->mh, prev, false);
-	}
+	min_proc = runnable_deq_proc(ss_global->mh, prev);
 	if (min_proc == NULL && prev != NULL) {
 		mycore()->nlocal  += 1;
 		min_proc = prev;  // for debug
@@ -145,7 +137,6 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		mycore()->nsched_null += 1;
 		return NULL;
 	}
-	assert(min_proc->h != NULL);
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %lld\n", mycore()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
 		mh_print(min_proc->group->mh);
@@ -223,8 +214,7 @@ static void account_wakeup_gwfs(struct task_struct *p) {
 		ticks_sub(p->group->time, p->group->sleepstart);
 		ticks_add(p->group->sleeptime, p->group->time);
 		vt_t offset = p->group->vruntime - p->group->min_vt_deq;
-                // XXX kernel API: no min, so min_vt doesn't the heap that p will be inserted in,
-		// defaulting to heap 0
+                // XXX kernel API: defaults to heap 0 for min
 		vt_t h_min = min_vt(mh_heap(p->group->mh, 0));
 		if(p->group->min_vt_deq > h_min) {
 			offset += (p->group->min_vt_deq-h_min);
@@ -236,7 +226,6 @@ static void account_wakeup_gwfs(struct task_struct *p) {
 
 static void put_task_in_rq_gwfs(struct task_struct *p) {
 	p->he.vruntime = proc_vt(p);
-	assert(p->h == NULL);
 	mh_insert_elem(p->group->mh, &p->he);
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
@@ -259,7 +248,7 @@ void ss_yield_gwfs(struct task_struct *p, t_t time_passed) {
 	if(!delay_yield) {
 		upd_offset(p, time_passed);
 		p->he.vruntime = proc_vt(p);
-		p->h = mh_insert_elem(p->group->mh, &p->he);
+		mh_insert_elem(p->group->mh, &p->he);
 	}
 }
 
@@ -269,20 +258,15 @@ static void account_sleep_gwfs(struct task_struct *p) {
 	if(do_preempt)
 		reset_preempt(p->he.weight);
 
-	struct heap *h = p->h;
-	lock_acquire(&h->lk);
-
         int old_nthread = atomic_fetch_add(&p->group->nthread, -1);
 	if (old_nthread == 1) {
-		vt_t h_min = min_vt(p->h);
+		// XXX kernel impl uses 0 as a default instead of p->h
+		vt_t h_min = min_vt(mh_heap(p->group->mh, 0));
 		p->group->min_vt_deq = h_min;
 		ticks_gettime(p->group->sleepstart);
 	}
 
-	p->h = NULL;
 	mycore()->process = NULL;
-
-	lock_release(&h->lk);	
 }
 
 // Process p is not runnable and yields core, which may make

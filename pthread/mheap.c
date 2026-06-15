@@ -291,7 +291,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_all_min_proc(struct mhea
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_sample_min_enq(struct mheap *mh, struct heap_elem *to_add, bool all) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap *mh, struct heap_elem *to_add, bool all) {
 	struct heap_elem *he;
 	struct heap *h;
 	long r = 0;
@@ -318,7 +318,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_sample_min_enq(struct mh
 	return he;
 }
 
-struct heap_elem *mh_min_one_heap(struct mheap *mh, struct heap_elem *to_add) {
+static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem *to_add) {
 	struct heap *h = mh->h[0];
 
 	lock_acquire(&h->lk);
@@ -330,17 +330,17 @@ struct heap_elem *mh_min_one_heap(struct mheap *mh, struct heap_elem *to_add) {
 
 struct heap_elem *mh_deq_min_elem(struct mheap *mh, bool all) {
 	if (mh->nheap == 1) {
-		return mh_min_one_heap(mh, NULL);
+		return mh_deq_min_one_heap(mh, NULL);
 	}
-	return mh_sample_min_enq(mh, NULL, all);
+	return mh_deq_min_enq(mh, NULL, all);
 }
 
 // if there is a min, grab it and enqueue to_add
 struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, bool all) {
 	if (mh->nheap == 1) {
-		return mh_min_one_heap(mh, to_add);
+		return mh_deq_min_one_heap(mh, to_add);
 	}
-	return mh_sample_min_enq(mh, to_add, all);
+	return mh_deq_min_enq(mh, to_add, all);
 }
 
 // returns chosen h for e, so that caller can pass it to mh_remove_elem

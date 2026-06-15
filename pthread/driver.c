@@ -374,7 +374,6 @@ void main(int argc, char *argv[]) {
 	long npreempted = 0;
 	long nsched_null = 0;
 	long max_retry_del = 0;
-	long max_retry_del_lock = 0;
 	long nnrand = 0;
 	long offset_sub_retry = 0;
 	long npreempt_retry = 0;
@@ -407,11 +406,10 @@ void main(int argc, char *argv[]) {
 		rins_h = MAX(rins_h, s);
 		rins_l = MIN(rins_l, s);
 		nretry_ins += c->nretry_ins;
-		s = AVG((c->nretry_del+c->nretry_del_lock), c->nsched);
+		s = AVG(c->nretry_del, c->nsched);
 		rdel_h = MAX(rdel_h, s);	
 		rdel_l = MIN(rdel_l, s);
-		nretry_del += (c->nretry_del + c->nretry_del_lock);
-		nretry_del_lock += c->nretry_del_lock;
+		nretry_del += c->nretry_del;
 		offset_sub_retry += c->offset_sub_retry;
 		npreempt_retry += c->npreempt_retry;
 		npreempt_set += c->npreempt_set;
@@ -431,8 +429,6 @@ void main(int argc, char *argv[]) {
 		nsched_null += c->nsched_null;
 		if(c->max_retry_del > max_retry_del)
 			max_retry_del = c->max_retry_del;
-		if(c->max_retry_del_lock > max_retry_del_lock)
-			max_retry_del_lock = c->max_retry_del_lock;
 		nnrand += c->nrand;
 	}
 	float tp = AVG(nsched+nyield, time_to_run)/1000000;
@@ -442,8 +438,8 @@ void main(int argc, char *argv[]) {
 	printf("  sched #%ld(l %ld, g %ld, sh %d dl %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, nrr_skip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
-	printf("  retry del %ld (stale %ld) min %0.2f max %0.2f\n", nretry_del, nretry_del_lock, rdel_l, rdel_h);
-	printf("    max retry locked %ld stale %ld avg rand %0.2f\n", max_retry_del, max_retry_del_lock, AVG(nnrand, nsched+nretry_del));
+	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);
+	printf("    max retry locked %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
 	printf("  retry grp offset sub %ld\n", offset_sub_retry);
 	printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld preempted %d\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry, npreempted);
 	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));

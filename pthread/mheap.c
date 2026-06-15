@@ -178,19 +178,6 @@ static struct heap_elem *mh_remove_min(struct heap *h) {
 }
 
 
-// XXX fix
-static void mh_upd_stat(struct task_struct *p, int other, vt_t vt, vt_t other_vt, int r, int r_lock) {
-	struct core *c = mycore();
-
-	p->other_hid = other;
-	p->other_vt = other_vt;
-	c->nretry_del += (r + r_lock);
-	c->nretry_del_lock += r_lock;
-	if(r > c->max_retry_del)
-		c->max_retry_del = r;
-	if(r_lock > c->max_retry_del_lock)
-		c->max_retry_del_lock = r_lock;
-}
 
 static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
 	vt_t ovt;
@@ -326,10 +313,9 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_sample_min_enq(struct mh
 		r++;
 	}
 
-	if(he != NULL) {
-		// h could be NULL after mh_all_min_proc
-		// mh_upd_stat(p, (h && (h->id == i)) ? j  : i, vt, other_vt, r, r_lock); 
-	}
+	mycore()->nretry_del += r;
+	if(r > mycore()->max_retry_del)
+		mycore()->max_retry_del = r;
 
 	if ((he != NULL) && (to_add != NULL)) {
 		i = mh_least_loaded(mh, i, j);

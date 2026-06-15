@@ -27,8 +27,8 @@ struct task_struct {
 	struct task_struct *next;
 	
 	long tsc;
-	int other_hid;
-	vt_t other_vt;
+	//int other_hid;
+	//vt_t other_vt;
 
 	int cid __calign__;     // core that is running or ran last this process
 	

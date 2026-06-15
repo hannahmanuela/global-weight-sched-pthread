@@ -117,9 +117,6 @@ void c_log_append(struct task_struct *p) {
 	c->log[i].pid = p->pid;
 	c->log[i].gid = p->group->gid;
 	c->log[i].w = p->he.weight;
-	// c->log[i].hid = p->h->id;
-	c->log[i].ohid = p->other_hid;
-	c->log[i].ovt = p->other_vt;
 }
 
 void c_log_done(struct core *c) {

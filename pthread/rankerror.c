@@ -27,14 +27,14 @@ int weight = 0;
 void print(struct log_entry *r, int idx) {
 	for(int i = idx; i < idx+N; i++) {
 		int j = IDX(i);
-		printf("%d: ts %ld vt %lld cid %d pid %d(%d) hid %d ohid %d ovt %lld\n", i, ring[j].ts, ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid, ring[j].hid, ring[j].ohid, ring[j].ovt);
+		printf("%d: ts %ld vt %lld cid %d pid %d(%d)\n", i, ring[j].ts, ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid);
 	}
 }
 
 void print_back(struct log_entry *r, int idx) {
 	for(int i = idx; i > idx-N; i--) {
 		int j = IDX(i);
-		printf("%d: ts %ld vt %lld cid %d pid %d(%d) hid %d ohid %d ovt %lld\n", i, ring[j].ts, ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid, ring[j].hid, ring[j].ohid, ring[j].ovt);
+		printf("%d: ts %ld vt %lld cid %d pid %d(%d)\n", i, ring[j].ts, ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid);
 	}
 }
 

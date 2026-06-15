@@ -20,9 +20,6 @@ struct log_entry {
 	int pid;
 	int gid;
 	w_t w;
-	int hid;
-	int ohid;
-	vt_t ovt;
 };
 
 struct core {

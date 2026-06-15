@@ -87,32 +87,23 @@ void mh_stats(struct mheap *mh) {
 	printf("mh_stats: max %d %0.2f\n", max, AVG(n, mh->nheap));
 }
 
-static void print_elem(struct heap_elem *e) {
-	if(e->vruntime == DUMMY) {
-		printf("[dummy vt %lld w %d]", e->vruntime, e->weight);
-		return;
-	}
-	struct task_struct *p = container_of(e, struct task_struct, he);
-	printf("("); proc_print(p); printf(")");
-}
-
-void mh_print_min(struct mheap *mh) {
+void mh_print_min(struct mheap *mh, void (*print_heap_elem)(struct heap_elem *)) {
 	printf("= mh min:\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
 		printf("%d(%d): ", i, h->heap_size);
-		print_elem(h->heap[0]);
+		print_heap_elem(h->heap[0]);
 		printf("\n");
 	}
 	printf("=\n");
 }
 
-void mh_print(struct mheap *mh) {
+void mh_print(struct mheap *mh, void (*print_heap_elem)(struct heap_elem*)) {
 	printf("= mh:\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
 		printf("  Heap %d size %d last_vt %lld: \n", i, h->heap_size, h->last_vt);
-		heap_iter(mh->h[i], print_elem);
+		heap_iter(mh->h[i], print_heap_elem);
 		printf("\n");
 	}
 	printf("=\n");

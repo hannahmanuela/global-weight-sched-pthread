@@ -81,7 +81,7 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 }
 
 void ss_print(struct sched_state *ss, struct group *grps[], int n) {
-	mh_print(ss->mh);
+	proc_mh_print(ss->mh);
 	printf("= groups %d:\n", n);
 	for(int i = 0; i < n; i++) {
 		printf("  "); grp_print(grps[i]); printf("\n");

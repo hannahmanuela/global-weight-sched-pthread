@@ -22,3 +22,16 @@ struct task_struct *proc_new(int id, int w) {
 	p->h_r = NULL;
 	return p;
 }
+
+static void proc_heap_elem_print(struct heap_elem *he) {
+	if(he->vruntime == DUMMY) {
+		printf("[dummy vt %lld w %d]", he->vruntime, he->weight);
+		return;
+	}	
+	struct task_struct *p = container_of(he, struct task_struct, he);
+	printf("("); proc_print(p); printf(")");
+}
+
+void proc_mh_print(struct mheap *mh) {
+	mh_print(mh, proc_heap_elem_print);
+}

@@ -139,7 +139,7 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	}
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %lld\n", mycore()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
-		mh_print(min_proc->group->mh);
+		proc_mh_print(min_proc->group->mh);
 	}
 	if(mycore()->fd > 0) {
 		c_log_append(min_proc);
@@ -229,7 +229,7 @@ static void put_task_in_rq_gwfs(struct task_struct *p) {
 	mh_insert_elem(p->group->mh, &p->he);
 	if(debug) {
 		printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
-		mh_print(p->group->mh);
+		proc_mh_print(p->group->mh);
 	}
 }
 
@@ -274,7 +274,7 @@ static void account_sleep_gwfs(struct task_struct *p) {
 void ss_dequeue_gwfs(struct task_struct *p, t_t time_passed) {
 	if(debug) {
 		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
-		mh_print(p->group->mh);
+		proc_mh_print(p->group->mh);
 	}
 	upd_offset(p, time_passed);
 	account_sleep_gwfs(p);

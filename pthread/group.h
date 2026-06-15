@@ -8,6 +8,7 @@
 #include "util.h"
 #include "vt.h"
 #include "heap.h"
+#include "mheap.h"
 #include "process.h"
 
 #define DEF_NUM_GROUPS 4

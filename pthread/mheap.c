@@ -300,14 +300,12 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_sample_min_enq(struct mh
 	vt_t other_vt;
 
 	while(true) {
-		he = NULL;
 		mh_rand_heaps(mh, &i, &j);
 		if ((h = mh_select(mh, i, j, &vt, &other_vt)) == NULL) {
 			if(all) he = mh_all_min_proc(mh, i);
 			break;
 		} 
 		if ((he = mh_try_deq_min_enq(h, vt, to_add)) != NULL) {
-			to_add = NULL;   // to avoid inserting below
 			break;
 		}
 		r++;
@@ -317,18 +315,6 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_sample_min_enq(struct mh
 	if(r > mycore()->max_retry_del)
 		mycore()->max_retry_del = r;
 
-	if ((he != NULL) && (to_add != NULL)) {
-		i = mh_least_loaded(mh, i, j);
-		struct heap *h = mh->h[i];
-		if(lock_try_acquire(&h->lk) != 0) {
-			h = mh_choose_heap(mh);
-		}
-		heap_push(h, to_add);
-		lock_release(&h->lk);
-	} else if (he != NULL) {
-		// XXX pretend we added and removed to_add from the heap
-		// h->last_vt = to_add->vruntime;
-	}
 	return he;
 }
 

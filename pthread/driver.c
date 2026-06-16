@@ -259,7 +259,7 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -a -d -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <sched: gwfs/rr/pcrq> <num_cores> <num_threads>\n", s);
+	fprintf(stderr, "%s -a -d -p -q -y -b <number> -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <sched: gwfs/rr/pcrq> <num_cores> <num_threads>\n", s);
 	exit(1);
 
 }
@@ -435,7 +435,7 @@ void main(int argc, char *argv[]) {
 	float tp_p_c = tp/num_cores;
 	printf("%s: tp %0.2fM/s per-core %0.2fM  lat sched %0.2fus\n", argv[optind], AVG(nsched+nyield, time_to_run)/1000000, tp_p_c, 1/tp_p_c);
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
-	printf("  sched #%ld(l %ld, g %ld, sh %d dl %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, nrr_skip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
+	printf("  sched #%ld(local %ld, global %ld, skiph %d delayy %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, nrr_skip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);

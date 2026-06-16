@@ -42,10 +42,12 @@ void ss_yield_pcrq(struct task_struct *p, t_t time_passed) {
 
 void ss_enqueue_pcrq(struct task_struct *p) {
 	struct core *c = mycore();
-	int i, j;
-	mh_rand_heaps(ss_global->mh, &i, &j);
-	if (ss_global->mh->h[i]->heap_size > ss_global->mh->h[j]->heap_size)
-		i = j;
+	int i = 0, j;
+	if(ss_global->mh->nheap > 1) {
+		mh_rand_heaps(ss_global->mh, &i, &j);
+		if (ss_global->mh->h[i]->heap_size > ss_global->mh->h[j]->heap_size)
+			i = j;
+	}
 	p->h = ss_global->mh->h[i];
 	p->he.vruntime = safe_read_tsc();
 	heap_push(p->h, &p->he);

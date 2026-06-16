@@ -184,28 +184,28 @@ void rr_groups() {
 }	
 
 void rr_sched_action(struct core *mycore) {
-		doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-		if(time_work > 0) usleep(time_work);
+	doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+	if(time_work > 0) usleep(time_work);
 
-		if(benchmark == 1 && (mycore->process != NULL) && mycore->process->pid == 0) {
-			// this proc should run after all other runnable procs
+	if(benchmark == 1 && (mycore->process != NULL) && mycore->process->pid == 0) {
+		// this proc should run after all other runnable procs
+		action(gs->ss, mycore, SLEEP);
+		action(gs->ss, mycore, WAKEUP);
+	} else if (benchmark == 2) {
+		bool high = (mycore->process != NULL) && (mycore->process->group->gid == RR_HIGH);
+		if(high) {
+			// if LC go to sleep;  likely to run BE
 			action(gs->ss, mycore, SLEEP);
+			doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+			if(time_work > 0) usleep(time_work);
+			action(gs->ss, mycore, RUN);
 			action(gs->ss, mycore, WAKEUP);
-		} else if (benchmark == 2) {
-			bool high = (mycore->process != NULL) && (mycore->process->group->gid == RR_HIGH);
-			if(high) {
-				// if LC go to sleep;  likely to run BE
-				action(gs->ss, mycore, SLEEP);
-				doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-				if(time_work > 0) usleep(time_work);
-				action(gs->ss, mycore, RUN);
-				action(gs->ss, mycore, WAKEUP);
-			} else {
-				action(gs->ss, mycore, RUN);
-			}
 		} else {
 			action(gs->ss, mycore, RUN);
 		}
+	} else {
+		action(gs->ss, mycore, RUN);
+	}
 }
 
 void ss_groups() {

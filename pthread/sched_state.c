@@ -18,7 +18,7 @@
 #include "gq.h"
 
 //
-// for sched_state schedulers (gwfs and rr)
+// sched_state for schedulers such as gwfs and rr
 //
 
 bool debug = false;

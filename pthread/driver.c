@@ -433,7 +433,7 @@ void main(int argc, char *argv[]) {
 	}
 	float tp = AVG(nsched+nyield, time_to_run)/1000000;
 	float tp_p_c = tp/num_cores;
-	printf("%s: tp %0.2fM/s per-core %0.2fM  lat sched %0.2fus\n", argv[optind], AVG(nsched+nyield, time_to_run)/1000000, tp_p_c, 1/tp_p_c);
+	printf("%s: %d %0.2fM/s tp per-core %0.2fM  lat sched %0.2fus\n", argv[optind], num_cores, AVG(nsched+nyield, time_to_run)/1000000, tp_p_c, 1/tp_p_c);
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
 	printf("  sched #%ld(local %ld, global %ld, skiph %d delayy %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, nrr_skip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);

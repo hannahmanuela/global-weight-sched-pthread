@@ -85,7 +85,7 @@ void test_parallel() {
 		nenq += c->nenq;
 		ndeq += c->ndeq;
 	}
-	printf("tp %0.2fM/s\n", AVG(nenq+ndeq, time_to_run)/1000000);
+	printf("tp %d %0.2fM/s\n", num_cores, AVG(nenq+ndeq, time_to_run)/1000000);
 }
 
 void test_load() {

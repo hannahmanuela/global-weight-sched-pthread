@@ -365,6 +365,8 @@ void main(int argc, char *argv[]) {
 	long s_c = 0;
 	long nsched = 0;
 	long nyield = 0;
+	long nenq = 0;
+	long ndeq = 0;
 	long hit = 0;
 	long miss = 0;
 	long nlocal = 0;
@@ -390,6 +392,8 @@ void main(int argc, char *argv[]) {
 		float s = AVG(c->sched_cycles, c->nsched);
 		nsched += c->nsched;
 		nyield += c->nyield;
+		nenq += c->nenq;
+		ndeq += c->ndeq;
 		s_h = MAX(s_h, s);
 		s_l = MIN(s_l, s);
 		s_c += c->sched_cycles;
@@ -434,14 +438,13 @@ void main(int argc, char *argv[]) {
 	float tp_p_c = tp/num_cores;
 	printf("%s: %d %0.2fM/s tp per-core %0.2fM  lat sched %0.2fus\n", argv[optind], num_cores, AVG(nsched+nyield, time_to_run)/1000000, tp_p_c, 1/tp_p_c);
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
-	printf("  sched #%ld(local %ld, global %ld, skiph %d delayy %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nlocal, nsched-nlocal, nrr_skip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
-	printf("  yield #%ld min %0.2f avg %0.2f max %0.2f\n", nyield, y_l, AVG(y_c, nyield), y_h);
+	printf("  sched #%ld(null %ld/%0.2f, local %ld/%0.2f, global %ld/%0.2f, skiph %d delayy %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nsched_null, AVG(nsched_null, nsched), nlocal,AVG(nlocal, nsched),  nsched-nlocal, AVG(nsched-nlocal, nsched), nrr_skip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
+	printf("  yield #%ld enq #%ld deq #%ld\n", nyield, nenq, ndeq);
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);
 	printf("    max retry locked %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
 	printf("  retry grp offset sub %ld\n", offset_sub_retry);
 	printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld preempted %d\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry, npreempted);
-	printf("  nsched_null %ld (%0.2f)\n", nsched_null, AVG(nsched_null, nsched));
 	if(do_affinity)
 		printf("  hit %ld miss %ld hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
 	for (int i = 0; i < num_cores; i++) {

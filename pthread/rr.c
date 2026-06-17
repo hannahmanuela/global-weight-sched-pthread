@@ -100,7 +100,8 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 
 	if (num_groups > 1) {
 		// no proc found in priority mh; go for mh_l. note:
-		// there might be runnable highs but mh didn't find it.
+		// there might be runnable highs but
+		// ss_schedule_mh_enq didn't find it.
 
 		mycore()->nrr_skip_high++;
 		if ((p = ss_schedule_mh_enq(ss_global->mh_l, prev, NULL)) != NULL) {
@@ -151,7 +152,7 @@ ok:
 	return p;
 }
 
-// p wokeup: enqueue p at the ends of its priority's queue
+// a proc woke up p: enqueue p at the ends of its priority's queue
 // XXX use atomic AOR to find low core
 void ss_enqueue_rr(struct task_struct *p) {
 	struct core *c = mycore();

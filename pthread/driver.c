@@ -112,6 +112,8 @@ void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, lon
 		mycore->work += ss->tick_length/2;
 		ss_dequeue(ss, mycore, p, ss->tick_length/2);
 		break;
+	default:
+		assert(0);
 	}
 	long op_cycles = 0;
 	if (do_ts_op) op_cycles = safe_read_tsc() - ts;
@@ -123,7 +125,6 @@ void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, lon
 #define WAKEUP 1
 #define SLEEP 2
 
-// simulator actions
 void action(struct sched_state *ss, struct core *mycore, int choice) {
 	switch(choice) {
 	case RUN: // Run for full tick
@@ -165,6 +166,7 @@ void rr_groups() {
 		ns[0] = num_threads_p_group;
 		ns[1] = num_threads_p_group;
 	} else {
+		// Hack to set a small number of high procs
 		ns[0] = ratio-1;
 		ns[1] = 2*num_threads_p_group - ns[0];
 	}

@@ -27,7 +27,7 @@ struct core {
 	
 	struct spinlock lk __calign__;
 
-	atomic_bool preempted __calign__;
+	_Atomic(void*)  preempted __calign__;
 
 	dlnode_t preempt_node __calign__;
 

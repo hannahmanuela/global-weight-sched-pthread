@@ -276,20 +276,18 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct h
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_all_min_proc(struct mheap *mh, int s) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mheap *mh, struct heap *h) {
 	struct heap_elem *he = NULL;
-	for (int i = 0; i < mh->nheap; i++) {
-		struct heap *h = mh->h[MH_IND(mh, i+s)];
-		vt_t vt = atomic_load_explicit(&h->heap[0]->vruntime, __ATOMIC_RELAXED);
-		if (vt != DUMMY && ((he = mh_try_del_min(h, vt)) != NULL)) {
-			lock_release(&h->lk);
-			break;
-		}
+	lock_acquire(&h->lk);
+	if (h->heap[0]->vruntime != DUMMY) {
+		mycore()->npreempt_retry++;   // XXX fix
+		he = mh_remove_min(h);
 	}
+	lock_release(&h->lk);
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap *mh, struct heap_elem *to_add, bool all) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap *mh, struct heap_elem *to_add, struct heap *hint) {
 	struct heap_elem *he;
 	struct heap *h;
 	long r = 0;
@@ -300,7 +298,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	while(true) {
 		mh_rand_heaps(mh, &i, &j);
 		if ((h = mh_select(mh, i, j, &vt, &other_vt)) == NULL) {
-			if(all) he = mh_all_min_proc(mh, i);
+			if(hint) he = mh_hint_min_proc(mh, hint);
 			break;
 		} 
 		if ((he = mh_try_deq_min_enq(h, vt, to_add)) != NULL) {
@@ -326,19 +324,19 @@ static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem 
 	return he;
 }
 
-struct heap_elem *mh_deq_min_elem(struct mheap *mh, bool all) {
+struct heap_elem *mh_deq_min_elem(struct mheap *mh, struct heap *h) {
 	if (mh->nheap == 1) {
 		return mh_deq_min_one_heap(mh, NULL);
 	}
-	return mh_deq_min_enq(mh, NULL, all);
+	return mh_deq_min_enq(mh, NULL, h);
 }
 
 // if there is a min, grab it and enqueue to_add
-struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, bool all) {
+struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, struct heap *hint) {
 	if (mh->nheap == 1) {
 		return mh_deq_min_one_heap(mh, to_add);
 	}
-	return mh_deq_min_enq(mh, to_add, all);
+	return mh_deq_min_enq(mh, to_add, hint);
 }
 
 // returns chosen h for e, so that caller can pass it to mh_remove_elem

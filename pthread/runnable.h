@@ -7,6 +7,6 @@
 #include "mheap.h"
 
 struct task_struct *runnable_deq_proc(struct mheap *mh, struct task_struct*);
-struct task_struct *runnable_deq_proc_all(struct mheap *mh, struct task_struct*, bool all);
+struct task_struct *runnable_deq_proc_hint(struct mheap *mh, struct task_struct*, struct heap *hint);
 
 #endif

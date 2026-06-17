@@ -26,7 +26,6 @@ grep tp $D/tp-mheap.out | awk '{print $2, $3}' > $D/tp-mheap.dat
 echo "rr w priority and preemption"
 
 for n in ${NUM_CORES[@]}; do
-    p=$(($n - 1))
-    ./schedule -p -q -b 2 -g 2 rr $n $(($p * 2))
+    ./schedule -p -q -b 2 -g 2 rr $n $(($n * 4))
 done 2>&1 > $D/tp-rr-prio.out
 grep tp $D/tp-rr-prio.out | awk '{print $2, $3}' > $D/tp-rr-prio.dat

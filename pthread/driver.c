@@ -130,7 +130,7 @@ void action(struct sched_state *ss, struct core *mycore, int choice) {
 		doop(ss, mycore, YIELD, &mycore->yield_cycles, &mycore->nyield, mycore->process); 
 		break;
 	case WAKEUP: // Make a process runnable
-		// pick an existing process from the pool?
+		// pick an existing process from the pool
 		struct task_struct *p = mycore->pool;
 		if (!p) {
 			return; 
@@ -193,14 +193,10 @@ void rr_sched_action(struct core *mycore) {
 	} else if (benchmark == 2) {
 		bool high = (mycore->process != NULL) && (mycore->process->group->gid == RR_HIGH);
 		if(high) {
-			// if LC go to sleep;  likely to run BE
 			action(gs->ss, mycore, SLEEP);
-			doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-			if(time_work > 0) usleep(time_work);
-			action(gs->ss, mycore, RUN);
-			action(gs->ss, mycore, WAKEUP);
 		} else {
 			action(gs->ss, mycore, RUN);
+			action(gs->ss, mycore, WAKEUP);  // wakeup high
 		}
 	} else {
 		action(gs->ss, mycore, RUN);
@@ -454,6 +450,14 @@ void main(int argc, char *argv[]) {
 	     
 	ss_stats(gs->ss, gs->grps, num_groups);
 	mh_stats(gs->ss->mh);
+	if(gs->ss->mh_l != NULL) {
+		printf("mh_l: ");
+		mh_stats(gs->ss->mh_l);
+	}
+	if(gs->ss->mh_r != NULL) {
+		printf("mh_r: ");
+		mh_stats(gs->ss->mh_r);
+	}
 
 	if (do_latency) {
 		printf("lat distribution:\n");

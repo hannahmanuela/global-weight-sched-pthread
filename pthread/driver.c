@@ -360,6 +360,7 @@ void main(int argc, char *argv[]) {
 	}
 
 	int pg = (is_rr() && (ratio == 0)) ? 0 : num_threads_p_group;
+	pg = (is_rr() && (ratio == 2)) ? ratio-1 : pg;
 	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", argv[optind], num_cores, num_groups, num_threads, pg, gs->ss->mh->nheap, time_work, do_affinity, do_preempt, use_power2_insert, benchmark, time_to_run, ratio);
 
 	float s_h = 0.0;
@@ -481,7 +482,7 @@ void main(int argc, char *argv[]) {
 	}
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);
-	printf("    max retry locked %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
+	printf("    max retry del %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
 
 	if (do_latency) {
 		printf("lat distribution:\n");

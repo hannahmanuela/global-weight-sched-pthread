@@ -55,6 +55,7 @@ void set_scheduler(char *s);
 bool is_rr();
 bool is_pcrq();
 bool is_gq();
+bool is_gwfs();
 
 bool ss_schedule(struct sched_state *ss, struct core *c);
 void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed);

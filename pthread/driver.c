@@ -454,19 +454,22 @@ void main(int argc, char *argv[]) {
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
 	printf("  sched #%ld(null %ld/%0.2f, local %ld/%0.2f, global %ld/%0.2f, skiph %d delayy %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nsched_null, AVG(nsched_null, nsched), nlocal,AVG(nlocal, nsched),  nsched-nlocal, AVG(nsched-nlocal, nsched), nrr_skip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld enq #%ld deq #%ld\n", nyield, nenq, ndeq);
-	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
-	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);
-	printf("    max retry locked %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
-	printf("  retry grp offset sub %ld\n", offset_sub_retry);
 	printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld preempted %d\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry, npreempted);
+
 	if(do_affinity)
 		printf("  hit %ld miss %ld hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
+
 	for (int i = 0; i < num_cores; i++) {
 		struct core *c = gs->cores[i];
 		c_print(c, num_groups);
 	}
 	     
 	ss_stats(gs->ss, gs->grps, num_groups);
+
+	if(is_gwfs()) {
+		printf("  retry grp offset sub %ld\n", offset_sub_retry);
+	}
+
 	mh_stats(gs->ss->mh);
 	if(gs->ss->mh_l != NULL) {
 		printf("mh_l: ");
@@ -476,6 +479,9 @@ void main(int argc, char *argv[]) {
 		printf("mh_r: ");
 		mh_stats(gs->ss->mh_r);
 	}
+	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
+	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);
+	printf("    max retry locked %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
 
 	if (do_latency) {
 		printf("lat distribution:\n");

@@ -148,6 +148,8 @@ void action(struct sched_state *ss, struct core *mycore, int choice) {
 		p->next = mycore->pool;
 		mycore->pool = p;
 		break;
+	default:
+		assert(0);
 	}
 }
 
@@ -155,12 +157,16 @@ void rr_groups() {
 	int ns[2];
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
 	assert(num_groups <= 2);
-	if(ratio == 1)  {
+
+	if(ratio == 0)  {
+		ns[0] = 0;
+		ns[1] = 2*num_threads_p_group;
+	} else if (ratio == 1) {
 		ns[0] = num_threads_p_group;
 		ns[1] = num_threads_p_group;
 	} else {
-		ns[0] = 0;
-		ns[1] = 2*num_threads_p_group;
+		ns[0] = ratio-1;
+		ns[1] = 2*num_threads_p_group - ns[0];
 	}
 
 	if(is_rr() || is_pcrq() || is_gq()) {
@@ -168,13 +174,19 @@ void rr_groups() {
 		delay_yield = true;
 	}
 
+	int pid = 0;
 	for (int i = 0; i < num_groups; i++) {
+		if (i > 0) {
+			pid += ns[i-1];
+		}
 		struct mheap *mh = gs->ss->mh;
-		if(i == RR_LOW) mh = gs->ss->mh_l;
+		if(i == RR_LOW) {
+			mh = gs->ss->mh_l;
+		}
 		struct group *g = grp_new(mh, i, 10);
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
-			struct task_struct *p = grp_new_process(i*ns[0]+j, g);
+			struct task_struct *p = grp_new_process(pid+j, g);
 			if(is_pcrq()) ss_enqueue_pcrq(p);
 			else if (is_gq()) ss_enqueue_gq(p);
 			else ss_enqueue_rr(p);
@@ -191,12 +203,16 @@ void rr_sched_action(struct core *mycore) {
 		action(gs->ss, mycore, SLEEP);
 		action(gs->ss, mycore, WAKEUP);
 	} else if (benchmark == 2) {
+		// note: run with preempt (-p)
 		bool high = (mycore->process != NULL) && (mycore->process->group->gid == RR_HIGH);
 		if(high) {
 			action(gs->ss, mycore, SLEEP);
+		} else if (mycore->pool != NULL) {  // sleeping proc?
+			action(gs->ss, mycore, WAKEUP);  // wakeup sleeping high
+			action(gs->ss, mycore, RUN);  // preempt/yield low
 		} else {
+			assert(mycore->process->group->gid == RR_LOW);
 			action(gs->ss, mycore, RUN);
-			action(gs->ss, mycore, WAKEUP);  // wakeup high
 		}
 	} else {
 		action(gs->ss, mycore, RUN);

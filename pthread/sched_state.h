@@ -28,7 +28,6 @@ struct sched_state {
 	int ncore;
 	int tick_length;
 
-	// XXX group array and stick these fields inside of group
 	struct mheap *mh;
 	struct mheap *mh_l;   // for low priority rr procs
 
@@ -38,7 +37,7 @@ struct sched_state {
 	dllist_t preemptq __calign__;
 
 	preempt_t preempt __calign__;
-	struct mheap *mh_r __calign__;
+	struct mheap *mh_r __calign__;   // for running low priority procs
 
 	bitarray_t preemptable __calign__;
 

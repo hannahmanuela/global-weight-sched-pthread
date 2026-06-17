@@ -23,7 +23,7 @@ for n in ${NUM_CORES[@]}; do
 done 2>&1 > $D/tp-mheap.out
 grep tp $D/tp-mheap.out | awk '{print $2, $3}' > $D/tp-mheap.dat
 
-echo "rr w priority and preemption"
+echo "rr w priority and preemption and runq"
 
 for n in ${NUM_CORES[@]}; do
     ./schedule -p -q -b 2 -g 2 rr $n $(($n * 4))

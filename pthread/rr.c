@@ -16,7 +16,7 @@
 #include "rr.h"
 
 //
-// approximate round robin with multiheap with 1 or two groups (i.e., 2 priority levels)
+// approximate round robin with one or two priority levels using mheap
 //
 
 extern bool debug;
@@ -45,6 +45,8 @@ static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_stru
 			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld mh %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, mh, deq);
 		}
 		if (do_preempt && (prev != NULL) && !deq) {
+			// found a high priority proc to run, add the low-priority prev
+			// to the low-priority mheap.
 			assert(prev->group->gid == RR_LOW);
 			if (use_runningq) {
 				if (debug) {
@@ -97,9 +99,10 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 	}
 
 	if (num_groups > 1) {
-		mycore()->nrr_skip_high++;
+		// no proc found in priority mh; go for mh_l. note:
+		// there might be runnable highs but mh didn't find it.
 
-		// no proc in high heaps; go for low
+		mycore()->nrr_skip_high++;
 		if ((p = ss_schedule_mh_enq(ss_global->mh_l, prev, NULL)) != NULL) {
 			assert(p->group->gid == RR_LOW);
 			goto ok;
@@ -148,7 +151,7 @@ ok:
 	return p;
 }
 
-// p wokeup: enqueue p at the ends of its group's queue
+// p wokeup: enqueue p at the ends of its priority's queue
 // XXX use atomic AOR to find low core
 void ss_enqueue_rr(struct task_struct *p) {
 	struct core *c = mycore();

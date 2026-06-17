@@ -1,4 +1,4 @@
-OBJ = sched_state.o gwfs.o rr.o pcrq.o gq.o process.o group.o mheap.o heap.o util.o ticks.o core.o lock.o mcounter.o scheduler.o runnable.o running.o preempt.o dllist.o
+OBJ = sched_state.o gwfs.o rr.o pcrq.o gq.o process.o group.o mheap.o heap.o util.o ticks.o core.o lock.o mcounter.o runnable.o running.o preempt.o dllist.o
 
 CC=gcc
 

@@ -8,6 +8,11 @@
 #include "preempt.h"
 #include "dllist.h"
 
+#define GWFS 1
+#define RR   2
+#define PCRQ 3
+#define GQ 4
+
 struct sched_state;
 
 struct scheduler {
@@ -44,5 +49,17 @@ struct sched_state *ss_new(int tick_length, int n, struct core *cs[], int ncore)
 struct core *ss_choose_core(struct sched_state *ss, struct core *c);
 void ss_stats(struct sched_state *ss, struct group *gs[], int n);
 void ss_print(struct sched_state *ss, struct group *gs[], int n);
+
+
+void set_scheduler(char *s);
+
+bool is_rr();
+bool is_pcrq();
+bool is_gq();
+
+bool ss_schedule(struct sched_state *ss, struct core *c);
+void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed);
+void ss_enqueue(struct sched_state *ss, struct core *c, struct task_struct *p);
+void ss_dequeue(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_gotten);
 
 #endif

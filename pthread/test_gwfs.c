@@ -10,7 +10,6 @@
 #include "mheap.h"
 #include "sched_state.h"
 #include "gwfs.h"
-#include "scheduler.h"
 #include "util.h"
 
 #define GRP1 1

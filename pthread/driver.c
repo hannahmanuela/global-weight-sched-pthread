@@ -28,7 +28,6 @@
 #include "pcrq.h"
 #include "gq.h"
 #include "util.h"
-#include "scheduler.h"
 
 int time_to_run = 2;  // sec
 int num_cores;

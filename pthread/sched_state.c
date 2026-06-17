@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "scheduler.h"
 #include "vt.h"
 #include "util.h"
 #include "driver.h"
@@ -106,4 +106,61 @@ void ss_stats(struct sched_state *ss, struct group *grps[], int n) {
 	for(int i = 0; i < n; i++) {
 		grp_stats(grps[i], tot); printf("\n");
 	}
+}
+
+void set_scheduler(char *s) {
+	if (strcmp(s, "gwfs") == 0) {
+		scheduler = GWFS;
+	} else if (strcmp(s, "rr") == 0) {
+		scheduler = RR;
+		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
+	} else if (strcmp(s, "pcrq") == 0) {
+		scheduler = PCRQ;
+		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
+	} else if (strcmp(s, "gq") == 0) {
+		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
+		scheduler = GQ;
+	} else {
+		fprintf(stderr, "unkown scheduler %s\n", s);
+		exit(1);
+	}
+}
+
+bool is_gwfs() {
+	return scheduler == GWFS;
+}
+
+bool is_rr() {
+	return scheduler == RR;
+}
+
+bool is_pcrq() {
+	return scheduler == PCRQ;
+}
+
+bool is_gq() {
+	return scheduler == GQ;
+}
+
+bool ss_schedule(struct sched_state *ss, struct core *c) {
+	c->process = ss->sched.schedule(c->process);
+	return c->process == NULL;
+}	
+
+void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {
+	ss->sched.yield(p, t);
+	if (!delay_yield)
+		c->process = NULL;
+}
+
+void ss_enqueue(struct sched_state *ss, struct core *c, struct task_struct *p) {
+	ss->sched.enqueue(p);
+	if(c->process == p) {
+		c->process = NULL;
+	}
+}
+
+void ss_dequeue(struct sched_state *ss, struct core *c, struct task_struct *p, t_t t) {
+	ss->sched.dequeue(p, t);
+	c->process = NULL;
 }

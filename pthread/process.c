@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 
 #include "group.h"
 #include "process.h"
 
 void proc_print(struct task_struct *p) {
-	printf("[pid %d(%d) vt %lld w %d]", p->pid, p->group->gid,  p->he.vruntime, p->he.weight);
+	printf("[pid %d(%d) vt %lld w %d]", p->pid, p->group->gid,  atomic_load(&p->he.vruntime), atomic_load(&p->he.weight));
 }	
 
 struct task_struct *proc_new(int id, int w) {

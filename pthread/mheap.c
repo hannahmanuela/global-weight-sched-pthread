@@ -91,9 +91,11 @@ void mh_print_min(struct mheap *mh, void (*print_heap_elem)(struct heap_elem *))
 	printf("= mh min:\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
+		lock_acquire(&h->lk);
 		printf("%d(%d): ", i, h->heap_size);
 		print_heap_elem(h->heap[0]);
 		printf("\n");
+		lock_release(&h->lk);
 	}
 	printf("=\n");
 }
@@ -102,8 +104,10 @@ void mh_print(struct mheap *mh, void (*print_heap_elem)(struct heap_elem*)) {
 	printf("= mh:\n");
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[i];
+		lock_acquire(&h->lk);
 		printf("  Heap %d size %d last_vt %lld: \n", i, h->heap_size, h->last_vt);
 		heap_iter(mh->h[i], print_heap_elem);
+		lock_release(&h->lk);
 		printf("\n");
 	}
 	printf("=\n");
@@ -280,7 +284,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mhe
 	struct heap_elem *he = NULL;
 	lock_acquire(&h->lk);
 	if (h->heap[0]->vruntime != DUMMY) {
-		mycore()->npreempt_retry++;   // XXX fix
+		mycore()->npreempt_retry++;   // XXX fix; don't reuse name
 		he = mh_remove_min(h);
 	}
 	lock_release(&h->lk);
@@ -298,7 +302,9 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	while(true) {
 		mh_rand_heaps(mh, &i, &j);
 		if ((h = mh_select(mh, i, j, &vt, &other_vt)) == NULL) {
-			if(hint) he = mh_hint_min_proc(mh, hint);
+			if(hint != NULL) {
+				he = mh_hint_min_proc(mh, hint);
+			}
 			break;
 		} 
 		if ((he = mh_try_deq_min_enq(h, vt, to_add)) != NULL) {

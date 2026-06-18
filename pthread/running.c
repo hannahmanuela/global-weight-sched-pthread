@@ -14,7 +14,7 @@ void running_set(struct mheap *mh, struct task_struct *p, int cid) {
 		printf("%d: running_set pid %d cid %d\n", mycore()->cid, p->pid, p->cid);
 		assert(p->cid == -1);
 	}
-	p->cid = cid;
+	atomic_store(&p->cid, cid);
 	atomic_store(&p->he_r.vruntime, safe_read_tsc());
 	p->h_r = mh_insert_elem(mh, &p->he_r);
 	mycore()->npreempt_set++;

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdatomic.h>
 
 #include "util.h"
 #include "lock.h"
@@ -106,7 +107,8 @@ void heap_push(struct heap *h, struct heap_elem *e) {
 	assert(h->heap_size+1 < h->heap_capacity);
 	e->idx = h->heap_size;
 	h->heap[e->idx] = e;
-	h->heap_size++;
+	int n = h->heap_size+1;
+	atomic_store(&h->heap_size, n);
 	heap_sift_up(h, e->idx);
 	if (e->idx > h->max)
 		h->max = e->idx;
@@ -117,7 +119,7 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 	if(h->heap_size == 0)
 		return NULL;
 	int last = h->heap_size - 1;
-	h->heap_size--;
+	atomic_store(&h->heap_size, last);
 	if(last != 0) {
 		heap_swap(h, 0, last);
 		heap_sift_down(h, 0);
@@ -136,7 +138,7 @@ bool heap_erase(struct heap *h, struct heap_elem *e) {
                 return false;
 
 	int last = h->heap_size - 1;
-	h->heap_size--;
+	atomic_store(&h->heap_size, last);
         if (last != i) {
 		heap_swap(h, i, last);
                 heap_sift_up(h, i);

@@ -38,6 +38,7 @@ struct task_struct {
 
 void proc_print(struct task_struct *p);
 void proc_mh_print(struct mheap *mh);
+void proc_mh_r_print(struct mheap *mh);
 struct task_struct *proc_new(int id, int weight);
 int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
 

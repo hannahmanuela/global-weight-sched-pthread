@@ -330,11 +330,11 @@ static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem 
 	return he;
 }
 
-struct heap_elem *mh_deq_min_elem(struct mheap *mh, struct heap *h) {
+struct heap_elem *mh_deq_min_elem(struct mheap *mh, struct heap *hint) {
 	if (mh->nheap == 1) {
 		return mh_deq_min_one_heap(mh, NULL);
 	}
-	return mh_deq_min_enq(mh, NULL, h);
+	return mh_deq_min_enq(mh, NULL, hint);
 }
 
 // if there is a min, grab it and enqueue to_add

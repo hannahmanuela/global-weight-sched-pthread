@@ -212,7 +212,7 @@ void rr_sched_action(struct core *mycore) {
 		} else if (mycore->pool != NULL) {  // sleeping proc?
 			action(gs->ss, mycore, WAKEUP);  // wakeup sleeping high
 			action(gs->ss, mycore, RUN);  // preempt/yield low
-		} else {
+		} else if (mycore->process != NULL) {
 			assert(mycore->process->group->gid == RR_LOW);
 			action(gs->ss, mycore, RUN);
 		}

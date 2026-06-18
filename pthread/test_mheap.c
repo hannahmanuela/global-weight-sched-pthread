@@ -13,7 +13,7 @@
 #include "mpmcv1.h"
 #include "mheap.h"
 
-#define NCORES 10
+#define NCORES 100
 
 int num_cores;
 bool do_affinity = false;

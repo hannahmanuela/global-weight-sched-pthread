@@ -11,7 +11,7 @@
 #include "core.h"
 #include "mpmcv1.h"
 
-#define NCORES 10
+#define NCORES 100
 
 int num_cores;
 bool do_affinity = false;

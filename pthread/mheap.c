@@ -185,8 +185,10 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int 
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	vt_t vt_i = atomic_load_explicit(&h_i->heap[0]->vruntime, __ATOMIC_RELAXED);
-	vt_t vt_j = atomic_load_explicit(&h_j->heap[0]->vruntime, __ATOMIC_RELAXED);
+	struct heap_elem *he_i = atomic_load_explicit(&h_i->heap[0],  __ATOMIC_RELAXED);
+	struct heap_elem *he_j = atomic_load_explicit(&h_j->heap[0],  __ATOMIC_RELAXED);
+	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
 		return NULL;
 	}
@@ -201,8 +203,6 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int 
 			h_i = h_j;
 		} else if (vt_i == vt_j) {
 			ovt = vt_i;
-			struct heap_elem *he_i = h_i->heap[0];
-			struct heap_elem *he_j = h_j->heap[0];
 			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
 			int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
 			if (w_j > w_i) {	

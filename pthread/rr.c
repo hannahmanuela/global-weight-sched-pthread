@@ -30,7 +30,7 @@ static struct heap *enqueue(struct task_struct *p) {
 		struct core *c = mycore();
 		printf("%d: enqueue_rr %d(%d) in mh %p\n", c->cid, p->pid, p->group->gid, p->group->mh);
 	}
-	p->he.vruntime = safe_read_tsc();
+	atomic_store(&p->he.vruntime, safe_read_tsc());
 	struct heap *h = mh_insert_elem(p->group->mh, &p->he);
 	return h;
 }
@@ -73,7 +73,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 	}
 
 	if(prev != NULL) {
-		prev->he.vruntime = safe_read_tsc();
+		atomic_store(&prev->he.vruntime, safe_read_tsc());
 		low = (prev->group->gid == RR_LOW);
 		if (debug)
 			printf("%d: ss_schedule_rr: low %d preempted by %d prev %d(%d)\n", mycore()->cid, low, preempted ? preempted->id : -1, prev->pid, prev->group->gid);

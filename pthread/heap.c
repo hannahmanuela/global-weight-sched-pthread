@@ -64,9 +64,10 @@ void heap_iter(struct heap *heap, heap_iter_t iter) {
 }
 
 static inline void heap_swap(struct heap *h, int i, int j) {
-	struct heap_elem *tmp = h->heap[i];
-	h->heap[i] = h->heap[j];
-	h->heap[j] = tmp;
+	struct heap_elem *tmp = atomic_load(&h->heap[i]);
+	struct heap_elem *tmp1 = atomic_load(&h->heap[j]);
+	atomic_store(&h->heap[i], tmp1);
+	atomic_store(&h->heap[j], tmp);
 	h->heap[i]->idx = i;
 	h->heap[j]->idx = j;
 }

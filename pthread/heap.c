@@ -66,8 +66,8 @@ void heap_iter(struct heap *heap, heap_iter_t iter) {
 static inline void heap_swap(struct heap *h, int i, int j) {
 	struct heap_elem *tmp = atomic_load(&h->heap[i]);
 	struct heap_elem *tmp1 = atomic_load(&h->heap[j]);
-	atomic_store(&h->heap[i], tmp1);
-	atomic_store(&h->heap[j], tmp);
+	atomic_store_explicit(&h->heap[i], tmp1, __ATOMIC_RELAXED);
+	atomic_store_explicit(&h->heap[j], tmp, __ATOMIC_RELAXED);
 	h->heap[i]->idx = i;
 	h->heap[j]->idx = j;
 }
@@ -109,7 +109,7 @@ void heap_push(struct heap *h, struct heap_elem *e) {
 	e->idx = h->heap_size;
 	h->heap[e->idx] = e;
 	int n = h->heap_size+1;
-	atomic_store(&h->heap_size, n);
+	atomic_store_explicit(&h->heap_size, n, __ATOMIC_RELAXED);
 	heap_sift_up(h, e->idx);
 	if (e->idx > h->max)
 		h->max = e->idx;
@@ -120,7 +120,7 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 	if(h->heap_size == 0)
 		return NULL;
 	int last = h->heap_size - 1;
-	atomic_store(&h->heap_size, last);
+	atomic_store_explicit(&h->heap_size, last, __ATOMIC_RELAXED);
 	if(last != 0) {
 		heap_swap(h, 0, last);
 		heap_sift_down(h, 0);
@@ -139,7 +139,7 @@ bool heap_erase(struct heap *h, struct heap_elem *e) {
                 return false;
 
 	int last = h->heap_size - 1;
-	atomic_store(&h->heap_size, last);
+	atomic_store_explicit(&h->heap_size, last, __ATOMIC_RELAXED);
         if (last != i) {
 		heap_swap(h, i, last);
                 heap_sift_up(h, i);

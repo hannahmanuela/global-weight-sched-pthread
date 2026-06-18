@@ -1,7 +1,20 @@
 #!/bin/bash
 
-# NUM_CORES=(1 2 4 8 16 24 32 40 48)
-NUM_CORES=(1 2 4)
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <ncore>"
+    exit 1
+fi
+
+NUM_CORES=(1)
+n=2
+while [ $n -le $1 ]; do
+    NUM_CORES+=($n)
+    if [ $n -lt 8 ]; then
+        n=$((n + 2))
+    else
+        n=$((n + 8))
+    fi
+done
 SCHEDULERS=("rr" "gwfs" "gq" "pcrq")
 D=exp-out-`date +%Y-%m-%d_%H-%M-%S`
 

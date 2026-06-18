@@ -22,9 +22,9 @@ void running_set(struct mheap *mh, struct task_struct *p, int cid) {
 
 bool running_clear(struct mheap *mh, struct task_struct *p) {
 	assert(p->cid >= 0);
+	mh_remove_elem(p->h_r, &p->he_r);
 	atomic_store(&p->cid, -1);
 	mycore()->npreempt_clear++;
-	mh_remove_elem(p->h_r, &p->he_r);
 }
 
 int running_find_and_clear(struct mheap *mh) {
@@ -32,7 +32,11 @@ int running_find_and_clear(struct mheap *mh) {
 	if(he != NULL) {
 		mycore()->npreempt_find_ok++;
 		struct task_struct *p = container_of(he, struct task_struct, he_r);
-		return atomic_load(&p->cid);
+		int cid = atomic_load(&p->cid);
+		if (cid == -1) {
+			printf("%d: %d %d\n", cid, p->pid, p->cid);
+		}
+		return cid;
 	}
 	mycore()->npreempt_find_fail++;
 	return -1;

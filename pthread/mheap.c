@@ -284,7 +284,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mhe
 	struct heap_elem *he = NULL;
 	lock_acquire(&h->lk);
 	if (h->heap[0]->vruntime != DUMMY) {
-		mycore()->npreempt_retry++;   // XXX fix; don't reuse name
+		mycore()->nhint++;
 		he = mh_remove_min(h);
 	}
 	lock_release(&h->lk);

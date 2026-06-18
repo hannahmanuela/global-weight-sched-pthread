@@ -185,10 +185,6 @@ void ss_enqueue_rr(struct task_struct *p) {
 			assert(c->process->group->gid == RR_LOW);
 		if (use_runningq) {
 			cid = running_find_and_clear(ss_global->mh_r);
-			if(cid == -1) {
-				//printf("running:\n");
-				//proc_mh_print(ss_global->mh_r);
-			}
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
 		}

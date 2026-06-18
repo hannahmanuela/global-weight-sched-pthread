@@ -166,7 +166,7 @@ void rr_groups() {
 		ns[0] = num_threads_p_group;
 		ns[1] = num_threads_p_group;
 	} else {
-		// Hack to set a small number of high procs
+		// Hack to set up a small number of high procs
 		ns[0] = ratio-1;
 		ns[1] = 2*num_threads_p_group - ns[0];
 	}

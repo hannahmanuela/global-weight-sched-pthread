@@ -30,6 +30,8 @@ struct task_struct {
 	//int other_hid;
 	//vt_t other_vt;
 
+        struct spinlock lk __calign__;
+
 	int cid __calign__;     // core that is running or ran last this process
 	
 } __calign__;

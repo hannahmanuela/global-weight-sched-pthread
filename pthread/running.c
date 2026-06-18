@@ -34,7 +34,7 @@ int running_find_and_clear(struct mheap *mh) {
 		struct task_struct *p = container_of(he, struct task_struct, he_r);
 		int cid = atomic_load(&p->cid);
 		if (cid == -1) {
-			printf("%d: %d %d\n", cid, p->pid, p->cid);
+			mycore()->npreempt_retry++;
 		}
 		return cid;
 	}

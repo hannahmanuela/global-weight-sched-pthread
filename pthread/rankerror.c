@@ -134,7 +134,7 @@ void process_log(int fd) {
 			perror("next ring read");
 			exit(1);
 		}
-		// printf("%d: read ts %ld vt %d %d\n", idx, ring[idx].ts, ring[idx].vt, ring[idx].w);
+		// printf("%d: read ts %ld vt %d %d\n", idx, ring[IDX(idx)].ts, ring[IDX(idx)].vt, ring[IDX(idx)].w);
 		if (n == 0)
 			break;
 		idx++;

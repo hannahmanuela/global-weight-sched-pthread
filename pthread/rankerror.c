@@ -153,9 +153,9 @@ void process_log(int fd) {
 				}
 				if(d > max_d) {
 					max_d = d;
-					max_d_idx = idx;
-					max_d_ts = ring[IDX(idx)].ts;
-					max_d_vt = ring[IDX(idx)].vt;
+					max_d_idx = idx + N - 1;
+					max_d_ts = ring[IDX(max_d_idx)].ts;
+					max_d_vt = ring[IDX(max_d_idx)].vt;
 				}
 				sum_d += d;
 				if(d < NBIN_DELAY)
@@ -169,9 +169,9 @@ void process_log(int fd) {
 					}
 					if(p > max_p) {
 						max_p = p;
-						max_p_idx = idx;
-						max_p_ts = ring[IDX(idx)].ts;
-						max_p_vt = ring[IDX(idx)].vt;
+						max_p_idx = idx + N -1;
+						max_p_ts = ring[IDX(max_p_idx)].ts;
+						max_p_vt = ring[IDX(max_p_idx)].vt;
 					}
 					sum_p += p;
 					if(p < NBIN_PRIORITY)

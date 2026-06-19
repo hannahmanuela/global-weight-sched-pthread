@@ -5,6 +5,7 @@
 
 #include "core.h"
 #include "util.h"
+#include "rr.h"
 
 // run: ./rankerror vtlog
 
@@ -14,13 +15,16 @@ char buf[32];
 
 #define NBIN 50
 #define NBIN_DELAY 100
+#define NBIN_PRIORITY 100
 
 int bin_rank_error[NBIN];
 int bin_delay_error[NBIN_DELAY];
+int bin_priority_error[NBIN_PRIORITY];
 
 struct log_entry *ring; 
 
 int weight = 0;
+bool do_priority = false;
 
 #define IDX(idx) ((idx) % N)
 
@@ -72,6 +76,27 @@ int delay(struct log_entry *ring, long idx) {
 }
 
 
+int priority(struct log_entry *ring, long idx) {
+	int p = 0;
+	if(ring[IDX(idx)].gid == RR_LOW) {  // skip low
+		return -1;
+	}
+	for(long i = idx-1; i > idx-N; i--) {
+		if(ring[IDX(i)].gid == RR_HIGH) {
+			break;
+		}
+		if(ring[IDX(idx)].vt < ring[IDX(i)].vt) {
+			p += 1; 
+			printf("priority: idx %d %ld i %d %ld gid %d\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt, ring[IDX(i)].gid);
+			if(p >= N-1) {
+				// print_back(ring, idx);
+			}
+		}
+	}
+	return p;
+}
+
+
 void process_log(int fd) {
 	// print(ring, 0);
 	long idx = 0;
@@ -79,6 +104,7 @@ void process_log(int fd) {
 	long sum_re = 0;
 	int nentry = 0;
 	long sum_d = 0;
+	long sum_p = 0;
 
 	long max_re = 0;
 	long max_re_idx;
@@ -89,6 +115,11 @@ void process_log(int fd) {
 	long max_d_idx;
 	t_t max_d_ts;
 	vt_t max_d_vt;
+	
+	long max_p = 0;
+	long max_p_idx;
+	t_t max_p_ts;
+	vt_t max_p_vt;
 	
 	vt_t max_lat = 0;
 	vt_t sum_lat = 0;
@@ -102,39 +133,59 @@ void process_log(int fd) {
 		if((weight == 0) || (ring[IDX(idx)].w == weight)) {
 			nentry += 1;
 
-			int re = rank_error(ring, idx);
-			if(re > 0) {
-				// printf("%d: %ld rank_error %d\n", idx, ring[idx].ts, re);
-			}
-			if(re > max_re) {
-				max_re = re;
-				max_re_idx = idx;
-				max_re_ts = ring[IDX(idx)].ts;
-				max_re_vt = ring[IDX(idx)].vt;
-			}
-			sum_re += re;
-			bin_rank_error[(re%NBIN)]++;
+			if(!do_priority) {
+				int re = rank_error(ring, idx);
+				if(re > 0) {
+					// printf("%d: %ld rank_error %d\n", idx, ring[idx].ts, re);
+				}
+				if(re > max_re) {
+					max_re = re;
+					max_re_idx = idx;
+					max_re_ts = ring[IDX(idx)].ts;
+					max_re_vt = ring[IDX(idx)].vt;
+				}
+				sum_re += re;
+				bin_rank_error[(re%NBIN)]++;
 
-			int d = delay(ring, idx+N-1);
-			if(d > 0) {
-				// printf("%d: %ld delay %d\n", idx, ring[idx].ts, d);
+				int d = delay(ring, idx+N-1);
+				if(d > 0) {
+					// printf("%d: %ld delay %d\n", idx, ring[idx].ts, d);
+				}
+				if(d > max_d) {
+					max_d = d;
+					max_d_idx = idx;
+					max_d_ts = ring[IDX(idx)].ts;
+					max_d_vt = ring[IDX(idx)].vt;
+				}
+				sum_d += d;
+				if(d < NBIN_DELAY)
+					bin_delay_error[(d%NBIN_DELAY)]++;
+
+			} else {
+				int p = priority(ring, idx+N-1);
+				if(p >= 0) {
+					if(p > 0) {
+						// printf("%d: %ld priority %d\n", idx, ring[idx].ts, p);
+					}
+					if(p > max_p) {
+						max_p = p;
+						max_p_idx = idx;
+						max_p_ts = ring[IDX(idx)].ts;
+						max_p_vt = ring[IDX(idx)].vt;
+					}
+					sum_p += p;
+					if(p < NBIN_PRIORITY)
+						bin_priority_error[(p%NBIN_PRIORITY)]++;
+				}
 			}
-			if(d > max_d) {
-				max_d = d;
-				max_d_idx = idx;
-				max_d_ts = ring[IDX(idx)].ts;
-				max_d_vt = ring[IDX(idx)].vt;
-			}
-			sum_d += d;
-			if(d < NBIN_DELAY)
-				bin_delay_error[(d%NBIN_DELAY)]++;
+
 		}
 		int n = read(fd, ring+IDX(idx), sizeof(struct log_entry));
 		if (n < 0) {
 			perror("next ring read");
 			exit(1);
 		}
-		// printf("%d: read ts %ld vt %d %d\n", idx, ring[IDX(idx)].ts, ring[IDX(idx)].vt, ring[IDX(idx)].w);
+		// printf("%d: read ts %ld vt %ld w %d gid %d\n", idx, ring[IDX(idx)].ts, ring[IDX(idx)].vt, ring[IDX(idx)].w, ring[IDX(idx)].gid);
 		if (n == 0)
 			break;
 		idx++;
@@ -149,13 +200,24 @@ void process_log(int fd) {
 	for(int i = 0; i < NBIN_DELAY; i++)
 		if (bin_delay_error[i] > 0) printf("  bin %d: %d\n", i, bin_delay_error[i]);
 	printf("=\n");
+	if(do_priority) {
+		printf("sum_p %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld, diff %lld)\n", sum_p, nentry, AVG(sum_p, nentry), max_p, max_p_idx, max_p_ts, max_p_vt, max_p_ts - max_p_vt);
+		printf("distribution of priority errors\n");
+		for(int i = 0; i < NBIN_PRIORITY; i++)
+			if (bin_priority_error[i] > 0) printf("  bin %d: %d\n", i, bin_priority_error[i]);
+		printf("=\n");
+	}
+	
 }
 
 void main(int argc, char *argv[]) {
 	int opt;
 	
-	while ((opt = getopt(argc, argv, "w:")) != -1) {
+	while ((opt = getopt(argc, argv, "pw:")) != -1) {
 		switch(opt) {
+		case 'p':
+			do_priority = true;
+			break;
 		case 'w':
 			weight = atoi(optarg);
 			break;

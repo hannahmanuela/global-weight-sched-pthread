@@ -229,7 +229,6 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_try_del_min(struct heap 
 		return NULL;
 	}
 	struct heap_elem *he = mh_remove_min(h);
-	// XXX p->tsc = safe_read_tsc();
 	return he;
 }
 

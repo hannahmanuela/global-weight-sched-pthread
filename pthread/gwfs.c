@@ -130,12 +130,11 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 	}
 
 	min_proc = runnable_deq_proc(ss_global->mh, prev);
-	if (min_proc == NULL && prev != NULL) {
-		mycore()->nlocal  += 1;
-		min_proc = prev;  // for debug
-	} else if (min_proc == NULL) {
+	if (min_proc == NULL) {
 		mycore()->nsched_null += 1;
 		return NULL;
+	} else if (min_proc == prev) {
+		mycore()->nlocal  += 1;
 	}
 	if(debug) {
 		printf("%d: schedule %d(%d) vt %lld\n", mycore()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);

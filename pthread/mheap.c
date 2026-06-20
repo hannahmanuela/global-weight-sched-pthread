@@ -262,7 +262,7 @@ static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, vt_t vt, int w
 			heap_push(h, to_add);
 		}
 	}
-	he->tsc_out = safe_read_tsc();
+	if(he != NULL) he->tsc_out = safe_read_tsc();
 	return he;
 }
 
@@ -319,6 +319,9 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	mycore()->nretry_del += r;
 	if(r > mycore()->max_retry_del)
 		mycore()->max_retry_del = r;
+
+	if(he == 0)
+		he = to_add;
 
 	return he;
 }

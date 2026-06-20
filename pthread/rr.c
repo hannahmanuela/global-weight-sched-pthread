@@ -82,21 +82,9 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 			printf("%d: ss_schedule_rr: low %d preempted by %d idle\n", mycore()->cid, low, preempted ? preempted->id : -1);
 	}
 
-
 	// try high priority mh first for runnable proc
 	if ((p = ss_schedule_mh_enq(ss_global->mh, prev, preempted)) != NULL) {
 		assert(p->group->gid == RR_HIGH);
-		goto ok;
-	}
-
-	// keep running high proc, if were running one
-	if (prev != NULL && prev->group->gid == RR_HIGH) {
-		assert(p == prev);
-		if (debug) {
-			printf("%d: ss_schedule_rr: locally run high %d(%d)\n", mycore()->cid, prev->pid, prev->group->gid);
-		}
-		p = prev;
-		mycore()->nlocal += 1;
 		goto ok;
 	}
 
@@ -121,11 +109,6 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 		// keep running low proc, if were running one
 		if (prev != NULL) {
 			assert(prev->group->gid == RR_LOW);
-			if (debug) {
-				printf("%d: locally run low %d(%d) %p\n", mycore()->cid, prev->pid, prev->group->gid, ss_global->mh_l);
-			}
-			mycore()->nlocal += 1;
-			p = prev;
 			goto ok;
 		}
 		assert(p_locked == NULL);
@@ -134,6 +117,9 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 	return NULL;
 
 ok:
+	if(p == prev) {
+		mycore()->nlocal += 1;
+	}
 	if(debug) {
 		printf("%d: running %d(%d)\n", mycore()->cid, p->pid, p->group->gid);
 	}
@@ -166,7 +152,6 @@ ok:
 				preemptable_set(ss_global->preemptable, mycore()->cid);
 		}
 	}
-		
 	if(mycore()->fd > 0) {
 		c_log_append(p);
 	}

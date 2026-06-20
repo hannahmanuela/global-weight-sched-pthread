@@ -251,15 +251,18 @@ static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, vt_t vt, int w
 	if (is_to_add_min(vt, h->heap[0]->weight, to_add)) {
 		// pretend we added and removed to_add from the heap
 		h->last_vt = to_add->vruntime;
+		to_add->tsc_in = safe_read_tsc();
 		he = to_add;
 	} else if (vt != DUMMY) { 
 		he = mh_remove_min(h);
 		assert(he != NULL);
 		if (to_add != NULL)  {
 			mycore()->ndelay_yield++;
+			to_add->tsc_in = safe_read_tsc();
 			heap_push(h, to_add);
 		}
 	}
+	he->tsc_out = safe_read_tsc();
 	return he;
 }
 
@@ -285,6 +288,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mhe
 	if (h->heap[0]->vruntime != DUMMY) {
 		mycore()->nhint++;
 		he = mh_remove_min(h);
+		he->tsc_out = safe_read_tsc();
 	}
 	lock_release(&h->lk);
 	return he;
@@ -324,6 +328,7 @@ static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem 
 
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
+	he->tsc_out = safe_read_tsc();
 	he = mh_deq_min_or_use_to_add(h, he->vruntime, he->weight, to_add);
 	lock_release(&h->lk);
 	return he;
@@ -347,6 +352,7 @@ struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add
 // returns chosen h for e, so that caller can pass it to mh_remove_elem
 struct heap *mh_insert_elem(struct mheap *mh, struct heap_elem *e) {
 	struct heap *h = mh_choose_heap(mh);
+	e->tsc_in = safe_read_tsc();
 	heap_push(h, e);
 	lock_release(&h->lk);
 	return h;

@@ -10,11 +10,9 @@
 #include "lock.h"
 #include "dllist.h"
 
-#define Hz (3000 * 1L) // cycles per us * usec
-#define NBIN_LAT 1000
-
 struct log_entry {
-	long ts;
+	long ts_in;
+	long ts_out;
 	vt_t vt;
 	int cid;
 	int pid;
@@ -91,8 +89,6 @@ struct core {
 	struct log_entry *log;
 	int log_nentry;
 	int fd;
-
-	int bin_latency[NBIN_LAT];
 } __calign__;
 
 #define LOG_NENTRY  1000000

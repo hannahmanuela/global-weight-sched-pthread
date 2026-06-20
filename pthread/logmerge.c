@@ -40,12 +40,12 @@ void main(int argc, char *argv[]) {
 		long ts = 0;
 		int idx;
 		for (int i = 0; i < n; i++) {
-			if (ts == 0 || ts > logs[i].ts) {
-				ts = logs[i].ts;
+			if (ts == 0 || ts > logs[i].ts_out) {
+				ts = logs[i].ts_out;
 				idx = i;
 			}
 		}
-		// printf("%d: smallest %ld\n", idx, ts);
+		// printf("%d: smallest %ld %ld\n", idx, logs[idx].ts_in, ts);
 		if (write(fd, logs+idx, sizeof(struct log_entry)) <= 0) {
 			perror("write");
 			exit(1);
@@ -57,7 +57,7 @@ void main(int argc, char *argv[]) {
 		}
 		if(r == 0)
 			break;
-		assert(logs[idx].ts >= ts);
+		assert(logs[idx].ts_out >= ts);
 	}
 	for(int i = 0; i < n; i++)
 		close(fds[i]);

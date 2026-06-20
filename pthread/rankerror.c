@@ -27,18 +27,21 @@ int weight = 0;
 bool do_priority = false;
 
 #define IDX(idx) ((idx) % N)
+#define IN(i) ring[IDX(i)].ts_in
+#define OUT(i) ring[IDX(i)].ts_out
+#define VT(i) ring[IDX(i)].vt
 
 void print(struct log_entry *r, int idx) {
 	for(int i = idx; i < idx+N; i++) {
 		int j = IDX(i);
-		printf("%d: ts %ld vt %lld cid %d pid %d(%d)\n", i, ring[j].ts, ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid);
+		printf("%d: in %ld out %ld vt %lld cid %d pid %d(%d)\n", i, IN(i), OUT(i), ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid);
 	}
 }
 
 void print_back(struct log_entry *r, int idx) {
 	for(int i = idx; i > idx-N; i--) {
 		int j = IDX(i);
-		printf("%d: ts %ld vt %lld cid %d pid %d(%d)\n", i, ring[j].ts, ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid);
+		printf("%d: in %ld out %ld vt %lld cid %d pid %d(%d)\n", i, IN(i), OUT(i), ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid);
 	}
 }
 
@@ -76,6 +79,7 @@ int delay(struct log_entry *ring, long idx) {
 }
 
 
+
 int priority(struct log_entry *ring, long idx) {
 	int p = 0;
 	if(ring[IDX(idx)].gid == RR_LOW) {  // skip low
@@ -85,9 +89,13 @@ int priority(struct log_entry *ring, long idx) {
 		if(ring[IDX(i)].gid == RR_HIGH) {
 			break;
 		}
-		if(ring[IDX(idx)].vt < ring[IDX(i)].vt) {
+		// if idx was inserted before i, dequeued after i, and
+		// vruntime idx is lower than i, the scheduler made an
+		// error: idx was scheduled after i, even though it
+		// could and should have run before i.
+		if((IN(idx) < IN(i)) && (OUT(idx) > OUT(i)) && (VT(idx) < VT(i))) {
 			p += 1; 
-			printf("priority: idx %d %ld i %d %ld gid %d\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt, ring[IDX(i)].gid);
+			printf("priority: idx %d %ld %ld i %d %ld %ld gid %d\n", idx, IN(idx), OUT(idx), i, IN(i), OUT(i), ring[IDX(i)].gid);
 			if(p >= N-1) {
 				// print_back(ring, idx);
 			}
@@ -108,18 +116,19 @@ void process_log(int fd) {
 
 	long max_re = 0;
 	long max_re_idx;
-	t_t max_re_ts;
-	vt_t max_re_vt;
+	t_t max_re_ts_in;
+	t_t max_re_ts_out;
 
 	long max_d = 0;
 	long max_d_idx;
-	t_t max_d_ts;
-	vt_t max_d_vt;
+	t_t max_d_ts_in;
+	t_t max_d_ts_out;
 	
 	long max_p = 0;
 	long max_p_idx;
-	t_t max_p_ts;
-	vt_t max_p_vt;
+	t_t max_p_ts_in;
+	t_t max_p_ts_out;
+	t_t max_p_vt;
 	
 	vt_t max_lat = 0;
 	vt_t sum_lat = 0;
@@ -141,8 +150,8 @@ void process_log(int fd) {
 				if(re > max_re) {
 					max_re = re;
 					max_re_idx = idx;
-					max_re_ts = ring[IDX(idx)].ts;
-					max_re_vt = ring[IDX(idx)].vt;
+					max_re_ts_in = IN(idx);
+					max_re_ts_out = OUT(idx);
 				}
 				sum_re += re;
 				bin_rank_error[(re%NBIN)]++;
@@ -154,8 +163,8 @@ void process_log(int fd) {
 				if(d > max_d) {
 					max_d = d;
 					max_d_idx = idx + N - 1;
-					max_d_ts = ring[IDX(max_d_idx)].ts;
-					max_d_vt = ring[IDX(max_d_idx)].vt;
+					max_d_ts_in = IN(max_d_idx);
+					max_d_ts_out = OUT(max_d_idx);
 				}
 				sum_d += d;
 				if(d < NBIN_DELAY)
@@ -170,8 +179,9 @@ void process_log(int fd) {
 					if(p > max_p) {
 						max_p = p;
 						max_p_idx = idx + N -1;
-						max_p_ts = ring[IDX(max_p_idx)].ts;
-						max_p_vt = ring[IDX(max_p_idx)].vt;
+						max_p_ts_in = IN(max_p_idx);
+						max_p_ts_out = OUT(max_p_idx);
+						max_p_vt = VT(max_p_idx);
 					}
 					sum_p += p;
 					if(p < NBIN_PRIORITY)
@@ -190,18 +200,18 @@ void process_log(int fd) {
 			break;
 		idx++;
 	}
-	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld, diff %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_re_idx, max_re_ts, max_re_vt, max_re_ts-max_re_vt, weight);
+	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld, diff %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_re_idx, max_re_ts_in, max_re_ts_out, max_re_ts_out-max_re_ts_in, weight);
 	printf("distribution of rank errors:\n");
 	for(int i = 0; i < NBIN; i++)
 		if (bin_rank_error[i] > 0) printf("  bin %d: %d\n", i, bin_rank_error[i]);
 	printf("=\n");
-	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld, diff %lld)\n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts, max_d_vt, max_d_ts - max_d_vt);
+	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld, diff %lld)\n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts_in, max_d_ts_out, max_d_ts_out - max_d_ts_in);
 	printf("distribution of delay errors\n");
 	for(int i = 0; i < NBIN_DELAY; i++)
 		if (bin_delay_error[i] > 0) printf("  bin %d: %d\n", i, bin_delay_error[i]);
 	printf("=\n");
 	if(do_priority) {
-		printf("sum_p %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld, diff %lld)\n", sum_p, nentry, AVG(sum_p, nentry), max_p, max_p_idx, max_p_ts, max_p_vt, max_p_ts - max_p_vt);
+		printf("sum_p %d n %d %0.2f max %d (idx %ld ts_in %ld, ts_out %ld vt %lld, diff %lld)\n", sum_p, nentry, AVG(sum_p, nentry), max_p, max_p_idx, max_p_ts_in, max_p_ts_out, max_p_vt, max_p_ts_out - max_p_ts_in);
 		printf("distribution of priority errors\n");
 		for(int i = 0; i < NBIN_PRIORITY; i++)
 			if (bin_priority_error[i] > 0) printf("  bin %d: %d\n", i, bin_priority_error[i]);

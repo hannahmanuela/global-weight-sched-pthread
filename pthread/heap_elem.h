@@ -12,6 +12,8 @@ struct heap_elem {
 	vt_t vruntime;
 	w_t weight;
 	idx_t idx;
+	long tsc_in;
+	long tsc_out;
 };
 
 typedef int (*cmp_elem_t)(struct heap_elem *, struct heap_elem*);

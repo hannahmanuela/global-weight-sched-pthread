@@ -48,7 +48,6 @@ extern bool rr;
 extern bool use_power2_insert;
 extern int scheduler;
 extern int ratio;
-extern bool do_latency;
 extern bool delay_yield;
 extern struct sched_state *ss_global;
 
@@ -486,18 +485,4 @@ void main(int argc, char *argv[]) {
 	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);
 	printf("    max retry del %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
 	printf("    nhint %ld\n", nhint);
-
-	if (do_latency) {
-		printf("lat distribution:\n");
-		for (int b = 0; b < NBIN_LAT; b++) {
-			int n = 0;
-			for (int i = 0; i < num_cores; i++) {
-				struct core *c = gs->cores[i];
-				n += c->bin_latency[b];
-			}
-			if(n > 0)
-				printf("bin %d: %d\n", b, n);
-		}
-		printf("==");
-	}
 }

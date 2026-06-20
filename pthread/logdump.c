@@ -32,12 +32,12 @@ void main(int argc, char *argv[]) {
 		}
 		if (n == 0) break;
 		for (int i = 0; i < N; i++) {
-			if (ts > log[i].ts) {
-				printf("not sorted %d %ld\n", i, log[i].ts);
+			if (ts > log[i].ts_in) {
+				printf("not sorted %d %ld\n", i, log[i].ts_in);
 				exit(1);
 			}
-			ts = log[i].ts;
-			printf("ts %ld vt %lld cid %d pid %d(%d, %d)\n", log[i].ts, log[i].vt, log[i].cid, log[i].pid, log[i].gid, log[i].w);
+			ts = log[i].ts_in;
+			printf("ts %ld vt %lld cid %d pid %d(%d, %d)\n", log[i].ts_in, log[i].vt, log[i].cid, log[i].pid, log[i].gid, log[i].w);
 		}
 	}
 	close(fd);

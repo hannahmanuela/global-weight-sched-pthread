@@ -13,7 +13,6 @@
 #include "dllist.h"
 
 extern bool do_affinity;
-extern bool do_latency;
 
 __thread struct core *tl_mycore;
 
@@ -107,16 +106,20 @@ void c_log_append(struct task_struct *p) {
 			perror("c_log_append: write");
 			exit(1);
 		}
-		// printf("%d: ts %ld vt %d\n", c->cid, c->log[0].ts, c->log[0].vt);
 		c->log_nentry = 0;
 	}
 	int i = c->log_nentry++;
-	c->log[i].ts = p->tsc;
-	c->log[i].vt = p->he.vruntime;
+	c->log[i].ts_in = p->he.tsc_in;
+	c->log[i].ts_out = p->he.tsc_out;
 	c->log[i].cid = c->cid;
 	c->log[i].pid = p->pid;
 	c->log[i].gid = p->group->gid;
+	c->log[i].vt = p->he.vruntime;
 	c->log[i].w = p->he.weight;
+	if(c->log[i].ts_in > c->log[i].ts_out) {
+		printf("%d: in %ld out %ld\n", c->cid, c->log[i].ts_in, c->log[i].ts_out);
+		assert(0);
+	}
 }
 
 void c_log_done(struct core *c) {
@@ -128,13 +131,3 @@ void c_log_done(struct core *c) {
 	}
 }
 
-void c_lat(struct task_struct *p) {
-	if (!do_latency) return;
-
-	t_t lat = p->tsc - p->he.vruntime;
-	if (lat/Hz > NBIN_LAT) {
-		printf("adjust Hz or NBIN_LAT %d %d\n", lat/Hz, NBIN_LAT);
-	} else {
-		mycore()->bin_latency[(lat / Hz)]++;
-	}
-}

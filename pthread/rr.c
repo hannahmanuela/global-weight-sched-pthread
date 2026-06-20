@@ -91,6 +91,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 
 	// keep running high proc, if were running one
 	if (prev != NULL && prev->group->gid == RR_HIGH) {
+		assert(p == prev);
 		if (debug) {
 			printf("%d: ss_schedule_rr: locally run high %d(%d)\n", mycore()->cid, prev->pid, prev->group->gid);
 		}
@@ -166,7 +167,6 @@ ok:
 		}
 	}
 		
-	c_lat(p);
 	if(mycore()->fd > 0) {
 		c_log_append(p);
 	}

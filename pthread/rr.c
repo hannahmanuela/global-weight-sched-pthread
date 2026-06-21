@@ -44,7 +44,7 @@ static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_stru
 		if(debug) {
 			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld mh %p deq %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, mh, deq);
 		}
-		if (do_preempt && (prev != NULL) && !deq) {
+		if ((prev != NULL) && !deq) {
 			// found a high priority proc to run, add the low-priority prev
 			// to the low-priority mheap after removing from running queue.
 			assert(prev->group->gid == RR_LOW);

@@ -456,7 +456,10 @@ void main(int argc, char *argv[]) {
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
 	printf("  sched #%ld(null %ld/%0.2f, local %ld/%0.2f, global %ld/%0.2f, skiph %d delayy %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nsched_null, AVG(nsched_null, nsched), nlocal,AVG(nlocal, nsched),  nsched-nlocal, AVG(nsched-nlocal, nsched), nrr_skip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld enq #%ld deq #%ld\n", nyield, nenq, ndeq);
-	printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld preempted %d\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry, npreempted);
+
+	if (do_preempt) {
+		printf("  preempt set %ld clear %ld find ok %ld find fail %ld retry %ld preempted %d\n", npreempt_set, npreempt_clear, npreempt_find_ok, npreempt_find_fail, npreempt_retry, npreempted);
+	}
 
 	if(do_affinity)
 		printf("  hit %ld miss %ld hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));

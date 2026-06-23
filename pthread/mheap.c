@@ -246,6 +246,7 @@ static bool is_to_add_min(vt_t vt0, int w, struct heap_elem *to_add) {
 }
 
 // caller must have h locked
+// XXX maybe pass in he, which should be equal to he returned by mh_remove_min
 static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, vt_t vt, int w, struct heap_elem *to_add) {
 	struct heap_elem *he = NULL;
 	if (is_to_add_min(vt, h->heap[0]->weight, to_add)) {
@@ -258,11 +259,14 @@ static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, vt_t vt, int w
 		assert(he != NULL);
 		if (to_add != NULL)  {
 			mycore()->ndelay_yield++;
-			to_add->tsc_in = safe_read_tsc();
 			heap_push(h, to_add);
+			to_add->tsc_in = safe_read_tsc();
 		}
 	}
-	if(he != NULL) he->tsc_out = safe_read_tsc();
+	if(he != NULL) {
+		he->tsc_out = safe_read_tsc();
+		he->id = h->id;
+	}
 	return he;
 }
 
@@ -289,6 +293,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mhe
 		mycore()->nhint++;
 		he = mh_remove_min(h);
 		he->tsc_out = safe_read_tsc();
+		he->id = h->id;
 	}
 	lock_release(&h->lk);
 	return he;
@@ -320,8 +325,14 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	if(r > mycore()->max_retry_del)
 		mycore()->max_retry_del = r;
 
-	if(he == 0)
+	if(he == NULL) {
 		he = to_add;
+		if(he != NULL) {
+			he->tsc_in = safe_read_tsc();
+			he->tsc_out = safe_read_tsc();
+		}
+		
+	}
 
 	return he;
 }
@@ -331,7 +342,6 @@ static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem 
 
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
-	he->tsc_out = safe_read_tsc();
 	he = mh_deq_min_or_use_to_add(h, he->vruntime, he->weight, to_add);
 	lock_release(&h->lk);
 	return he;
@@ -355,8 +365,8 @@ struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add
 // returns chosen h for e, so that caller can pass it to mh_remove_elem
 struct heap *mh_insert_elem(struct mheap *mh, struct heap_elem *e) {
 	struct heap *h = mh_choose_heap(mh);
-	e->tsc_in = safe_read_tsc();
 	heap_push(h, e);
+	e->tsc_in = safe_read_tsc();
 	lock_release(&h->lk);
 	return h;
 }

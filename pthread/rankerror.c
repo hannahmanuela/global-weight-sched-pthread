@@ -30,18 +30,21 @@ bool do_priority = false;
 #define IN(i) ring[IDX(i)].ts_in
 #define OUT(i) ring[IDX(i)].ts_out
 #define VT(i) ring[IDX(i)].vt
+#define CID(i) ring[IDX(i)].cid
+#define PID(i) ring[IDX(i)].pid
+#define HEAP(i) ring[IDX(i)].pid
 
 void print(struct log_entry *r, int idx) {
 	for(int i = idx; i < idx+N; i++) {
 		int j = IDX(i);
-		printf("%d: in %ld out %ld vt %lld cid %d pid %d(%d)\n", i, IN(i), OUT(i), ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid);
+		printf("%d: in %ld out %ld vt %lld cid %d pid %d(%d)\n", i, IN(i), OUT(i), VT(i), CID(i), ring[j].pid, ring[j].gid);
 	}
 }
 
 void print_back(struct log_entry *r, int idx) {
 	for(int i = idx; i > idx-N; i--) {
 		int j = IDX(i);
-		printf("%d: in %ld out %ld vt %lld cid %d pid %d(%d)\n", i, IN(i), OUT(i), ring[j].vt, ring[j].cid, ring[j].pid, ring[j].gid);
+		printf("%d: in %ld out %ld vt %lld cid %d pid %d(%d)\n", i, IN(i), OUT(i), VT(i), CID(i), ring[j].pid, ring[j].gid);
 	}
 }
 
@@ -53,7 +56,7 @@ int rank_error(struct log_entry *ring, long idx) {
 		if(ring[IDX(i)].vt < ring[IDX(idx)].vt) {
 			re += 1; 
 			if(re >=  N-1) {
-				printf("re: idx %d %ld i %d %ld\n", idx, ring[IDX(idx)].vt, i, ring[IDX(i)].vt);
+				printf("re: idx %d %ld i %d %ld\n", idx, VT(idx),  i, VT(i));
 				// print(ring, idx);
 			}
 		}
@@ -95,7 +98,7 @@ int priority(struct log_entry *ring, long idx) {
 		// could and should have run before i.
 		if((IN(idx) < IN(i)) && (OUT(idx) > OUT(i)) && (VT(idx) < VT(i))) {
 			p += 1; 
-			printf("priority: idx %d %ld %ld i %d %ld %ld gid %d\n", idx, IN(idx), OUT(idx), i, IN(i), OUT(i), ring[IDX(i)].gid);
+			printf("priority: idx %d p %d vt %ld h %d c %d i %d p %d vt %ld gid %d h %d c %d diff %ld\n", idx, PID(idx), VT(idx), HEAP(idx), CID(idx), i, PID(i), VT(i), ring[IDX(i)].gid, HEAP(i), CID(i), VT(idx)-VT(i));
 			if(p >= N-1) {
 				// print_back(ring, idx);
 			}

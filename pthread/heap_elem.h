@@ -9,11 +9,16 @@
 typedef short idx_t;
 
 struct heap_elem {
+	// key
 	vt_t vruntime;
 	w_t weight;
-	idx_t idx;
+
+	idx_t idx;  // for remove
+
+	// for logging
 	long tsc_in;
 	long tsc_out;
+	short id;
 };
 
 typedef int (*cmp_elem_t)(struct heap_elem *, struct heap_elem*);

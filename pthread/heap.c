@@ -13,7 +13,7 @@
 
 static void heap_alloc(struct heap *h) {
 	// h->heap = aligned_alloc(CACHE_LINE_SZ, sizeof(struct heap_elem) * HEAP_CAPACITY);
-	assert(sizeof(struct heap_elem) == 32);
+	assert(sizeof(struct heap_elem) == 40);
 	h->heap_capacity = HEAP_CAPACITY;
 }
 
@@ -54,7 +54,7 @@ static int heap_elem_cmp(struct heap_elem *a, struct heap_elem *b) {
 struct heap_elem *heap_min(struct heap *h) {
 	if (h->heap_size == 0)
 		return NULL;
-	return h->heap[0];
+	return atomic_load(&h->heap[0]);
 } 
 
 void heap_iter(struct heap *heap, heap_iter_t iter) {

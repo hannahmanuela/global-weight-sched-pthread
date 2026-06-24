@@ -160,7 +160,7 @@ ok:
 			}
 		} else {
 			// reset preemtable if switching from high to
-			// a low proc, or if were prempted
+			// a low proc, or if preempted
 			if(!low || preempted)
 				preemptable_set(ss_global->preemptable, mycore()->cid);
 		}

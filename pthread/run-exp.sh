@@ -36,9 +36,16 @@ for n in ${NUM_CORES[@]}; do
 done 2>&1 > $D/tp-mheap.out
 grep tp $D/tp-mheap.out | awk '{print $2, $3}' > $D/tp-mheap.dat
 
-echo "rr w priority and preemption and runq"
+echo "rr w priority"
 
 for n in ${NUM_CORES[@]}; do
-    ./schedule -p -q -r 2 -b 2 -g 2 rr $n $(($n * 4))
+    ./schedule -r 2 -b 2 -g 2 rr $n $(($n * 4))
 done 2>&1 > $D/tp-rr-prio.out
 grep tp $D/tp-rr-prio.out | awk '{print $2, $3}' > $D/tp-rr-prio.dat
+
+echo "rr w priority and preemption w. mask"
+
+for n in ${NUM_CORES[@]}; do
+    ./schedule -p -r 2 -b 2 -g 2 rr $n $(($n * 4))
+done 2>&1 > $D/tp-rr-prio-mask.out
+grep tp $D/tp-rr-prio-mask.out | awk '{print $2, $3}' > $D/tp-rr-prio-mask.dat

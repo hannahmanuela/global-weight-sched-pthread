@@ -367,7 +367,7 @@ struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh) {
         struct heap_elem *he = NULL;
 	int s = mycore()->cid;
 	for (int i = 0; i < mh->nheap; i++) {
-		struct heap *h = mh->h[MH_IND(mh, s)];
+		struct heap *h = mh->h[MH_IND(mh, s+i)];
 		vt_t vt = atomic_load_explicit(&h->heap[0]->vruntime, __ATOMIC_RELAXED);
 		if (vt != DUMMY && ((he = mh_try_del_min(h, vt)) != NULL)) {
 			he->tsc_out = safe_read_tsc();

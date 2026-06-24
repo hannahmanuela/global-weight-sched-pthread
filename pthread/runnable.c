@@ -28,3 +28,9 @@ struct task_struct *runnable_deq_proc_hint(struct mheap *mh, struct task_struct 
 struct task_struct *runnable_deq_proc(struct mheap *mh, struct task_struct *prev) {
 	return runnable_deq_proc_hint(mh, prev, NULL);
 }
+
+struct task_struct *runnable_deq_proc_all_heap(struct mheap *mh) {
+	struct heap_elem *he = mh_deq_min_elem_all_heap(mh);
+	struct task_struct *p = container_of(he, struct task_struct, he);
+	return p;
+}

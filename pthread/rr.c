@@ -35,6 +35,17 @@ static struct heap *enqueue(struct task_struct *p) {
 	return h;
 }
 
+static void ss_enqueue_low(struct task_struct *p_l) {
+	assert(p_l->group->gid == RR_LOW);
+	if (use_runningq) {
+		if (debug) {
+			printf("%d: %d(%d) remove from runq %d\n", mycore()->cid, p_l->pid, p_l->group->gid, p_l->cid);
+		}
+		running_clear(ss_global->mh_r, p_l);
+	}
+	enqueue(p_l);
+}
+
 static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, struct heap *hint) {
 	struct core *c = mycore();
 	bool deq = (prev != NULL) && (prev->group->mh == mh);
@@ -47,14 +58,7 @@ static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_stru
 		if ((prev != NULL) && !deq) {
 			// found a high priority proc to run, add the low-priority prev
 			// to the low-priority mheap after removing from running queue.
-			assert(prev->group->gid == RR_LOW);
-			if (use_runningq) {
-				if (debug) {
-					printf("%d: %d(%d) remove from runq %d\n", mycore()->cid, prev->pid, prev->group->gid, prev->cid);
-				}
-				running_clear(ss_global->mh_r, prev);
-			}
-			enqueue(prev);
+			ss_enqueue_low(prev);
 		}
 	}
 	return p;
@@ -89,11 +93,20 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 	}
 
 	if (num_groups > 1) {
-		// no proc found in priority mh; go for mh_l. note:
-		// there might be runnable highs but
-		// ss_schedule_mh_enq didn't find it.
+		// no proc found in priority mh but there might be
+		// runnable highs that ss_schedule_mh_enq didn't find
+		// so scan all heaps of mh first before looking in
+		// mh_l.
+		if ((p = runnable_deq_proc_all_heap(ss_global->mh)) != NULL) {
+			mycore()->nscan_all++;
+			assert(p->group->gid == RR_HIGH);
+			if (prev != NULL) {
+				ss_enqueue_low(prev);
+			}
+			goto ok;
+		}
 
-		mycore()->nrr_skip_high++;
+		mycore()->nskip_high++;
 		if (use_runningq && (prev != NULL)) {
 			// lock prev because it might end up on runnable queue
 			// and some core may grab it and add it to the running queue

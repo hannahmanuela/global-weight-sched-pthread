@@ -354,12 +354,28 @@ struct heap_elem *mh_deq_min_elem(struct mheap *mh, struct heap *hint) {
 	return mh_deq_min_enq(mh, NULL, hint);
 }
 
-// if there is a min, grab it and enqueue to_add
+// if there is a min, dequeue it and enqueue to_add
 struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, struct heap *hint) {
 	if (mh->nheap == 1) {
 		return mh_deq_min_one_heap(mh, to_add);
 	}
 	return mh_deq_min_enq(mh, to_add, hint);
+}
+
+// scan all all heaps to dequeue a min element
+struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh) {
+        struct heap_elem *he = NULL;
+	int s = mycore()->cid;
+	for (int i = 0; i < mh->nheap; i++) {
+		struct heap *h = mh->h[MH_IND(mh, s)];
+		vt_t vt = atomic_load_explicit(&h->heap[0]->vruntime, __ATOMIC_RELAXED);
+		if (vt != DUMMY && ((he = mh_try_del_min(h, vt)) != NULL)) {
+			he->tsc_out = safe_read_tsc();
+			lock_release(&h->lk);
+			break;
+		}
+	}
+	return he;
 }
 
 // returns chosen h for e, so that caller can pass it to mh_remove_elem

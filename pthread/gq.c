@@ -53,7 +53,7 @@ struct task_struct *ss_schedule_gq(struct task_struct *prev) {
 		goto ok;
 	}
 
-	mycore()->nrr_skip_high++;
+	mycore()->nskip_high++;
 	if ((p = queue_pop(&ss_global->q_l)) != NULL) {
 		if(prev != NULL) {
 			enq_proc_vt(prev);

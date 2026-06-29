@@ -39,7 +39,7 @@ static struct heap *enqueue(struct task_struct *p) {
 	rr_set_vt(p);
 	if(debug) {
 		struct core *c = mycore();
-		printf("%d: enqueue_rr %d(%d) at %lld\n", c->cid, p->pid, p->group->gid, p->he.vruntime);
+		printf("%d: enqueue_rr1 %d(%d) at %lld\n", c->cid, p->pid, p->group->gid, p->he.vruntime);
 	}
 	struct heap *h = mh_insert_elem(p->group->mh, &p->he);
 	return h;
@@ -72,10 +72,10 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		rr_set_vt(prev);
 		low = (prev->group->gid == RR_LOW);
 		if (debug)
-			printf("%d: ss_schedule_rr: low %d preempted by %d prev %d(%d)\n", mycore()->cid, low, preempted ? preempted->id : -1, prev->pid, prev->group->gid);
+			printf("%d: ss_schedule_rr1: low %d preempted by %d prev %d(%d)\n", mycore()->cid, low, preempted ? preempted->id : -1, prev->pid, prev->group->gid);
 	} else {
 		if (debug)
-			printf("%d: ss_schedule_rr: low %d preempted by %d idle\n", mycore()->cid, low, preempted ? preempted->id : -1);
+			printf("%d: ss_schedule_rr1: low %d preempted by %d idle\n", mycore()->cid, low, preempted ? preempted->id : -1);
 	}
 
 	if (use_runningq && (prev != NULL) && (prev->group->gid == RR_LOW)) {
@@ -102,7 +102,7 @@ ok:
 		mycore()->nlocal += 1;
 	}
 	if(debug) {
-		printf("%d: running %d(%d)\n", mycore()->cid, p->pid, p->group->gid);
+		printf("%d: running1 %d(%d)\n", mycore()->cid, p->pid, p->group->gid);
 	}
 	if (do_preempt && (p->group->gid == RR_LOW)) {
 		if (use_runningq) {
@@ -156,7 +156,7 @@ void ss_enqueue_rr1(struct task_struct *p) {
 		}
 	}
 	if (debug) {
-		printf("%d: ss_enqueue_rr %d(%d) vt %lld dopreempt? cid %d heap %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, cid, h->id);
+		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, cid, h->id);
 	}
 	if (cid != -1) {
 		atomic_store(&ss_global->cs[cid]->preempted, h);
@@ -173,7 +173,7 @@ void ss_yield_rr1(struct task_struct *p, t_t time_passed) {
 void ss_dequeue_rr1(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {
-		printf("%d: %d(%d): dequeue %ld\n", mycore()->cid, p->pid, p->group->gid, time_passed);
+		printf("%d: %d(%d): dequeue1 %ld\n", mycore()->cid, p->pid, p->group->gid, time_passed);
 		//mh_print(p->group->mh);
 	}
 }

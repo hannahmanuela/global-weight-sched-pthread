@@ -267,7 +267,7 @@ void *run_core(void* core) {
 	int cont = 1;
 	double start = now();
 	for (int i = 0; now() - start < time_to_run; i++) {
-		if (is_rr() || is_pcrq() || is_gq()) rr_sched_action(mycore);
+		if (is_rr() || is_pcrq() || is_gq() || is_rr1()) rr_sched_action(mycore);
 		else ss_sched_action(mycore);
 	}
 }

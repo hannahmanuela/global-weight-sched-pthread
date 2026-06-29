@@ -40,7 +40,11 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	struct sched_state *ss = aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct sched_state), CACHE_LINE_SZ));
 	ss_global = ss;
 	ss->tick_length = tick_length;
-	ss->mh = mh_new(nheap);
+	if (is_pcrq() || is_gppcrq()) {
+		ss->mh = mh_new(ncore);
+	} else {
+		ss->mh = mh_new(nheap);
+	}
 	if(is_rr()) {
 		ss->mh_l = mh_new(nheap);
 	}

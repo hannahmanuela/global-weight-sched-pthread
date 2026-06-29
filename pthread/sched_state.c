@@ -14,6 +14,7 @@
 #include "mheap.h"
 #include "gwfs.h"
 #include "rr.h"
+#include "rr1.h"
 #include "pcrq.h"
 #include "gq.h"
 
@@ -44,6 +45,7 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	}
 	ss->cs = cs;
 	ss->ncore = ncore;
+	ss->now = safe_read_tsc();
 	ss->preempt = PREEMPT(0, MAXWEIGHT, 0);
 	dl_init(&ss->preemptq);
 	if(is_gq()) {
@@ -73,6 +75,11 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	case GQ:
 		ss->sched = (struct scheduler) {
 			ss_schedule_gq, ss_yield_gq, ss_enqueue_gq, ss_dequeue_gq
+		};
+		break;
+	case RR1:
+		ss->sched = (struct scheduler) {
+			ss_schedule_rr1, ss_yield_rr1, ss_enqueue_rr1, ss_dequeue_rr1
 		};
 		break;
 	}
@@ -114,6 +121,9 @@ void set_scheduler(char *s) {
 	} else if (strcmp(s, "rr") == 0) {
 		scheduler = RR;
 		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
+	} else if (strcmp(s, "rr1") == 0) {
+		scheduler = RR1;
+		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
 	} else if (strcmp(s, "pcrq") == 0) {
 		scheduler = PCRQ;
 		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
@@ -134,12 +144,20 @@ bool is_rr() {
 	return scheduler == RR;
 }
 
+bool is_rr1() {
+	return scheduler == RR1;
+}
+
 bool is_pcrq() {
 	return scheduler == PCRQ;
 }
 
 bool is_gq() {
 	return scheduler == GQ;
+}
+
+vt_t ss_now(struct sched_state *ss) {
+	return safe_read_tsc() - ss->now;
 }
 
 bool ss_schedule(struct sched_state *ss, struct core *c) {

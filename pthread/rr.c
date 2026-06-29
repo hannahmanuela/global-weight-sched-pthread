@@ -16,7 +16,7 @@
 #include "rr.h"
 
 //
-// approximate round robin with one or two priority levels using mheap
+// approximate round robin with one or two priority levels using two mheap
 //
 
 extern bool debug;

@@ -14,6 +14,7 @@
 #define PCRQ 3
 #define GQ 4
 #define RR1  5
+#define GPPCRQ  6
 
 struct scheduler {
 	struct task_struct *(*schedule)(struct task_struct *prev);
@@ -58,6 +59,7 @@ void set_scheduler(char *s);
 
 bool is_rr();
 bool is_pcrq();
+bool is_gppcrq();
 bool is_gq();
 bool is_gwfs();
 bool is_rr1();

@@ -27,16 +27,8 @@ extern int num_groups;
 extern bool use_runningq;
 extern struct sched_state *ss_global;
 
-static vt_t rr_set_vt(struct task_struct *p) {
-	vt_t off = 0;
-	if(p->group->gid == RR_LOW) {
-		off += LOW_VT;
-	}
-	atomic_store(&p->he.vruntime, ss_now(ss_global) + off);
-}
-
 static struct heap *enqueue(struct task_struct *p) {
-	rr_set_vt(p);
+	proc_set_vt_prio(p);
 	if(debug) {
 		struct core *c = mycore();
 		printf("%d: enqueue_rr1 %d(%d) at %lld\n", c->cid, p->pid, p->group->gid, p->he.vruntime);
@@ -69,7 +61,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	}
 
 	if(prev != NULL) {
-		rr_set_vt(prev);
+		proc_set_vt_prio(prev);
 		low = (prev->group->gid == RR_LOW);
 		if (debug)
 			printf("%d: ss_schedule_rr1: low %d preempted by %d prev %d(%d)\n", mycore()->cid, low, preempted ? preempted->id : -1, prev->pid, prev->group->gid);

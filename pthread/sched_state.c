@@ -16,6 +16,7 @@
 #include "rr.h"
 #include "rr1.h"
 #include "pcrq.h"
+#include "gppcrq.h"
 #include "gq.h"
 
 //
@@ -70,6 +71,11 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	case PCRQ:
 		ss->sched = (struct scheduler) {
 			ss_schedule_pcrq, ss_yield_pcrq, ss_enqueue_pcrq, ss_dequeue_pcrq
+		};
+		break;
+	case GPPCRQ:
+		ss->sched = (struct scheduler) {
+			ss_schedule_gppcrq, ss_yield_gppcrq, ss_enqueue_gppcrq, ss_dequeue_gppcrq
 		};
 		break;
 	case GQ:
@@ -127,6 +133,9 @@ void set_scheduler(char *s) {
 	} else if (strcmp(s, "pcrq") == 0) {
 		scheduler = PCRQ;
 		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
+	} else if (strcmp(s, "gppcrq") == 0) {
+		scheduler = GPPCRQ;
+		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
 	} else if (strcmp(s, "gq") == 0) {
 		if (num_groups == DEF_NUM_GROUPS) num_groups = 1;
 		scheduler = GQ;
@@ -150,6 +159,10 @@ bool is_rr1() {
 
 bool is_pcrq() {
 	return scheduler == PCRQ;
+}
+
+bool is_gppcrq() {
+	return scheduler == GPPCRQ;
 }
 
 bool is_gq() {

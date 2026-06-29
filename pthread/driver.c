@@ -28,6 +28,7 @@
 #include "pcrq.h"
 #include "gq.h"
 #include "rr1.h"
+#include "gppcrq.h"
 #include "util.h"
 
 int time_to_run = 2;  // sec
@@ -171,7 +172,7 @@ void rr_groups() {
 		ns[1] = 2*num_threads_p_group - ns[0];
 	}
 
-	if(is_rr() || is_pcrq() || is_gq() || is_rr1()) {
+	if(is_rr() || is_pcrq() || is_gq() || is_rr1() || is_gppcrq()) {
 		// always true
 		delay_yield = true;
 	}
@@ -190,6 +191,7 @@ void rr_groups() {
 		for (int j = 0; j < ns[i]; j++) {
 			struct task_struct *p = grp_new_process(pid+j, g);
 			if(is_pcrq()) ss_enqueue_pcrq(p);
+			else if (is_gppcrq()) ss_enqueue_gppcrq(p);
 			else if (is_gq()) ss_enqueue_gq(p);
 			else if (is_rr1()) ss_enqueue_rr1(p);
 			else ss_enqueue_rr(p);
@@ -258,7 +260,7 @@ void *run_core(void* core) {
 		error("couldn't set affininity\n");
 
 	if (mycore->cid == 0) {
-		if (is_rr() || is_pcrq() || is_gq() || is_rr1()) rr_groups();
+		if (is_rr() || is_pcrq() || is_gq() || is_rr1() || is_gppcrq()) rr_groups();
 		else ss_groups();
 	}
 	
@@ -267,7 +269,7 @@ void *run_core(void* core) {
 	int cont = 1;
 	double start = now();
 	for (int i = 0; now() - start < time_to_run; i++) {
-		if (is_rr() || is_pcrq() || is_gq() || is_rr1()) rr_sched_action(mycore);
+		if (is_rr() || is_pcrq() || is_gq() || is_rr1() || is_gppcrq()) rr_sched_action(mycore);
 		else ss_sched_action(mycore);
 	}
 }

@@ -54,8 +54,6 @@ void proc_mh_r_print(struct mheap *mh) {
 	mh_print(mh, proc_heap_elem_r_print);
 }
 
-#define LOW_VT ((vt_t)(1L << 32));
-
 void proc_set_vt_prio(struct task_struct *p) {
 	vt_t off = 0;
 	if(p->group->gid == RR_LOW) {

@@ -19,8 +19,6 @@
 // approximate round robin with one or two priority levels using one mheap
 //
 
-#define LOW_VT ((vt_t)(1L << 32));
-
 extern bool debug;
 extern bool do_preempt;
 extern int num_groups;

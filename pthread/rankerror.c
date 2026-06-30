@@ -92,11 +92,10 @@ int priority(struct log_entry *ring, long idx) {
 		if(ring[IDX(i)].gid == RR_HIGH) {
 			break;
 		}
-		// if idx was inserted before i, dequeued after i, and
-		// vruntime idx is lower than i, the scheduler made an
-		// error: idx was scheduled after i, even though it
-		// could and should have run before i.
-		if((IN(idx) < IN(i)) && (OUT(idx) > OUT(i)) && (VT(idx) < VT(i))) {
+		// if low was inserted before high was selected and
+		// low was selected after high was inserted, then
+		// high should have run before low.
+		if(IN(i) <= OUT(idx) && OUT(i) >= IN(idx)) {
 			p += 1; 
 			printf("priority: idx %d p %d vt %ld h %d c %d i %d p %d vt %ld gid %d h %d c %d diff %ld\n", idx, PID(idx), VT(idx), HEAP(idx), CID(idx), i, PID(i), VT(i), ring[IDX(i)].gid, HEAP(i), CID(i), VT(idx)-VT(i));
 			if(p >= N-1) {

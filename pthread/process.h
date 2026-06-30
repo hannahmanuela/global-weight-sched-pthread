@@ -43,6 +43,7 @@ void proc_mh_r_print(struct mheap *mh);
 struct task_struct *proc_new(int id, int weight);
 int proc_cmp(struct heap_elem *e0, struct heap_elem *e1);
 void proc_set_vt_prio(struct task_struct *p);
+void proc_reset_vt_prio(struct task_struct *p);
 
 #endif
 

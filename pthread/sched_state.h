@@ -46,7 +46,6 @@ struct sched_state {
 
 	vt_t min_vt __calign__;
 
-	vt_t now __calign__;  // set once at beginning of time  
 };
 
 struct sched_state *ss_new(int tick_length, int n, struct core *cs[], int ncore);
@@ -63,8 +62,6 @@ bool is_gppcrq();
 bool is_gq();
 bool is_gwfs();
 bool is_rr1();
-
-vt_t ss_now(struct sched_state *ss);
 
 bool ss_schedule(struct sched_state *ss, struct core *c);
 void ss_yield(struct sched_state *ss, struct core *c, struct task_struct *p, t_t time_passed);

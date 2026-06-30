@@ -50,7 +50,6 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	}
 	ss->cs = cs;
 	ss->ncore = ncore;
-	ss->now = safe_read_tsc();
 	ss->preempt = PREEMPT(0, MAXWEIGHT, 0);
 	dl_init(&ss->preemptq);
 	if(is_gq()) {
@@ -171,10 +170,6 @@ bool is_gppcrq() {
 
 bool is_gq() {
 	return scheduler == GQ;
-}
-
-vt_t ss_now(struct sched_state *ss) {
-	return safe_read_tsc() - ss->now;
 }
 
 bool ss_schedule(struct sched_state *ss, struct core *c) {

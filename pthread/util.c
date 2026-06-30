@@ -14,11 +14,22 @@
 #include <asm/unistd.h>
 
 #include "vt.h"
+#include "util.h"
+
+static vt_t init_tsc __calign__;  // set once at beginning of time  
+
+void tsc_init() {
+	init_tsc = safe_read_tsc();
+}
 
 long safe_read_tsc() {
 	unsigned int aux;
 	long ret_val = _rdtscp(&aux);
 	return ret_val;
+}
+
+long tsc_now() {
+	return safe_read_tsc() - init_tsc;
 }
 
 void error(char *s) {

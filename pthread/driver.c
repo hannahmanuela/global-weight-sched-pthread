@@ -346,6 +346,8 @@ void main(int argc, char *argv[]) {
 	int num_threads = atoi(argv[optind+2]);
 	num_threads_p_group = num_threads/num_groups;
 
+	tsc_init();
+	
 	gs = malloc(sizeof(struct global_state));
 	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
 	for (int i = 0; i < num_cores; i++) {

@@ -28,6 +28,9 @@ void error(char *);
 double now();
 long safe_read_tsc();
 
+void tsc_init();
+long tsc_now();
+
 uint64_t perf_read_l2(int fd);
 int perf_config(int cid);
 

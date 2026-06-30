@@ -4,9 +4,6 @@
 
 #include "group.h"
 #include "process.h"
-#include "sched_state.h"
-
-extern struct sched_state *ss_global;
 
 void proc_print(struct task_struct *p) {
 	printf("[pid %d(%d) vt %lld w %d]", p->pid, p->group->gid,  atomic_load(&p->he.vruntime), atomic_load(&p->he.weight));
@@ -59,5 +56,11 @@ void proc_set_vt_prio(struct task_struct *p) {
 	if(p->group->gid == RR_LOW) {
 		off += LOW_VT;
 	}
-	atomic_store(&p->he.vruntime, ss_now(ss_global) + off);
+	atomic_store(&p->he.vruntime, tsc_now() + off);
+}
+
+void proc_reset_vt_prio(struct task_struct *p) {
+	if(p->group->gid == RR_LOW) {
+		atomic_store(&p->he.vruntime, p->he.vruntime-LOW_VT);
+	}
 }

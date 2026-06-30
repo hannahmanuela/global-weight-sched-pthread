@@ -116,6 +116,7 @@ void c_log_append(struct task_struct *p) {
 	c->log[i].gid = p->group->gid;
 	c->log[i].vt = p->he.vruntime;
 	c->log[i].w = p->he.weight;
+	c->log[i].hid = p->he.id;
 	if(c->log[i].ts_in > c->log[i].ts_out) {
 		printf("%d: in %ld out %ld\n", c->cid, c->log[i].ts_in, c->log[i].ts_out);
 		assert(0);

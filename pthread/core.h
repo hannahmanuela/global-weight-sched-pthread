@@ -18,6 +18,7 @@ struct log_entry {
 	int pid;
 	int gid;
 	w_t w;
+	short hid;
 };
 
 struct core {

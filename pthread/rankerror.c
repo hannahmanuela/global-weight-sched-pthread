@@ -32,7 +32,7 @@ bool do_priority = false;
 #define VT(i) ring[IDX(i)].vt
 #define CID(i) ring[IDX(i)].cid
 #define PID(i) ring[IDX(i)].pid
-#define HEAP(i) ring[IDX(i)].pid
+#define HEAP(i) ring[IDX(i)].hid
 
 void print(struct log_entry *r, int idx) {
 	for(int i = idx; i < idx+N; i++) {
@@ -198,7 +198,7 @@ void process_log(int fd) {
 			perror("next ring read");
 			exit(1);
 		}
-		printf("%d: read ts %ld vt %ld w %d gid %d\n", idx, ring[IDX(idx)].ts_out, ring[IDX(idx)].vt, ring[IDX(idx)].w, ring[IDX(idx)].gid);
+		// printf("%d: read ts %ld vt %ld w %d gid %d\n", idx, ring[IDX(idx)].ts_out, ring[IDX(idx)].vt, ring[IDX(idx)].w, ring[IDX(idx)].gid);
 		if (n == 0)
 			break;
 		idx++;

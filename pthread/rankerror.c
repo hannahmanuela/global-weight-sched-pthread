@@ -5,7 +5,7 @@
 
 #include "core.h"
 #include "util.h"
-#include "rr.h"
+#include "process.h"
 
 // run: ./rankerror vtlog
 
@@ -198,7 +198,7 @@ void process_log(int fd) {
 			perror("next ring read");
 			exit(1);
 		}
-		// printf("%d: read ts %ld vt %ld w %d gid %d\n", idx, ring[IDX(idx)].ts, ring[IDX(idx)].vt, ring[IDX(idx)].w, ring[IDX(idx)].gid);
+		printf("%d: read ts %ld vt %ld w %d gid %d\n", idx, ring[IDX(idx)].ts_out, ring[IDX(idx)].vt, ring[IDX(idx)].w, ring[IDX(idx)].gid);
 		if (n == 0)
 			break;
 		idx++;

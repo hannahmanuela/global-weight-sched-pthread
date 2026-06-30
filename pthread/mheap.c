@@ -291,7 +291,6 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mhe
 	struct heap *h = mh->h[hint];
 	lock_acquire(&h->lk);
 	if (h->heap[0]->vruntime != DUMMY) {
-		mycore()->nhint++;
 		he = mh_remove_min(h);
 		he->tsc_out = safe_read_tsc();
 		he->id = h->id;
@@ -308,18 +307,24 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	vt_t vt;
 	vt_t other_vt;
 
+	// if hint, set heap i to be the hint
+	i = hint;
 	while(true) {
-		mh_rand_heaps(mh, &i, &j);
+		if (i == -1) {
+			mh_rand_heaps(mh, &i, &j);
+		} else {
+			mycore()->nhint++;
+			mh_rand_heap(mh, i, &j);
+		}
 		if ((h = mh_select(mh, i, j, &vt, &other_vt)) == NULL) {
-			if(hint != -1) {
-				he = mh_hint_min_proc(mh, hint);
-			}
+			// use to_add or the caller can retry
 			break;
 		} 
 		if ((he = mh_try_deq_min_enq(h, vt, to_add)) != NULL) {
 			break;
 		}
 		r++;
+		i = -1;
 	}
 
 	mycore()->nretry_del += r;

@@ -52,6 +52,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	struct task_struct *p_locked = NULL;
 	bool low = false;
 	int preempted = atomic_load(&mycore()->preempted);
+	// int preempted = -1;
 
 	if (do_preempt && preempted != -1) {
 		mycore()->npreempted += 1;
@@ -124,6 +125,7 @@ ok:
 		}
 	}
 	if(mycore()->fd > 0) {
+		// proc_reset_vt_prio(p);
 		c_log_append(p);
 	}
 	return p;

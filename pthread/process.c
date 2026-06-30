@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdatomic.h>
+#include <assert.h>
 
 #include "group.h"
 #include "process.h"
@@ -55,6 +56,8 @@ void proc_set_vt_prio(struct task_struct *p) {
 	vt_t off = 0;
 	if(p->group->gid == RR_LOW) {
 		off += LOW_VT;
+	} else {
+		assert(tsc_now() < LOW_VT);
 	}
 	atomic_store(&p->he.vruntime, tsc_now() + off);
 }

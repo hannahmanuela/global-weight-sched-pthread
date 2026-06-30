@@ -23,7 +23,7 @@ struct task_struct *proc_new(int id, int w) {
 	heap_elem_init(&p->he_r, 0, 0);
 	lock_init(&p->lk);
 	p->h = NULL;
-	p->h_r = NULL;
+	p->h_r = -1;;
 	return p;
 }
 

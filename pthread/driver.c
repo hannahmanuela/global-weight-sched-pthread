@@ -94,7 +94,7 @@ void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, lon
 		break;
 	case YIELD:
 		int tl = ss->tick_length;
-		if (mycore->preempted) {
+		if (mycore->preempted != -1) {
 			tl = tl / 2;
 		}
 		mycore->total += tl;
@@ -362,8 +362,8 @@ void main(int argc, char *argv[]) {
 		pthread_create(&gs->cores[i]->tid, NULL, run_core, (void*)(gs->cores[i]));
 	}
 
-	int pg = (is_rr() && (ratio == 0)) ? 0 : num_threads_p_group;
-	pg = (is_rr() && (ratio == 2)) ? ratio-1 : pg;
+	int pg = ((is_rr() || is_rr1()) && (ratio == 0)) ? 0 : num_threads_p_group;
+	pg = ((is_rr() || is_rr1()) && (ratio == 2)) ? ratio-1 : pg;
 	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", argv[optind], num_cores, num_groups, num_threads, pg, gs->ss->mh->nheap, time_work, do_affinity, do_preempt, use_power2_insert, benchmark, time_to_run, ratio);
 
 	float s_h = 0.0;

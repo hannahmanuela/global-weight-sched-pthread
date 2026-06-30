@@ -19,14 +19,14 @@
 // queue of runnable processes using mheap
 //
 
-struct task_struct *runnable_deq_proc_hint(struct mheap *mh, struct task_struct *prev, struct heap *hint) {
+struct task_struct *runnable_deq_proc_hint(struct mheap *mh, struct task_struct *prev, int hint) {
 	struct heap_elem *he = mh_deq_min_elem_enq(mh, &prev->he, hint);
 	struct task_struct *p = container_of(he, struct task_struct, he);
 	return p;
 }
 
 struct task_struct *runnable_deq_proc(struct mheap *mh, struct task_struct *prev) {
-	return runnable_deq_proc_hint(mh, prev, NULL);
+	return runnable_deq_proc_hint(mh, prev, -1);
 }
 
 struct task_struct *runnable_deq_proc_all_heap(struct mheap *mh) {

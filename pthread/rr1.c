@@ -25,17 +25,17 @@ extern int num_groups;
 extern bool use_runningq;
 extern struct sched_state *ss_global;
 
-static struct heap *enqueue(struct task_struct *p) {
+static int enqueue(struct task_struct *p) {
 	proc_set_vt_prio(p);
 	if(debug) {
 		struct core *c = mycore();
 		printf("%d: enqueue_rr1 %d(%d) at %lld\n", c->cid, p->pid, p->group->gid, p->he.vruntime);
 	}
-	struct heap *h = mh_insert_elem(p->group->mh, &p->he);
+	int h = mh_insert_elem(p->group->mh, &p->he);
 	return h;
 }
 
-static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, struct heap *hint) {
+static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, int hint) {
 	struct core *c = mycore();
 	struct task_struct *p = runnable_deq_proc_hint(mh, prev, hint);
 	if(p != NULL) {
@@ -51,21 +51,21 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	struct task_struct *p = NULL;
 	struct task_struct *p_locked = NULL;
 	bool low = false;
-	struct heap *preempted = atomic_load(&mycore()->preempted);
+	int preempted = atomic_load(&mycore()->preempted);
 
-	if (do_preempt && preempted != NULL) {
+	if (do_preempt && preempted != -1) {
 		mycore()->npreempted += 1;
-		atomic_store(&mycore()->preempted, NULL);
+		atomic_store(&mycore()->preempted, -1);
 	}
 
 	if(prev != NULL) {
 		proc_set_vt_prio(prev);
 		low = (prev->group->gid == RR_LOW);
 		if (debug)
-			printf("%d: ss_schedule_rr1: low %d preempted by %d prev %d(%d)\n", mycore()->cid, low, preempted ? preempted->id : -1, prev->pid, prev->group->gid);
+			printf("%d: ss_schedule_rr1: low %d preempted by %d prev %d(%d)\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid);
 	} else {
 		if (debug)
-			printf("%d: ss_schedule_rr1: low %d preempted by %d idle\n", mycore()->cid, low, preempted ? preempted->id : -1);
+			printf("%d: ss_schedule_rr1: low %d preempted by %d idle\n", mycore()->cid, low, preempted);
 	}
 
 	if (use_runningq && (prev != NULL) && (prev->group->gid == RR_LOW)) {
@@ -134,7 +134,7 @@ ok:
 void ss_enqueue_rr1(struct task_struct *p) {
 	struct core *c = mycore();
 	int cid = -1;
-	struct heap *h = enqueue(p);
+	int h = enqueue(p);
 	if (do_preempt && p->group->gid == RR_HIGH) {
 		// XXX see if this core is running a low
 		if(c->process != NULL)
@@ -146,7 +146,7 @@ void ss_enqueue_rr1(struct task_struct *p) {
 		}
 	}
 	if (debug) {
-		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, cid, h->id);
+		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, cid, h);
 	}
 	if (cid != -1) {
 		atomic_store(&ss_global->cs[cid]->preempted, h);

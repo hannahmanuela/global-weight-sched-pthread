@@ -22,13 +22,13 @@ void running_set(struct mheap *mh, struct task_struct *p, int cid) {
 
 bool running_clear(struct mheap *mh, struct task_struct *p) {
 	assert(p->cid >= 0);
-	mh_remove_elem(p->h_r, &p->he_r);
+	mh_remove_elem(mh, p->h_r, &p->he_r);
 	atomic_store(&p->cid, -1);
 	mycore()->npreempt_clear++;
 }
 
 int running_find_and_clear(struct mheap *mh) {
-	struct heap_elem *he = mh_deq_min_elem(mh, NULL);
+	struct heap_elem *he = mh_deq_min_elem(mh, -1);
 	if(he != NULL) {
 		mycore()->npreempt_find_ok++;
 		struct task_struct *p = container_of(he, struct task_struct, he_r);

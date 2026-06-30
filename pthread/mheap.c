@@ -286,8 +286,9 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct h
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mheap *mh, struct heap *h) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mheap *mh, int hint) {
 	struct heap_elem *he = NULL;
+	struct heap *h = mh->h[hint];
 	lock_acquire(&h->lk);
 	if (h->heap[0]->vruntime != DUMMY) {
 		mycore()->nhint++;
@@ -299,7 +300,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mhe
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap *mh, struct heap_elem *to_add, struct heap *hint) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap *mh, struct heap_elem *to_add, int hint) {
 	struct heap_elem *he;
 	struct heap *h;
 	long r = 0;
@@ -310,7 +311,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	while(true) {
 		mh_rand_heaps(mh, &i, &j);
 		if ((h = mh_select(mh, i, j, &vt, &other_vt)) == NULL) {
-			if(hint != NULL) {
+			if(hint != -1) {
 				he = mh_hint_min_proc(mh, hint);
 			}
 			break;
@@ -347,7 +348,7 @@ static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem 
 	return he;
 }
 
-struct heap_elem *mh_deq_min_elem(struct mheap *mh, struct heap *hint) {
+struct heap_elem *mh_deq_min_elem(struct mheap *mh, int hint) {
 	if (mh->nheap == 1) {
 		return mh_deq_min_one_heap(mh, NULL);
 	}
@@ -355,7 +356,7 @@ struct heap_elem *mh_deq_min_elem(struct mheap *mh, struct heap *hint) {
 }
 
 // if there is a min, dequeue it and enqueue to_add
-struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, struct heap *hint) {
+struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, int hint) {
 	if (mh->nheap == 1) {
 		return mh_deq_min_one_heap(mh, to_add);
 	}
@@ -379,15 +380,18 @@ struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh) {
 }
 
 // returns chosen h for e, so that caller can pass it to mh_remove_elem
-struct heap *mh_insert_elem(struct mheap *mh, struct heap_elem *e) {
+int mh_insert_elem(struct mheap *mh, struct heap_elem *e) {
 	struct heap *h = mh_choose_heap(mh);
 	heap_push(h, e);
 	e->tsc_in = safe_read_tsc();
+	int hi = h->id;
 	lock_release(&h->lk);
-	return h;
+	assert((hi == -1) || (hi >= 0 && hi < mh->nheap));
+	return hi;
 }
 
-void mh_remove_elem(struct heap *h, struct heap_elem *e) {
+void mh_remove_elem(struct mheap *mh, int hi, struct heap_elem *e) {
+	struct heap *h = mh->h[hi];
 	lock_acquire(&h->lk);
 	heap_erase(h, e);
 	lock_release(&h->lk);

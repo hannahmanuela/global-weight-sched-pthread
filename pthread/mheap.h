@@ -20,13 +20,13 @@ void mh_print(struct mheap *mh, void (*print_heap_elem)(struct heap_elem *));
 struct heap *mh_heap(struct mheap *mh, int i);
 vt_t mh_min_vt(struct heap *h);
 vt_t mh_last_vt(struct heap *h);
-struct heap_elem *mh_deq_min_elem(struct mheap *mh, struct heap *hint);
-struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *p, struct heap *hint);
+struct heap_elem *mh_deq_min_elem(struct mheap *mh, int hint);
+struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *p, int hint);
 struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh);
 struct heap *mh_choose_heap(struct mheap *mh);
 float mh_load(struct mheap *mh, int *maxl);
 void mh_rand_heaps(struct mheap *mh, int *i, int *j);
-struct heap *mh_insert_elem(struct mheap *mh, struct heap_elem *e);
-void mh_remove_elem(struct heap *h, struct heap_elem *e);
+int mh_insert_elem(struct mheap *mh, struct heap_elem *e);
+void mh_remove_elem(struct mheap *mh, int hi, struct heap_elem *e);
 
 #endif

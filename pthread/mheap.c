@@ -285,13 +285,12 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 			break;
 		} 
 		if ((he = mh_try_deq_min_enq(h, he, to_add, is_lt_elem)) != NULL) {
-			if(hint != -1 && i == hint) {
+			if(h->id == hint) {
 				mycore()->nhint_ok++;
 			}
 			break;
 		}
 		r++;
-		i = -1;
 	}
 
 	mycore()->nretry_del += r;

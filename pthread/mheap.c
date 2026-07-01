@@ -181,39 +181,45 @@ static struct heap_elem *mh_remove_min(struct heap *h) {
 	return he;
 }
 
-static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, vt_t *vt, vt_t *other_vt) {
+
+int is_lt_elem(struct heap_elem *he_i, struct heap_elem *he_j) {
+	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
+	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
+		return -1;
+	}
+	if (vt_i == DUMMY) {
+		return 0;
+	} 
+	if (vt_i > vt_j) {
+		return 1;
+	} else if (vt_i == vt_j) {
+		int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
+		int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
+		if (w_j > w_i) {	
+			return 0;
+		}
+	}
+	return 1;
+}
+
+static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, is_lt_elem_t is_lt_elem, struct heap_elem **he) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
 	struct heap_elem *he_i = atomic_load_explicit(&h_i->heap[0],  __ATOMIC_RELAXED);
 	struct heap_elem *he_j = atomic_load_explicit(&h_j->heap[0],  __ATOMIC_RELAXED);
-	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
-	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
-	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
+	int c = is_lt_elem(he_i, he_j);
+	if(c == -1) {
+		*he = NULL;
 		return NULL;
 	}
-	if (vt_i == DUMMY) {
-		vt_i = vt_j;
-		h_i = h_j;
-		ovt = vt_i;
-	} else {
-		if (vt_i > vt_j) {
-			ovt = vt_i;
-			vt_i = vt_j;
-			h_i = h_j;
-		} else if (vt_i == vt_j) {
-			ovt = vt_i;
-			int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
-			int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
-			if (w_j > w_i) {	
-				vt_i = vt_j;
-				h_i = h_j;
-			}
-		}
+	if (c == 1) {
+		*he = he_i;
+		return h_i;
 	}
-	*vt = vt_i;
-	*other_vt = ovt;
-	return h_i;
+	*he = he_j;
+	return h_j;
 }
 
 // del min proc from h; may fail because some other core grabbed the min element
@@ -232,29 +238,19 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_try_del_min(struct heap 
 	return he;
 }
 
-// if to_add is lower than min of heap, use to_add instead of min
-static bool is_to_add_min(vt_t vt0, int w, struct heap_elem *to_add) {
-	if (to_add == NULL)
-		return false;
-	if (vt0 == DUMMY)
-		return true;
-	if (vt0 < to_add->vruntime)
-		return false;
-	if ((vt0 == to_add->vruntime) && (w > to_add->weight))
-		return false;
-	return true;
-}
-
 // caller must have h locked
-// XXX maybe pass in he, which should be equal to he returned by mh_remove_min
-static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, vt_t vt, int w, struct heap_elem *to_add) {
+static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, struct heap_elem *he0, struct heap_elem *to_add) {
 	struct heap_elem *he = NULL;
-	if (is_to_add_min(vt, h->heap[0]->weight, to_add)) {
+	int c = 1;
+	if (to_add != NULL) {
+		c = is_lt_elem(he0, to_add);
+	}
+	if (c == 0) {
 		// pretend we added and removed to_add from the heap
 		h->last_vt = to_add->vruntime;
 		to_add->tsc_in = safe_read_tsc();
 		he = to_add;
-	} else if (vt != DUMMY) { 
+	} else if (c == 1) {
 		he = mh_remove_min(h);
 		assert(he != NULL);
 		if (to_add != NULL)  {
@@ -270,18 +266,17 @@ static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, vt_t vt, int w
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct heap *h, vt_t vt, struct heap_elem *to_add) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct heap *h, struct heap_elem *he0, struct heap_elem *to_add) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
 	}
-	vt_t vt0 = h->heap[0]->vruntime;
-	// vt_t vt0 = h->min_vt;
-	if (vt != vt0) {
+	struct heap_elem *he = h->heap[0]; 
+	if (he != he0) {
 		lock_release(&h->lk);
 		return NULL;
 	}
-	struct heap_elem *he = mh_deq_min_or_use_to_add(h, vt, h->heap[0]->weight, to_add);
+	he = mh_deq_min_or_use_to_add(h, he0, to_add);
 	lock_release(&h->lk);
 	return he;
 }
@@ -304,8 +299,6 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	struct heap *h;
 	long r = 0;
 	int i, j;
-	vt_t vt;
-	vt_t other_vt;
 
 	// if hint, set heap i to be the hint
 	i = hint;
@@ -316,11 +309,11 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 			mycore()->nhint++;
 			mh_rand_heap(mh, i, &j);
 		}
-		if ((h = mh_select(mh, i, j, &vt, &other_vt)) == NULL) {
+		if ((h = mh_select(mh, i, j, is_lt_elem, &he)) == NULL) {
 			// use to_add or the caller can retry
 			break;
 		} 
-		if ((he = mh_try_deq_min_enq(h, vt, to_add)) != NULL) {
+		if ((he = mh_try_deq_min_enq(h, he, to_add)) != NULL) {
 			break;
 		}
 		r++;
@@ -348,7 +341,7 @@ static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem 
 
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
-	he = mh_deq_min_or_use_to_add(h, he->vruntime, he->weight, to_add);
+	he = mh_deq_min_or_use_to_add(h, he, to_add);
 	lock_release(&h->lk);
 	return he;
 }

@@ -21,8 +21,9 @@ struct heap_elem {
 	short id;
 };
 
-typedef int (*cmp_elem_t)(struct heap_elem *, struct heap_elem*);
-
-bool heap_elem_is_dummy(struct heap_elem *he);
+// 1 if e0 < e2
+// 0 if e0 >= e2
+// -1 if e0 and e1 are dummies
+typedef int (*is_lt_elem_t)(struct heap_elem *e0, struct heap_elem *e1);
 
 #endif

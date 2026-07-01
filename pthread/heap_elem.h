@@ -65,9 +65,7 @@ static int is_min_elem_vt(struct heap_elem *he) {
 static int is_min_elem_high(struct heap_elem *he) {
 	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
 	return (vt != DUMMY && vt < LOW_VT);
-	return vt != DUMMY;
 }
-
 
 typedef void (*print_elem_t)(struct heap_elem *he);
 

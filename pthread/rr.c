@@ -97,9 +97,10 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 		// runnable highs that ss_schedule_mh_enq didn't find
 		// so scan all heaps of mh first before looking in
 		// mh_l.
+		mycore()->nscan_all++;
 		if ((p = runnable_deq_proc_all_heap(ss_global->mh)) != NULL) {
-			mycore()->nscan_all++;
 			assert(p->group->gid == RR_HIGH);
+			mycore()->nscan_all_ok++;
 			if (prev != NULL) {
 				ss_enqueue_low(prev);
 			}

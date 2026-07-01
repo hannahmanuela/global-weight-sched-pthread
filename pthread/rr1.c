@@ -52,7 +52,6 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	struct task_struct *p_locked = NULL;
 	bool low = false;
 	int preempted = atomic_load(&mycore()->preempted);
-	// int preempted = -1;
 
 	if (do_preempt && preempted != -1) {
 		mycore()->npreempted += 1;
@@ -77,12 +76,13 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		p_locked = prev;
 	}
 
-	if (mycore()->deq_high) { 
+	if (mycore()->scan_high) { 
+		mycore()->scan_high = false;
 		assert(prev == 0);
 		mycore()->nscan_all++;
 		// we dequeued a high priority process; do our best to find a new one
 		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh)) != NULL) {
-			printf(".");
+			mycore()->nscan_all_ok++;
 			goto ok;
 		}
 	}
@@ -156,9 +156,12 @@ void ss_enqueue_rr1(struct task_struct *p) {
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
 		}
+		if (cid == -1) {
+			mycore()->scan_high = true;
+		}
 	}
 	if (debug) {
-		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, cid, h);
+		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d scan %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, cid, h, mycore()->scan_high);
 	}
 	if (cid != -1) {
 		atomic_store(&ss_global->cs[cid]->preempted, h);

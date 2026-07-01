@@ -346,13 +346,13 @@ struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add
 }
 
 // scan all all heaps to dequeue a min element
-struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh) {
+struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh, is_min_elem_t is_min_elem) {
         struct heap_elem *he = NULL;
 	int s = mycore()->cid;
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[MH_IND(mh, s+i)];
 		struct heap_elem *he = heap_min(h);
-		if (is_min_elem_vt(he) && mh_try_del_min(h, he)) {
+		if (is_min_elem(he) && mh_try_del_min(h, he)) {
 			he->tsc_out = safe_read_tsc();
 			lock_release(&h->lk);
 			break;

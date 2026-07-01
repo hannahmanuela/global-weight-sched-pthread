@@ -30,7 +30,13 @@ struct task_struct *runnable_deq_proc(struct mheap *mh, struct task_struct *prev
 }
 
 struct task_struct *runnable_deq_proc_all_heap(struct mheap *mh) {
-	struct heap_elem *he = mh_deq_min_elem_all_heap(mh);
+	struct heap_elem *he = mh_deq_min_elem_all_heap(mh, is_min_elem_vt);
+	struct task_struct *p = container_of(he, struct task_struct, he);
+	return p;
+}
+
+struct task_struct *runnable_deq_high_proc_all_heap(struct mheap *mh) {
+	struct heap_elem *he = mh_deq_min_elem_all_heap(mh, is_min_elem_high);
 	struct task_struct *p = container_of(he, struct task_struct, he);
 	return p;
 }

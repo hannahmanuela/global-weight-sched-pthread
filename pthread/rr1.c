@@ -78,7 +78,13 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	}
 
 	if (mycore()->deq_high) { 
+		assert(prev == 0);
+		mycore()->nscan_all++;
 		// we dequeued a high priority process; do our best to find a new one
+		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh)) != NULL) {
+			printf(".");
+			goto ok;
+		}
 	}
 
 	// find a proc to run

@@ -7,6 +7,8 @@
 #include <stdatomic.h>
 #include "vt.h"
 
+#define LOW_VT ((vt_t)(1L << 32))
+
 typedef short idx_t;
 
 struct heap_elem {
@@ -59,6 +61,13 @@ static int is_min_elem_vt(struct heap_elem *he) {
 	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
 	return vt != DUMMY;
 }
+
+static int is_min_elem_high(struct heap_elem *he) {
+	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
+	return (vt != DUMMY && vt < LOW_VT);
+	return vt != DUMMY;
+}
+
 
 typedef void (*print_elem_t)(struct heap_elem *he);
 

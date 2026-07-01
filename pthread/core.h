@@ -36,7 +36,8 @@ struct core {
 	struct drand48_data randBuffer;
 
 	struct task_struct *process;   // currently running process or last process ran
-	struct task_struct *pool;   // pool of processes sleeping
+	bool deq_high;                     // set to true when dequeing a high priority process
+	struct task_struct *pool;      // pool of processes sleeping
 
 
 	// fields for tatistics:

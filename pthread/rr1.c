@@ -66,7 +66,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 			printf("%d: ss_schedule_rr1: low %d preempted by %d prev %d(%d)\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid);
 	} else {
 		if (debug)
-			printf("%d: ss_schedule_rr1: low %d preempted by %d idle\n", mycore()->cid, low, preempted);
+			printf("%d: ss_schedule_rr1: preempted by %d idle\n", mycore()->cid, preempted);
 	}
 
 	if (use_runningq && (prev != NULL) && (prev->group->gid == RR_LOW)) {
@@ -75,6 +75,10 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		// while it is still on the running queue now.
 		lock_acquire(&prev->lk);
 		p_locked = prev;
+	}
+
+	if (mycore()->deq_high) { 
+		// we dequeued a high priority process; do our best to find a new one
 	}
 
 	// find a proc to run

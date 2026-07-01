@@ -44,7 +44,7 @@ static int is_lt_elem_vt_w(struct heap_elem *he_i, struct heap_elem *he_j) {
 		return 0;
 	} 
 	if (vt_i > vt_j) {
-		return 1;
+		return 0;
 	} else if (vt_i == vt_j) {
 		int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
 		int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);

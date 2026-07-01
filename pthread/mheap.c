@@ -220,15 +220,21 @@ static int mh_try_del_min(struct heap *h, struct heap_elem *he0) {
 static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, struct heap_elem *he0, struct heap_elem *to_add, is_lt_elem_t is_lt_elem) {
 	struct heap_elem *he = NULL;
 	int c = 1;
+	
+	if(is_min_elem_vt(he0)) {
+		he = he0;
+	}
+
 	if (to_add != NULL) {
 		c = is_lt_elem(he0, to_add);
 	}
+
 	if (c == 0) {
 		// pretend we added and removed to_add from the heap
 		h->last_vt = to_add->vruntime;
 		to_add->tsc_in = safe_read_tsc();
 		he = to_add;
-	} else if (c == 1) {
+	} else if (he && c == 1) {
 		he = mh_remove_min(h);
 		assert(he != NULL);
 		if (to_add != NULL)  {

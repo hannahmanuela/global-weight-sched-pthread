@@ -265,19 +265,6 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct h
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_hint_min_proc(struct mheap *mh, int hint) {
-	struct heap_elem *he = NULL;
-	struct heap *h = mh->h[hint];
-	lock_acquire(&h->lk);
-	if (h->heap[0]->vruntime != DUMMY) {
-		he = mh_remove_min(h);
-		he->tsc_out = safe_read_tsc();
-		he->id = h->id;
-	}
-	lock_release(&h->lk);
-	return he;
-}
-
 static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap *mh, struct heap_elem *to_add, int hint, is_lt_elem_t is_lt_elem) {
 	struct heap_elem *he;
 	struct heap *h;
@@ -294,10 +281,13 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 			mh_rand_heap(mh, i, &j);
 		}
 		if ((h = mh_select(mh, i, j, is_lt_elem, &he)) == NULL) {
-			// use to_add or the caller can retry
+			// either use to_add or the caller can retry
 			break;
 		} 
 		if ((he = mh_try_deq_min_enq(h, he, to_add, is_lt_elem)) != NULL) {
+			if(hint != -1 && i == hint) {
+				mycore()->nhint_ok++;
+			}
 			break;
 		}
 		r++;

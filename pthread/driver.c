@@ -382,6 +382,7 @@ void main(int argc, char *argv[]) {
 	long nretry_del = 0;
 	long nretry_del_lock = 0;
 	long nhint = 0;
+	long nhint_ok = 0;
 	long y_c = 0;
 	long s_c = 0;
 	long nsched = 0;
@@ -437,6 +438,7 @@ void main(int argc, char *argv[]) {
 		rdel_l = MIN(rdel_l, s);
 		nretry_del += c->nretry_del;
 		nhint += c->nhint;
+		nhint_ok += c->nhint_ok;
 		offset_sub_retry += c->offset_sub_retry;
 		npreempt_retry += c->npreempt_retry;
 		npreempt_set += c->npreempt_set;
@@ -497,5 +499,5 @@ void main(int argc, char *argv[]) {
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);
 	printf("    max retry del %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
-	printf("    nhint %ld\n", nhint);
+	printf("    nhint %ld/%ld/%0.2f\n", nhint, nhint_ok,  AVG(nhint_ok, nhint));
 }

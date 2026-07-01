@@ -66,6 +66,7 @@ struct core {
 	long max_retry_del;
 	long max_retry_del_lock;
 	long nhint;
+	long nhint_ok;
 	long nrand;
 
 	long offset_sub_retry;

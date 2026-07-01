@@ -290,6 +290,9 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 			}
 			break;
 		}
+		// the try failed, which happens only when another core locks too; that other core will deq
+		// from the hint heap. no need to retry the hint heap again.
+		i = -1;
 		r++;
 	}
 

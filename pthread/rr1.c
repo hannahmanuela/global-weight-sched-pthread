@@ -59,13 +59,13 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	}
 
 	if(prev != NULL) {
-		atomic_store(&p->he.vruntime, tsc_now());
+		atomic_store(&prev->he.vruntime, tsc_now());
 		low = (prev->group->gid == LOW);
 		if (debug)
-			printf("%d: ss_schedule_rr1: low %d preempted heap %d prev %d(%d)\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid);
+			printf("%d: ss_schedule_rr1: low %d preempted heap %d prev %d(%d) scan %d\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid, mycore()->scan_high);
 	} else {
 		if (debug)
-			printf("%d: ss_schedule_rr1: preempted heap %d idle\n", mycore()->cid, preempted);
+			printf("%d: ss_schedule_rr1: preempted heap %d idle scan %d\n", mycore()->cid, preempted, mycore()->scan_high);
 	}
 
 	if (use_runningq && (prev != NULL) && (prev->group->gid == LOW)) {
@@ -77,8 +77,11 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	}
 
 	if (mycore()->scan_high) { 
+		if (debug) {
+			printf("%d: scan high prev %p\n", mycore()->cid, prev);
+		}
 		mycore()->scan_high = false;
-		assert(prev == 0);
+		assert(prev == NULL);   // XXX fix
 		mycore()->nscan_all++;
 		// we dequeued a high priority process; do our best to find a new one
 		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh)) != NULL) {

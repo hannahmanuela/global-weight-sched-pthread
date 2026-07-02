@@ -52,7 +52,7 @@ static int heap_elem_cmp(struct heap_elem *a, struct heap_elem *b) {
 }
 
 struct heap_elem *heap_min(struct heap *h) {
-	if (h->heap_size == 0)
+	if (atomic_load(&h->heap_size) == 0)
 		return NULL;
 	return atomic_load(&h->heap[0]);
 } 

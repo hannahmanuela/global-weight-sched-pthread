@@ -52,18 +52,3 @@ void proc_mh_r_print(struct mheap *mh) {
 	mh_print(mh, proc_heap_elem_r_print);
 }
 
-void proc_set_vt_prio(struct task_struct *p) {
-	vt_t off = 0;
-	if(p->group->gid == LOW) {
-		off += LOW_VT;
-	} else {
-		assert(tsc_now() < LOW_VT);
-	}
-	atomic_store(&p->he.vruntime, tsc_now() + off);
-}
-
-void proc_reset_vt_prio(struct task_struct *p) {
-	if(p->group->gid == RR_LOW) {
-		atomic_store(&p->he.vruntime, p->he.vruntime-LOW_VT);
-	}
-}

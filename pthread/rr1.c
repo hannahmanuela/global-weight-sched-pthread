@@ -26,7 +26,6 @@ extern bool use_runningq;
 extern struct sched_state *ss_global;
 
 static int enqueue(struct task_struct *p) {
-	proc_set_vt_prio(p);
 	if(debug) {
 		struct core *c = mycore();
 		printf("%d: enqueue_rr1 %d(%d) at %lld/%ld\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->he.weight);
@@ -59,7 +58,6 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	}
 
 	if(prev != NULL) {
-		proc_set_vt_prio(prev);
 		low = (prev->group->gid == LOW);
 		if (debug)
 			printf("%d: ss_schedule_rr1: low %d preempted heap %d prev %d(%d)\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid);

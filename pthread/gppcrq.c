@@ -17,7 +17,7 @@ static struct heap_elem *global_high() {
 	for (int i = 0; i < ss_global->mh->nheap; i++) {
 		lock_acquire(&h->lk);
 		struct heap_elem *he0 = heap_min(h);
-		if((he0 != NULL) && (he0->vruntime < LOW_VT)) {
+		if((he0 != NULL) && (he0->weight == RR_HIGH)) {
 			struct heap_elem *he = heap_remove_min(h);
 			assert(he == he0);
 			lock_release(&h->lk);
@@ -35,7 +35,6 @@ struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
 	lock_acquire(&h->lk);
 
 	if (prev != NULL) {
-		proc_set_vt_prio(prev);
 		assert(prev->h == h);
 		heap_push(prev->h, &prev->he);
 		if(debug) {
@@ -44,7 +43,7 @@ struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
 	}
 
 	struct heap_elem *he = heap_min(h);
-	bool look_for_high = ((he == NULL) || (he->vruntime >= LOW_VT));
+	bool look_for_high = ((he == NULL) || (he->weight == RR_LOW));
 	if(!look_for_high) {
 		mycore()->nlocal += 1;
 		he = heap_remove_min(h);
@@ -94,7 +93,6 @@ void ss_enqueue_gppcrq(struct task_struct *p) {
 	}
 	struct heap *h = ss_global->mh->h[i];
 	lock_acquire(&h->lk);
-	proc_set_vt_prio(p);
 	p->h = h;
 	heap_push(h, &p->he);
 	if(debug) {

@@ -2,6 +2,7 @@
 #include <stdatomic.h>
 #include <assert.h>
 
+#include "heap_elem.h"
 #include "running.h"
 #include "core.h"
 
@@ -28,7 +29,7 @@ bool running_clear(struct mheap *mh, struct task_struct *p) {
 }
 
 int running_find_and_clear(struct mheap *mh) {
-	struct heap_elem *he = mh_deq_min_elem(mh, -1);
+	struct heap_elem *he = mh_deq_min_elem(mh, -1, is_lt_elem_vt_w);
 	if(he != NULL) {
 		mycore()->npreempt_find_ok++;
 		struct task_struct *p = container_of(he, struct task_struct, he_r);

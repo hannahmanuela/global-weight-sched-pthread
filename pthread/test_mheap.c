@@ -56,9 +56,9 @@ void *run_core(void* core) {
 	double start = now();
 
 	for (int i = 0; now() - start < time_to_run; i++) {
-		struct heap_elem *he = mh_deq_min_elem_enq(mh, NULL, false);
+		struct heap_elem *he = mh_deq_min_elem_enq(mh, NULL, false, is_lt_elem_vt_w);
 		while (he == NULL) {
-			he = mh_deq_min_elem_enq(mh, NULL, false);	
+			he = mh_deq_min_elem_enq(mh, NULL, false, is_lt_elem_vt_w);	
 		}
 		mycore->ndeq++;
 
@@ -138,7 +138,7 @@ void test_worst() {
 		heap_elem_init(he, safe_read_tsc(), 0);
 		mh_insert_elem(mh, he);
 		for (int i = 0; ; i++) {
-			struct heap_elem *he = mh_deq_min_elem(mh, false);
+			struct heap_elem *he = mh_deq_min_elem(mh, false, is_lt_elem_vt_w);
 			if(he) {
 				sum += i;
 				bin[i]++;

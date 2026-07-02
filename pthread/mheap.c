@@ -322,19 +322,19 @@ static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem 
 	return he;
 }
 
-struct heap_elem *mh_deq_min_elem(struct mheap *mh, int hint) {
+struct heap_elem *mh_deq_min_elem(struct mheap *mh, int hint, is_lt_elem_t is_lt_elem) {
 	if (mh->nheap == 1) {
-		return mh_deq_min_one_heap(mh, NULL, is_lt_elem_vt_w);
+		return mh_deq_min_one_heap(mh, NULL, is_lt_elem);
 	}
-	return mh_deq_min_enq(mh, NULL, hint, is_lt_elem_vt_w);
+	return mh_deq_min_enq(mh, NULL, hint, is_lt_elem);
 }
 
 // if there is a min, dequeue it and enqueue to_add
-struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, int hint) {
+struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, int hint, is_lt_elem_t is_lt_elem) {
 	if (mh->nheap == 1) {
-		return mh_deq_min_one_heap(mh, to_add, is_lt_elem_vt_w);
+		return mh_deq_min_one_heap(mh, to_add, is_lt_elem);
 	}
-	return mh_deq_min_enq(mh, to_add, hint, is_lt_elem_vt_w);
+	return mh_deq_min_enq(mh, to_add, hint, is_lt_elem);
 }
 
 // scan all all heaps to dequeue a min element

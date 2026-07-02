@@ -354,10 +354,11 @@ void main(int argc, char *argv[]) {
 		gs->cores[i] = c_new(i, num_groups, i);
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
-	if(is_rr() || is_rr1()) {
-		gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_vt_w, is_min_elem_vt);
-	} else {
+
+	if(is_rr() || is_rr1() || is_gppcrq()) {
 		gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_priority, is_min_elem_high);
+	} else {
+		gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_vt_w, is_min_elem_vt);
 	}
 
 	// printf("==="); mh_print(gs->ss->mh);

@@ -6,6 +6,7 @@
 #include "core.h"
 #include "util.h"
 #include "process.h"
+#include "group.h"
 
 // run: ./rankerror vtlog
 
@@ -85,11 +86,11 @@ int delay(struct log_entry *ring, long idx) {
 
 int priority(struct log_entry *ring, long idx) {
 	int p = 0;
-	if(ring[IDX(idx)].gid == RR_LOW) {  // skip low
+	if(ring[IDX(idx)].gid == LOW) {  // skip low
 		return -1;
 	}
 	for(long i = idx-1; i > idx-N; i--) {
-		if(ring[IDX(i)].gid == RR_HIGH) {
+		if(ring[IDX(i)].gid == HIGH) {
 			break;
 		}
 		// if low was inserted before high was selected and

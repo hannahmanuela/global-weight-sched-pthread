@@ -54,7 +54,7 @@ void proc_mh_r_print(struct mheap *mh) {
 
 void proc_set_vt_prio(struct task_struct *p) {
 	vt_t off = 0;
-	if(p->group->gid == RR_LOW) {
+	if(p->group->gid == LOW) {
 		off += LOW_VT;
 	} else {
 		assert(tsc_now() < LOW_VT);

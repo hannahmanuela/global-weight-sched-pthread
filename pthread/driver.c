@@ -183,10 +183,10 @@ void rr_groups() {
 			pid += ns[i-1];
 		}
 		struct mheap *mh = gs->ss->mh;
-		if(i == RR_LOW && is_rr()) {
+		if(i == LOW && is_rr()) {
 			mh = gs->ss->mh_l;
 		}
-		struct group *g = grp_new(mh, i, 10);
+		struct group *g = grp_new(mh, i, i == HIGH ? RR_HIGH : RR_LOW);
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
 			struct task_struct *p = grp_new_process(pid+j, g);
@@ -209,14 +209,14 @@ void rr_sched_action(struct core *mycore) {
 		action(gs->ss, mycore, WAKEUP);
 	} else if (benchmark == 2) {
 		// note: run with preempt (-p)
-		bool high = (mycore->process != NULL) && (mycore->process->group->gid == RR_HIGH);
+		bool high = (mycore->process != NULL) && (mycore->process->group->gid == HIGH);
 		if(high) {
 			action(gs->ss, mycore, SLEEP);
 		} else if (mycore->pool != NULL) {  // sleeping proc?
 			action(gs->ss, mycore, WAKEUP);  // wakeup sleeping high
 			action(gs->ss, mycore, RUN);  // preempt/yield low
 		} else if (mycore->process != NULL) {
-			assert(mycore->process->group->gid == RR_LOW);
+			assert(mycore->process->group->gid == LOW);
 			action(gs->ss, mycore, RUN);
 		}
 	} else {
@@ -354,7 +354,11 @@ void main(int argc, char *argv[]) {
 		gs->cores[i] = c_new(i, num_groups, i);
 		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
 	}
-	gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores);
+	if(is_rr() || is_rr1()) {
+		gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_vt_w, is_min_elem_vt);
+	} else {
+		gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_priority, is_min_elem_high);
+	}
 
 	// printf("==="); mh_print(gs->ss->mh);
 

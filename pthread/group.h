@@ -13,6 +13,10 @@
 
 #define DEF_NUM_GROUPS 4
 
+#define HIGH 0
+#define LOW 1
+
+
 struct group {
 	vt_t vruntime  __calign__;
 	vt_t offset;

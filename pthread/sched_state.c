@@ -36,7 +36,7 @@ bool use_rao_int = false;
 int scheduler;
 struct sched_state *ss_global;
 
-struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int ncore) {
+struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int ncore, is_lt_elem_t lt, is_min_elem_t min) {
 	struct sched_state *ss = aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct sched_state), CACHE_LINE_SZ));
 	ss_global = ss;
 	ss->tick_length = tick_length;
@@ -50,6 +50,8 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	}
 	ss->cs = cs;
 	ss->ncore = ncore;
+	ss->is_lt_elem = lt;
+	ss->is_min_elem = min;
 	ss->preempt = PREEMPT(0, MAXWEIGHT, 0);
 	dl_init(&ss->preemptq);
 	if(is_gq()) {

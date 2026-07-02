@@ -10,8 +10,8 @@
 struct group;
 struct mheap;
 
-#define RR_HIGH 0
-#define RR_LOW 1
+#define LOW_VT ((vt_t)(1L << 32))
+
 
 struct task_struct {
 	// for runnable mheap

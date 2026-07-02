@@ -7,7 +7,9 @@
 #include <stdatomic.h>
 #include "vt.h"
 
-#define LOW_VT ((vt_t)(1L << 32))
+#define RR_HIGH 1
+#define RR_LOW 0
+
 
 typedef short idx_t;
 
@@ -25,8 +27,8 @@ struct heap_elem {
 };
 
 // is_lt_elem returns:
-// 1 if e0 < e2
-// 0 if e0 >= e2
+// 1 if e0 < e1 (e0 should run before e1)
+// 0 if e0 >= e1
 // -1 if e0 and e1 are dummies
 typedef int (*is_lt_elem_t)(struct heap_elem *e0, struct heap_elem *e1);
 
@@ -57,6 +59,26 @@ static int is_lt_elem_vt_w(struct heap_elem *he_i, struct heap_elem *he_j) {
 	return 1;
 }
 
+static int is_lt_elem_priority(struct  heap_elem *he_i, struct heap_elem *he_j) {
+	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
+	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
+	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
+	int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
+	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
+		return -1;
+	}
+	if (w_i > w_j) {
+		return 1;
+	}
+	if (w_i < w_j) {
+		return 0;
+	}
+	if (vt_i < vt_j) {
+		return 1;
+	}
+	return 0;
+}
+
 static int is_min_elem_vt(struct heap_elem *he) {
 	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
 	return vt != DUMMY;
@@ -64,7 +86,8 @@ static int is_min_elem_vt(struct heap_elem *he) {
 
 static int is_min_elem_high(struct heap_elem *he) {
 	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
-	return (vt != DUMMY && vt < LOW_VT);
+	int w = atomic_load_explicit(&he->weight, __ATOMIC_RELAXED);
+	return (vt != DUMMY && w == RR_HIGH);
 }
 
 typedef void (*print_elem_t)(struct heap_elem *he);

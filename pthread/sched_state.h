@@ -46,9 +46,11 @@ struct sched_state {
 
 	vt_t min_vt __calign__;
 
+	is_lt_elem_t is_lt_elem;
+	is_min_elem_t is_min_elem;
 };
 
-struct sched_state *ss_new(int tick_length, int n, struct core *cs[], int ncore);
+struct sched_state *ss_new(int tick_length, int n, struct core *cs[], int ncore, is_lt_elem_t lt, is_min_elem_t min);
 struct core *ss_choose_core(struct sched_state *ss, struct core *c);
 void ss_stats(struct sched_state *ss, struct group *gs[], int n);
 void ss_print(struct sched_state *ss, struct group *gs[], int n);

@@ -12,9 +12,12 @@ extern bool debug;
 extern int num_groups;
 extern struct sched_state *ss_global;
 
-static struct heap_elem *global_high() {
-	struct heap *h = ss_global->mh->h[mycore()->cid];
-	for (int i = 0; i < ss_global->mh->nheap; i++) {
+#define IND(mh, i) ((i) % mh->nheap)
+
+static struct heap_elem *global_high(struct mheap *mh) {
+	int cid = mycore()->cid;
+	for (int i = 0; i < mh->nheap; i++) {
+		struct heap *h = ss_global->mh->h[IND(mh, cid+1+i)];
 		lock_acquire(&h->lk);
 		struct heap_elem *he0 = heap_min(h);
 		if((he0 != NULL) && (he0->weight == RR_HIGH)) {
@@ -52,7 +55,7 @@ struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
 	lock_release(&h->lk);
 
 	if(look_for_high) {
-		he = global_high();
+		he = global_high(ss_global->mh);
 		if(he == NULL) {
 			lock_acquire(&h->lk);
 			he = heap_remove_min(h);

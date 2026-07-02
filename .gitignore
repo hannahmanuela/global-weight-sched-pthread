@@ -15,6 +15,7 @@ pthread/test-dllist
 pthread/test-gq
 pthread/test-mheap
 pthread/test-running
+pthread/test-rr
 
 # perf profiling output
 perf.data

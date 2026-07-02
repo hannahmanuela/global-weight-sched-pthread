@@ -18,13 +18,19 @@ schedule: driver.o $(OBJ)
 test-gwfs: test_gwfs.o $(OBJ)
 	$(CC) -o $@ $^
 
+test-rr: test_rr.o $(OBJ)
+	$(CC) -o $@ $^
+
 test-heap: test_heap.o heap.o lock.o core.o
 	$(CC) -o $@ $^
 
-test-mcntr: test_mcntr.o mcounter.o lock.o core.o util.o
+test-mheap: test_mheap.o process.o mheap.o heap.o ticks.o core.o util.o lock.o
 	$(CC) -o $@ $^
 
 test-preempt: test_preempt.o preempt.o lock.o core.o util.o
+	$(CC) -o $@ $^
+
+test-mcntr: test_mcntr.o mcounter.o lock.o core.o util.o
 	$(CC) -o $@ $^
 
 test-running: test_running.o running.o process.o mheap.o heap.o ticks.o lock.o core.o util.o
@@ -34,9 +40,6 @@ test-dllist: test_dllist.o dllist.o lock.o core.o util.o
 	$(CC) -o $@ $^
 
 test-gq: test_gq.o  lock.o core.o util.o
-	$(CC) -o $@ $^
-
-test-mheap: test_mheap.o process.o mheap.o heap.o ticks.o core.o util.o lock.o
 	$(CC) -o $@ $^
 
 logmerge: logmerge.o

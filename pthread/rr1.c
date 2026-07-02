@@ -81,7 +81,10 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 			printf("%d: scan high prev %p\n", mycore()->cid, prev);
 		}
 		mycore()->scan_high = false;
-		assert(prev == NULL);   // XXX fix
+
+		// XXX doesn't happen with -r 2 -b 2 but should fix.
+		assert(prev == NULL);
+
 		mycore()->nscan_all++;
 		// we dequeued a high priority process; do our best to find a new one
 		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh)) != NULL) {
@@ -180,7 +183,7 @@ void ss_yield_rr1(struct task_struct *p, t_t time_passed) {
 void ss_dequeue_rr1(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {
-		printf("%d: %d(%d): dequeue1 %ld\n", mycore()->cid, p->pid, p->group->gid, time_passed);
+		printf("%d: %d(%d): dequeue_rr1 %ld\n", mycore()->cid, p->pid, p->group->gid, time_passed);
 		//mh_print(p->group->mh);
 	}
 }

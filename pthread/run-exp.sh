@@ -15,7 +15,7 @@ while [ $n -le $1 ]; do
         n=$((n + 8))
     fi
 done
-SCHEDULERS=("rr" "gwfs" "gq" "pcrq")
+SCHEDULERS=("rr" "gwfs" "gq" "rr1" "gppcrq")
 D=exp-out-`date +%Y-%m-%d_%H-%M-%S`
 
 mkdir $D
@@ -49,3 +49,18 @@ for n in ${NUM_CORES[@]}; do
     ./schedule -p -r 2 -b 2 -g 2 rr $n $(($n * 4))
 done 2>&1 > $D/tp-rr-prio-mask.out
 grep tp $D/tp-rr-prio-mask.out | awk '{print $2, $3}' > $D/tp-rr-prio-mask.dat
+
+echo "rr1 w priority and preemption w. mask"
+
+for n in ${NUM_CORES[@]}; do
+    ./schedule -p -r 2 -b 2 -g 2 rr1 $n $(($n * 4))
+done 2>&1 > $D/tp-rr1-prio-mask.out
+grep tp $D/tp-rr1-prio-mask.out | awk '{print $2, $3}' > $D/tp-rr1-prio-mask.dat
+
+echo "gppcrq"
+
+for n in ${NUM_CORES[@]}; do
+    ./schedule -p -r 2 -b 2 -g 2 gppcrq $n $(($n * 4))
+done 2>&1 > $D/tp-gppcrq-prio.out
+grep tp $D/tp-gppcrq-prio.out | awk '{print $2, $3}' > $D/tp-gppcrq-prio.dat
+

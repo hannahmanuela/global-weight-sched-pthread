@@ -106,4 +106,8 @@ void ss_enqueue_gppcrq(struct task_struct *p) {
 
 void ss_dequeue_gppcrq(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
+	if(debug) {
+		printf("%d: %d(%d): dequeue_gppcrq %ld\n", mycore()->cid, p->pid, p->group->gid, time_passed);
+		//mh_print(p->group->mh);
+	}
 }

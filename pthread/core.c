@@ -80,6 +80,7 @@ struct core *c_new(int i, int n, int seed) {
 	bzero(c, sizeof(struct core));
 	lock_init(&c->lk);
 	c->cid = i;
+	c->preempted = -1;
 	c->seed = seed;
 	srand48_r(seed, &c->randBuffer);
 	c->hit = calloc(n, sizeof(int));

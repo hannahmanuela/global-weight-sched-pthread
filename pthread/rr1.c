@@ -35,17 +35,6 @@ static int enqueue(struct task_struct *p) {
 	return h;
 }
 
-static struct task_struct *ss_schedule_mh_enq(struct mheap *mh, struct task_struct *prev, int hint) {
-	struct core *c = mycore();
-	struct task_struct *p = runnable_deq_proc_hint(mh, prev, hint);
-	if(p != NULL) {
-		if(debug) {
-			printf("%d: ss_schedule_mh_enq: %d(%d) vt %lld\n", c->cid, p->pid, p->group->gid, p->he.vruntime);
-		}
-	}
-	return p;
-}
-
 // Yield prev, if any, and select new one, if there is a runnable one
 struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	struct task_struct *p = NULL;
@@ -94,7 +83,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	}
 
 	// find a proc to run
-	if ((p = ss_schedule_mh_enq(ss_global->mh, prev, preempted)) != NULL) {
+	if ((p = runnable_deq_proc_hint(ss_global->mh, prev, preempted)) != NULL) {
 		goto ok;
 	}
 
@@ -109,7 +98,7 @@ ok:
 		mycore()->nlocal += 1;
 	}
 	if(debug) {
-		printf("%d: running1 %d(%d)\n", mycore()->cid, p->pid, p->group->gid);
+		printf("%d: running1 %d(%d) vt %lld\n", mycore()->cid, p->pid, p->group->gid, p->he.vruntime);
 	}
 	if (do_preempt && (p->group->gid == LOW)) {
 		if (use_runningq) {

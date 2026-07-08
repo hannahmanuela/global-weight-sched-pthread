@@ -42,10 +42,7 @@ void heap_elem_init(struct heap_elem *he, vt_t vt, int w) {
 	he->weight = w;
 }
 
-// Returns true if a should sift above b, using the heap's ordering (the same
-// is_lt_elem the scheduler uses for cross-heap selection). Keeping the
-// intra-heap ordering consistent with the cross-heap ordering is essential:
-// otherwise the true min for the scheduler's order can be buried below heap[0].
+// Returns true if a should sift above b, using the heap's ordering.
 static inline int heap_lt(struct heap *h, struct heap_elem *a, struct heap_elem *b) {
 	return h->lt(a, b) == 1;
 }

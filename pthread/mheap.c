@@ -30,7 +30,6 @@ struct mheap *mh_new(int n, is_lt_elem_t lt) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct heap) * n, CACHE_LINE_SZ));
 	for (int i=0; i < n; i++) {
-
 		mh->h[i] = heap_new(lt);
 		mh->h[i]->id = i;
 		lock_init(&(mh->h[i]->lk));
@@ -40,6 +39,7 @@ struct mheap *mh_new(int n, is_lt_elem_t lt) {
 		heap_push(mh->h[i], he);
 	}
 	mh->nheap = n;
+	mh->lt = lt;
 	return mh;
 }
 
@@ -182,13 +182,13 @@ static struct heap_elem *mh_remove_min(struct heap *h) {
 }
 
 
-static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, is_lt_elem_t is_lt_elem, struct heap_elem **he) {
+static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, struct heap_elem **he) {
 	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
 	struct heap_elem *he_i = atomic_load_explicit(&h_i->heap[0],  __ATOMIC_RELAXED);
 	struct heap_elem *he_j = atomic_load_explicit(&h_j->heap[0],  __ATOMIC_RELAXED);
-	int c = is_lt_elem(he_i, he_j);
+	int c = mh->lt(he_i, he_j);
 	if(c == -1) {
 		*he = NULL;
 		return NULL;
@@ -217,7 +217,7 @@ static int mh_try_del_min(struct heap *h, struct heap_elem *he0) {
 }
 
 // caller must have h locked
-static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, struct heap_elem *he0, struct heap_elem *to_add, is_lt_elem_t is_lt_elem) {
+static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, struct heap_elem *he0, struct heap_elem *to_add) {
 	struct heap_elem *he = NULL;
 	int c = 1;
 	
@@ -226,7 +226,7 @@ static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, struct heap_el
 	}
 
 	if (to_add != NULL) {
-		c = is_lt_elem(he0, to_add);
+		c = h->lt(he0, to_add);
 	}
 
 	if (c == 0) {
@@ -250,7 +250,7 @@ static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, struct heap_el
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct heap *h, struct heap_elem *he0, struct heap_elem *to_add, is_lt_elem_t is_lt_elem) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct heap *h, struct heap_elem *he0, struct heap_elem *to_add) {
 	int l = lock_try_acquire(&h->lk);
 	if (l != 0) {
 		return NULL;
@@ -260,12 +260,12 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct h
 		lock_release(&h->lk);
 		return NULL;
 	}
-	he = mh_deq_min_or_use_to_add(h, he0, to_add, is_lt_elem);
+	he = mh_deq_min_or_use_to_add(h, he0, to_add);
 	lock_release(&h->lk);
 	return he;
 }
 
-static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap *mh, struct heap_elem *to_add, int hint, is_lt_elem_t is_lt_elem) {
+static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap *mh, struct heap_elem *to_add, int hint) {
 	struct heap_elem *he;
 	struct heap *h;
 	long r = 0;
@@ -280,11 +280,11 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 			mycore()->nhint++;
 			mh_rand_heap(mh, i, &j);
 		}
-		if ((h = mh_select(mh, i, j, is_lt_elem, &he)) == NULL) {
+		if ((h = mh_select(mh, i, j, &he)) == NULL) {
 			// either use to_add or the caller can retry
 			break;
 		} 
-		if ((he = mh_try_deq_min_enq(h, he, to_add, is_lt_elem)) != NULL) {
+		if ((he = mh_try_deq_min_enq(h, he, to_add)) != NULL) {
 			if(h->id == hint) {
 				mycore()->nhint_ok++;
 			}
@@ -312,29 +312,29 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	return he;
 }
 
-static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem *to_add, is_lt_elem_t is_lt_elem) {
+static struct heap_elem *mh_deq_min_one_heap(struct mheap *mh, struct heap_elem *to_add) {
 	struct heap *h = mh->h[0];
 
 	lock_acquire(&h->lk);
 	struct heap_elem *he = mh_min(h);
-	he = mh_deq_min_or_use_to_add(h, he, to_add, is_lt_elem);
+	he = mh_deq_min_or_use_to_add(h, he, to_add);
 	lock_release(&h->lk);
 	return he;
 }
 
-struct heap_elem *mh_deq_min_elem(struct mheap *mh, int hint, is_lt_elem_t is_lt_elem) {
+struct heap_elem *mh_deq_min_elem(struct mheap *mh, int hint) {
 	if (mh->nheap == 1) {
-		return mh_deq_min_one_heap(mh, NULL, is_lt_elem);
+		return mh_deq_min_one_heap(mh, NULL);
 	}
-	return mh_deq_min_enq(mh, NULL, hint, is_lt_elem);
+	return mh_deq_min_enq(mh, NULL, hint);
 }
 
 // if there is a min, dequeue it and enqueue to_add
-struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, int hint, is_lt_elem_t is_lt_elem) {
+struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add, int hint) {
 	if (mh->nheap == 1) {
-		return mh_deq_min_one_heap(mh, to_add, is_lt_elem);
+		return mh_deq_min_one_heap(mh, to_add);
 	}
-	return mh_deq_min_enq(mh, to_add, hint, is_lt_elem);
+	return mh_deq_min_enq(mh, to_add, hint);
 }
 
 // scan all all heaps to dequeue a min element

@@ -69,7 +69,7 @@ void *run_core(void* core) {
 }
 
 void test_parallel() {
-	mh = mh_new(num_cores * 2);
+	mh = mh_new(num_cores * 2, is_lt_elem_vt_w);
 
 	pthread_barrier_init(&init_barrier, NULL, num_cores);
 
@@ -101,7 +101,7 @@ void test_load() {
 		int max = 0;
 		float a = 0.0;
 		for (int t = 0; t < ntrial; t++) {
-			mh = mh_new(nheap);
+			mh = mh_new(nheap, is_lt_elem_vt_w);
 			for (int i = 0; i < nproc; i++) {
 				struct heap_elem *he = malloc(sizeof(struct heap_elem));
 				heap_elem_init(he, safe_read_tsc(), 0);
@@ -133,7 +133,7 @@ void test_worst() {
 	set_mycore(cores[0]);
 
 	for(int t = 0; t < n; t++) {
-		mh = mh_new(nheap);
+		mh = mh_new(nheap, is_lt_elem_vt_w);
 		struct heap_elem *he = malloc(sizeof(struct heap_elem));
 		heap_elem_init(he, safe_read_tsc(), 0);
 		mh_insert_elem(mh, he);

@@ -13,7 +13,7 @@ struct mheap {
 	int nheap;
 };
 
-struct mheap *mh_new(int n);
+struct mheap *mh_new(int n, is_lt_elem_t lt);
 void mh_stats(struct mheap *mh);
 void mh_free(struct mheap *mh);
 void mh_print(struct mheap *mh, void (*print_heap_elem)(struct heap_elem *));

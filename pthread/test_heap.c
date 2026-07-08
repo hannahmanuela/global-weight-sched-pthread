@@ -36,7 +36,7 @@ static struct elem* make_elem(int id, int vt) {
 }
 
 void test_min() {
-	struct heap *heap = heap_new();
+	struct heap *heap = heap_new(is_lt_elem_vt_w);
 	struct elem *elems[N];
 	int i;
 
@@ -78,7 +78,7 @@ void test_min() {
 }
 
 void test_erase() {
-	struct heap *heap = heap_new();
+	struct heap *heap = heap_new(is_lt_elem_vt_w);
 	struct elem *elems[N];
 	int i;
 

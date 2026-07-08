@@ -17,12 +17,13 @@ static void heap_alloc(struct heap *h) {
 	h->heap_capacity = HEAP_CAPACITY;
 }
 
-struct heap *heap_new() {
+struct heap *heap_new(is_lt_elem_t lt) {
 	struct heap *h = aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct heap), CACHE_LINE_SZ));
 	h->heap_size = 0;
 	h->heap_capacity = 0;
 	h->last_vt = 0;
 	h->max = 0;
+	h->lt = lt;
 	lock_init(&h->lk);
 	heap_alloc(h);
 	assert(((long) h->heap) % CACHE_LINE_SZ == 0);
@@ -41,14 +42,12 @@ void heap_elem_init(struct heap_elem *he, vt_t vt, int w) {
 	he->weight = w;
 }
 
-static int heap_elem_cmp(struct heap_elem *a, struct heap_elem *b) {
-	// Compare by vruntime; lower is higher priority
-	if (a->vruntime < b->vruntime) return -1;
-	if (a->vruntime > b->vruntime) return 1;
-	// Prefer higher weight
-	if (a->weight > b->weight) return -1;
-	if (a->weight < b->weight) return 1;
-	return 0;
+// Returns true if a should sift above b, using the heap's ordering (the same
+// is_lt_elem the scheduler uses for cross-heap selection). Keeping the
+// intra-heap ordering consistent with the cross-heap ordering is essential:
+// otherwise the true min for the scheduler's order can be buried below heap[0].
+static inline int heap_lt(struct heap *h, struct heap_elem *a, struct heap_elem *b) {
+	return h->lt(a, b) == 1;
 }
 
 struct heap_elem *heap_min(struct heap *h) {
@@ -75,7 +74,7 @@ static inline void heap_swap(struct heap *h, int i, int j) {
 static void heap_sift_up(struct heap *h, int idx) {
 	while (idx > 0) {
 		int parent = (idx - 1) / D_ARY;
-		if (heap_elem_cmp(h->heap[idx], h->heap[parent]) < 0) {
+		if (heap_lt(h, h->heap[idx], h->heap[parent])) {
 			heap_swap(h, idx, parent);
 			idx = parent;
 		} else {
@@ -91,7 +90,7 @@ static void heap_sift_down(struct heap *h, int idx) {
 		int smallest = idx;
 		for (int i = 0; i < D_ARY; i++) {
 			int c = left + i;
-			if ((c < n) && heap_elem_cmp(h->heap[c], h->heap[smallest]) < 0) {
+			if ((c < n) && heap_lt(h, h->heap[c], h->heap[smallest])) {
 				smallest = c;
 			}
 		}

@@ -49,7 +49,7 @@ void *run_core(void* core) {
 }
 
 void test_parallel() {
-	mh = mh_new(num_cores * 2);
+	mh = mh_new(num_cores * 2, is_lt_elem_vt_w);
 	pthread_t *threads = (pthread_t *) malloc(num_cores * sizeof(pthread_t));
 	for (int i = 0; i < num_cores; i ++) {
 		pthread_create(&threads[i], NULL, run_core, (void*)(cores[i]));

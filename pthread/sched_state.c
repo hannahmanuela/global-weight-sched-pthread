@@ -41,12 +41,12 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 	ss_global = ss;
 	ss->tick_length = tick_length;
 	if (is_pcrq() || is_gppcrq()) {
-		ss->mh = mh_new(ncore);
+		ss->mh = mh_new(ncore, lt);
 	} else {
-		ss->mh = mh_new(nheap);
+		ss->mh = mh_new(nheap, lt);
 	}
 	if(is_rr()) {
-		ss->mh_l = mh_new(nheap);
+		ss->mh_l = mh_new(nheap, lt);
 	}
 	ss->cs = cs;
 	ss->ncore = ncore;
@@ -59,7 +59,8 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 		queue_init(&ss->q_l);
 	}
 	if(use_runningq) {
-		ss->mh_r = mh_new(nheap);
+		// the running queue is ordered purely by vruntime (see running.c)
+		ss->mh_r = mh_new(nheap, is_lt_elem_vt_w);
 	}
 
 	switch (scheduler) {

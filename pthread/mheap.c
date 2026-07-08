@@ -26,12 +26,12 @@ extern bool do_affinity;
 extern bool use_power2_insert;
 extern bool debug;
 
-struct mheap *mh_new(int n) {
+struct mheap *mh_new(int n, is_lt_elem_t lt) {
 	struct mheap *mh = malloc(sizeof(struct mheap));
 	mh->h = (struct heap **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct heap) * n, CACHE_LINE_SZ));
 	for (int i=0; i < n; i++) {
 
-		mh->h[i] = heap_new();
+		mh->h[i] = heap_new(lt);
 		mh->h[i]->id = i;
 		lock_init(&(mh->h[i]->lk));
 		// insert a dummy element so that the heap always has one elemement

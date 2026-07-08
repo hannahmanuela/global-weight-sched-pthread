@@ -22,11 +22,13 @@ struct heap {
 
 	int heap_size __calign__;
 	vt_t last_vt;
+
+	is_lt_elem_t lt;  // ordering used for sift up/down; must match the scheduler's is_lt_elem
 }  __calign__;
 
 typedef void (*heap_iter_t)(struct heap_elem *);
 
-struct heap *heap_new();
+struct heap *heap_new(is_lt_elem_t lt);
 void heap_free(struct heap *h);
 struct heap_elem *heap_min(struct heap *h);
 void heap_push(struct heap *h, struct heap_elem *e);

@@ -13,8 +13,8 @@
 
 #define DEF_NUM_GROUPS 4
 
-#define HIGH 0
-#define LOW 1
+#define LC_GID 0
+#define BE_GID 1
 
 
 struct group {

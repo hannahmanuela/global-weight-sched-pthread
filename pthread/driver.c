@@ -183,10 +183,10 @@ void rr_groups() {
 			pid += ns[i-1];
 		}
 		struct mheap *mh = gs->ss->mh;
-		if(i == LOW && is_rr()) {
+		if(i == BE_GID && is_rr()) {
 			mh = gs->ss->mh_l;
 		}
-		struct group *g = grp_new(mh, i, i == HIGH ? RR_HIGH : RR_LOW);
+		struct group *g = grp_new(mh, i, i == LC_GID ? W_HIGH : W_LOW);
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
 			struct task_struct *p = grp_new_process(pid+j, g);
@@ -209,14 +209,14 @@ void rr_sched_action(struct core *mycore) {
 		action(gs->ss, mycore, WAKEUP);
 	} else if (benchmark == 2) {
 		// note: run with preempt (-p)
-		bool high = (mycore->process != NULL) && (mycore->process->group->gid == HIGH);
+		bool high = (mycore->process != NULL) && (mycore->process->he.weight == W_HIGH);
 		if(high) {
 			action(gs->ss, mycore, SLEEP);
 		} else if (mycore->pool != NULL) {  // sleeping proc?
 			action(gs->ss, mycore, WAKEUP);  // wakeup sleeping high
 			action(gs->ss, mycore, RUN);  // preempt/yield low
 		} else if (mycore->process != NULL) {
-			assert(mycore->process->group->gid == LOW);
+			assert(mycore->process->group->gid == BE_GID);
 			action(gs->ss, mycore, RUN);
 		}
 	} else {

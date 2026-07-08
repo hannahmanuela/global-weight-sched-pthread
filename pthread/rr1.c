@@ -49,7 +49,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 
 	if(prev != NULL) {
 		atomic_store(&prev->he.vruntime, tsc_now());
-		low = (prev->group->gid == LOW);
+		low = (prev->he.weight == W_LOW);
 		if (debug)
 			printf("%d: ss_schedule_rr1: low %d preempted heap %d prev %d(%d) scan %d\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid, mycore()->scan_high);
 	} else {
@@ -57,7 +57,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 			printf("%d: ss_schedule_rr1: preempted heap %d idle scan %d\n", mycore()->cid, preempted, mycore()->scan_high);
 	}
 
-	if (use_runningq && (prev != NULL) && (prev->group->gid == LOW)) {
+	if (use_runningq && (prev != NULL) && (prev->he.weight == W_LOW)) {
 		// lock prev because it might end up on runnable queue
 		// and some core may grab it and add it to the running queue
 		// while it is still on the running queue now.
@@ -91,7 +91,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	return NULL;
 
 ok:
-	if(p->group->gid == LOW) {
+	if(p->he.weight == W_LOW) {
 		mycore()->nskip_high++;
 	}
 	if(p == prev) {
@@ -100,7 +100,7 @@ ok:
 	if(debug) {
 		printf("%d: running1 %d(%d) vt %lld\n", mycore()->cid, p->pid, p->group->gid, p->he.vruntime);
 	}
-	if (do_preempt && (p->group->gid == LOW)) {
+	if (do_preempt && (p->he.weight == W_LOW)) {
 		if (use_runningq) {
 			if (p == prev) {
 				if (debug)  {
@@ -141,10 +141,10 @@ void ss_enqueue_rr1(struct task_struct *p) {
 	struct core *c = mycore();
 	int cid = -1;
 	int h = enqueue(p);
-	if (do_preempt && p->group->gid == HIGH) {
+	if (do_preempt && p->he.weight == W_HIGH) {
 		// XXX see if this core is running a low
 		if(c->process != NULL)
-			assert(c->process->group->gid == LOW);
+			assert(c->process->he.weight == W_LOW);
 		if (use_runningq) {
 			cid = running_find_and_clear(ss_global->mh_r);
 		} else {

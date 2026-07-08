@@ -20,7 +20,7 @@ static struct heap_elem *global_high(struct mheap *mh) {
 		struct heap *h = ss_global->mh->h[IND(mh, cid+1+i)];
 		lock_acquire(&h->lk);
 		struct heap_elem *he0 = heap_min(h);
-		if((he0 != NULL) && (he0->weight == RR_HIGH)) {
+		if((he0 != NULL) && (he0->weight == W_HIGH)) {
 			struct heap_elem *he = heap_remove_min(h);
 			assert(he == he0);
 			lock_release(&h->lk);
@@ -46,7 +46,7 @@ struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
 	}
 
 	struct heap_elem *he = heap_min(h);
-	bool look_for_high = ((he == NULL) || (he->weight == RR_LOW));
+	bool look_for_high = ((he == NULL) || (he->weight == W_LOW));
 	if(!look_for_high) {
 		mycore()->nlocal += 1;
 		he = heap_remove_min(h);
@@ -75,7 +75,7 @@ struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
 	if(c->fd > 0) {
 		c_log_append(p);
 	}
-	if(p->group->gid == RR_LOW) {
+	if(p->he.weight == W_LOW) {
 		mycore()->nskip_high++;
 	}
 	p->h = h;

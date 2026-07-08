@@ -86,11 +86,11 @@ int delay(struct log_entry *ring, long idx) {
 
 int priority(struct log_entry *ring, long idx) {
 	int p = 0;
-	if(ring[IDX(idx)].gid == LOW) {  // skip low
+	if(ring[IDX(idx)].w == W_LOW) {  // skip low
 		return -1;
 	}
 	for(long i = idx-1; i > idx-N; i--) {
-		if(ring[IDX(i)].gid == HIGH) {
+		if(ring[IDX(i)].w == W_HIGH) {
 			break;
 		}
 		// if low was inserted before high was selected and

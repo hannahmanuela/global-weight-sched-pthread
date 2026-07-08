@@ -36,7 +36,7 @@ static int enqueue(struct task_struct *p) {
 }
 
 static void ss_enqueue_low(struct task_struct *p_l) {
-	assert(p_l->group->gid == LOW);
+	assert(p_l->he.weight == W_LOW);
 	if (use_runningq) {
 		if (debug) {
 			printf("%d: %d(%d) remove from runq %d\n", mycore()->cid, p_l->pid, p_l->group->gid, p_l->cid);
@@ -78,7 +78,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 
 	if(prev != NULL) {
 		atomic_store(&prev->he.vruntime, safe_read_tsc());
-		low = (prev->group->gid == LOW);
+		low = (prev->he.weight == W_LOW);
 		if (debug)
 			printf("%d: ss_schedule_rr: low %d preempted by %d prev %d(%d)\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid);
 	} else {
@@ -88,7 +88,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 
 	// try high priority mh first for runnable proc
 	if ((p = ss_schedule_mh_enq(ss_global->mh, prev, preempted)) != NULL) {
-		assert(p->group->gid == HIGH);
+		assert(p->he.weight == W_HIGH);
 		goto ok;
 	}
 
@@ -99,7 +99,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 		// mh_l.
 		mycore()->nscan_all++;
 		if ((p = runnable_deq_proc_all_heap(ss_global->mh)) != NULL) {
-			assert(p->group->gid == HIGH);
+			assert(p->he.weight == W_HIGH);
 			mycore()->nscan_all_ok++;
 			if (prev != NULL) {
 				ss_enqueue_low(prev);
@@ -116,13 +116,13 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 			p_locked = prev;
 		}
 		if ((p = ss_schedule_mh_enq(ss_global->mh_l, prev, -1)) != NULL) {
-			assert(p->group->gid == LOW);
+			assert(p->he.weight == W_LOW);
 			goto ok;
 		}
 
 		// keep running low proc, if were running one
 		if (prev != NULL) {
-			assert(prev->group->gid == LOW);
+			assert(prev->he.weight == W_LOW);
 			goto ok;
 		}
 		assert(p_locked == NULL);
@@ -137,7 +137,7 @@ ok:
 	if(debug) {
 		printf("%d: running %d(%d)\n", mycore()->cid, p->pid, p->group->gid);
 	}
-	if (do_preempt && (p->group->gid == LOW)) {
+	if (do_preempt && (p->he.weight == W_LOW)) {
 		if (use_runningq) {
 			if (p == prev) {
 				if (debug)  {
@@ -178,10 +178,10 @@ void ss_enqueue_rr(struct task_struct *p) {
 	struct core *c = mycore();
 	int cid = -1;
 	int h = enqueue(p);
-	if (do_preempt && p->group->gid == HIGH) {
+	if (do_preempt && p->he.weight == W_HIGH) {
 		// XXX see if this core is running a low
 		if(c->process != NULL)
-			assert(c->process->group->gid == LOW);
+			assert(c->process->he.weight == W_LOW);
 		if (use_runningq) {
 			cid = running_find_and_clear(ss_global->mh_r);
 		} else {

@@ -22,7 +22,7 @@ extern struct sched_state *ss_global;
 static void enq_proc_vt(struct task_struct *p) {
 	p->he.vruntime = safe_read_tsc();
 	queue_t *q = &ss_global->q_h;
-	if (p->group->gid == RR_LOW) {
+	if (p->he.weight == W_LOW) {
 		q = &ss_global->q_l;
 	}
 	
@@ -47,7 +47,7 @@ struct task_struct *ss_schedule_gq(struct task_struct *prev) {
 		}
 		goto ok;
 	}
-	if (prev != NULL && prev->group->gid == RR_HIGH) {
+	if (prev != NULL && prev->he.weight == W_HIGH) {
 		p = prev;
 		mycore()->nlocal += 1;
 		goto ok;

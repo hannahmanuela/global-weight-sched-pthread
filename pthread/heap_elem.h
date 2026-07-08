@@ -7,16 +7,15 @@
 #include <stdatomic.h>
 #include "vt.h"
 
-#define RR_HIGH 1
-#define RR_LOW 0
-
+#define W_HIGH 1
+#define W_LOW 0
 
 typedef short idx_t;
 
 struct heap_elem {
 	// key
 	vt_t vruntime;
-	w_t weight;
+	w_t weight;  // weight for wfs or priority for rr
 
 	idx_t idx;  // for remove
 
@@ -87,7 +86,7 @@ static int is_min_elem_vt(struct heap_elem *he) {
 static int is_min_elem_high(struct heap_elem *he) {
 	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
 	int w = atomic_load_explicit(&he->weight, __ATOMIC_RELAXED);
-	return (vt != DUMMY && w == RR_HIGH);
+	return (vt != DUMMY && w == W_HIGH);
 }
 
 typedef void (*print_elem_t)(struct heap_elem *he);

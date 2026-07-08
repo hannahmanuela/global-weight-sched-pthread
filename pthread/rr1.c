@@ -28,7 +28,7 @@ extern struct sched_state *ss_global;
 static int enqueue(struct task_struct *p) {
 	if(debug) {
 		struct core *c = mycore();
-		printf("%d: enqueue_rr1 %d(%d) at %lld/%ld\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->he.weight);
+		printf("%d: enqueue_rr1 %d(%d) at %lld\n", c->cid, p->pid, p->group->weight, p->he.vruntime);
 	}
 	atomic_store(&p->he.vruntime, tsc_now());
 	int h = mh_insert_elem(p->group->mh, &p->he);
@@ -51,7 +51,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		atomic_store(&prev->he.vruntime, tsc_now());
 		low = (prev->he.weight == W_LOW);
 		if (debug)
-			printf("%d: ss_schedule_rr1: low %d preempted heap %d prev %d(%d) scan %d\n", mycore()->cid, low, preempted, prev->pid, prev->group->gid, mycore()->scan_high);
+			printf("%d: ss_schedule_rr1: low %d preempted heap %d prev %d(%d) scan %d\n", mycore()->cid, low, preempted, prev->pid, prev->he.weight, mycore()->scan_high);
 	} else {
 		if (debug)
 			printf("%d: ss_schedule_rr1: preempted heap %d idle scan %d\n", mycore()->cid, preempted, mycore()->scan_high);
@@ -98,14 +98,14 @@ ok:
 		mycore()->nlocal += 1;
 	}
 	if(debug) {
-		printf("%d: running1 %d(%d) vt %lld\n", mycore()->cid, p->pid, p->group->gid, p->he.vruntime);
+		printf("%d: running1 %d(%d) vt %lld\n", mycore()->cid, p->pid, p->he.weight, p->he.vruntime);
 	}
 	if (do_preempt && (p->he.weight == W_LOW)) {
 		if (use_runningq) {
 			if (p == prev) {
 				if (debug)  {
 					printf("%d: %d(%d) continue running cid %d\n", mycore()->cid,
-				       p->pid, p->group->gid, p->cid);
+				       p->pid, p->he.weight, p->cid);
 				}
 				if(p_locked != NULL) {
 					lock_release(&p_locked->lk);
@@ -155,7 +155,7 @@ void ss_enqueue_rr1(struct task_struct *p) {
 		}
 	}
 	if (debug) {
-		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld/%ld dopreempt? cid %d heap %d scan %d\n", c->cid, p->pid, p->group->gid, p->he.vruntime, p->he.weight, cid, h, mycore()->scan_high);
+		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d scan %d\n", c->cid, p->pid, p->he.weight, p->he.vruntime, cid, h, mycore()->scan_high);
 	}
 	if (cid != -1) {
 		atomic_store(&ss_global->cs[cid]->preempted, h);
@@ -172,7 +172,7 @@ void ss_yield_rr1(struct task_struct *p, t_t time_passed) {
 void ss_dequeue_rr1(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {
-		printf("%d: %d(%d): dequeue_rr1 %ld\n", mycore()->cid, p->pid, p->group->gid, time_passed);
+		printf("%d: %d(%d): dequeue_rr1 %ld\n", mycore()->cid, p->pid, p->he.weight, time_passed);
 		//mh_print(p->group->mh);
 	}
 }

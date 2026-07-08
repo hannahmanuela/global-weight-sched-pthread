@@ -125,7 +125,7 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		// XXX kernel API: why isn't this in ss_account_gwfs?
 		prev->he.vruntime = proc_vt(prev);
 		if(debug) {
-			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", mycore()->cid, prev->pid, prev->group->gid, prev->he.vruntime, prev->group->vruntime);
+			printf("%d: schedule yield %d(%d) vt %d gvt %ld\n", mycore()->cid, prev->pid, prev->he.weight, prev->he.vruntime, prev->group->vruntime);
 		}
 	}
 
@@ -137,7 +137,7 @@ struct task_struct *ss_schedule_gwfs(struct rq *rq, struct task_struct *prev) {
 		mycore()->nlocal  += 1;
 	}
 	if(debug) {
-		printf("%d: schedule %d(%d) vt %lld\n", mycore()->cid, min_proc->pid, min_proc->group->gid, min_proc->he.vruntime);
+		printf("%d: schedule %d(%d) vt %lld\n", mycore()->cid, min_proc->pid, min_proc->he.weight, min_proc->he.vruntime);
 		proc_mh_print(min_proc->group->mh);
 	}
 	if(mycore()->fd > 0) {
@@ -227,7 +227,7 @@ static void put_task_in_rq_gwfs(struct task_struct *p) {
 	p->he.vruntime = proc_vt(p);
 	mh_insert_elem(p->group->mh, &p->he);
 	if(debug) {
-		printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->group->gid, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
+		printf("%d(%d): enqueue nthread %d lh %p vt %lld gvt %lld\n", p->pid, p->he.weight, p->group->nthread, p->h, p->he.vruntime, p->group->vruntime);
 		proc_mh_print(p->group->mh);
 	}
 }
@@ -272,7 +272,7 @@ static void account_sleep_gwfs(struct task_struct *p) {
 // p's group not runnable
 void ss_dequeue_gwfs(struct task_struct *p, t_t time_passed) {
 	if(debug) {
-		printf("%d(%d): dequeue %ld\n", p->pid, p->group->gid, time_passed);
+		printf("%d(%d): dequeue %ld\n", p->pid, p->he.weight, time_passed);
 		proc_mh_print(p->group->mh);
 	}
 	upd_offset(p, time_passed);

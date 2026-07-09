@@ -123,7 +123,7 @@ ok:
 				lock_release(&p->lk);
 			}
 		} else {
-			// reset preemtable if switching from high to
+			// reset preemtable if switching from high or prev=NULL to
 			// a low proc, or if preempted
 			if(!low || preempted)
 				preemptable_set(ss_global->preemptable, mycore()->cid);
@@ -142,13 +142,15 @@ void ss_enqueue_rr1(struct task_struct *p) {
 	int cid = -1;
 	int h = enqueue(p);
 	if (do_preempt && p->he.weight == W_HIGH) {
-		// XXX see if this core is running a low
-		if(c->process != NULL)
-			assert(c->process->he.weight == W_LOW);
 		if (use_runningq) {
 			cid = running_find_and_clear(ss_global->mh_r);
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
+		}
+		// XXX see if this core is running a low
+		if(c->process != NULL) {
+			assert(c->process->he.weight == W_LOW);
+			assert(cid != -1);
 		}
 		if (cid == -1) {
 			mycore()->scan_high = true;

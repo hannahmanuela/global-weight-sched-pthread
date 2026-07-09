@@ -168,7 +168,7 @@ void ss_yield_rr1(struct task_struct *p, t_t time_passed) {
 }
 
 // process p goes to sleep
-// XXX remove from preemtable and running
+// XXX remove from preemtable and running (if deq low)
 void ss_dequeue_rr1(struct task_struct *p, t_t time_passed) {
 	p->runtime += time_passed;
 	if(debug) {

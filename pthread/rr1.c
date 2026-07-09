@@ -70,14 +70,13 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 			printf("%d: scan high prev %p\n", mycore()->cid, prev);
 		}
 		mycore()->scan_high = false;
-
-		// XXX doesn't happen with -r 2 -b 2 but should fix.
-		assert(prev == NULL);
-
 		mycore()->nscan_all++;
-		// we dequeued a high priority process; do our best to find a new one
+		// we dequeued a high priority process; do our best to find it 
 		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh)) != NULL) {
 			mycore()->nscan_all_ok++;
+			if (prev != NULL) {
+				enqueue(prev);
+			}
 			goto ok;
 		}
 	}
@@ -147,10 +146,9 @@ void ss_enqueue_rr1(struct task_struct *p) {
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
 		}
-		// XXX see if this core is running a low
+		// XXX see if this core is running a low, which should be true for -b 2
 		if(c->process != NULL) {
 			assert(c->process->he.weight == W_LOW);
-			assert(cid != -1);
 		}
 		if (cid == -1) {
 			mycore()->scan_high = true;

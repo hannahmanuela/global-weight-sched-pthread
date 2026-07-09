@@ -22,46 +22,55 @@ D=exp-out-`date +%Y-%m-%d_%H-%M-%S`
 mkdir $D
 echo $D
 
-for s in ${SCHEDULERS[@]}; do
-    echo $s
+# Run "$@" once per core count in NUM_CORES, appending "<n> <n*4>", and
+# collect the "tp" lines from the combined output into $D/tp-<label>.dat.
+sweep2() {
+    local msg="$1" label="$2"
+    shift 2
+    echo "$msg"
+    sleep 1
     for n in ${NUM_CORES[@]}; do
-	./schedule -y $s $n $(($n * 4))
-    done 2>&1 > $D/tp-$s.out
-    grep tp $D/tp-$s.out | awk '{print $2, $3}' > $D/tp-$s.dat
+        "$@" $n $(($n * 4))
+    done 2>&1 > $D/tp-$label.out
+    grep tp $D/tp-$label.out | awk '{print $2, $3}' > $D/tp-$label.dat
+}
+
+# Like sweep2, but appends only "<n>" (no core-count multiplier).
+sweep1() {
+    local msg="$1" label="$2"
+    shift 2
+    echo "$msg"
+    sleep 1
+    for n in ${NUM_CORES[@]}; do
+        "$@" $n
+    done 2>&1 > $D/tp-$label.out
+    grep tp $D/tp-$label.out | awk '{print $2, $3}' > $D/tp-$label.dat
+}
+
+# Run "$@" once and collect the "bin" lines into $D/rankprio-<label>.dat.
+rankprio() {
+    local msg="$1" label="$2"
+    shift 2
+    echo "$msg"
+    sleep 1
+    "$@" 2>&1 > $D/rankprio-$label.out
+    grep "bin" $D/rankprio-$label.out | awk '{print $2, $3}' > $D/rankprio-$label.dat
+}
+
+for s in ${SCHEDULERS[@]}; do
+    sweep2 "$s" "$s" ./schedule -y $s
 done
 
-echo "mheap"
+sweep1 "mheap" "mheap" ./test-mheap
 
-for n in ${NUM_CORES[@]}; do
-	./test-mheap $n
-done 2>&1 > $D/tp-mheap.out
-grep tp $D/tp-mheap.out | awk '{print $2, $3}' > $D/tp-mheap.dat
+sweep2 "rr w b=2" "rr-prio" ./schedule -r 2 -b 2 -g 2 rr
 
-echo "rr w b=2"
+sweep2 "rr w b=2 and preempt" "rr-prio-mask" ./schedule -p -r 2 -b 2 -g 2 rr
 
-for n in ${NUM_CORES[@]}; do
-    ./schedule -r 2 -b 2 -g 2 rr $n $(($n * 4))
-done 2>&1 > $D/tp-rr-prio.out
-grep tp $D/tp-rr-prio.out | awk '{print $2, $3}' > $D/tp-rr-prio.dat
+sweep2 "rr1 w b=2 and preempt" "rr1-prio-mask" ./schedule -p -r 2 -b 2 -g 2 rr1
 
-echo "rr w b=2 and preempt"
+sweep2 "gppcrq w b=2 and preempt" "gppcrq-prio" ./schedule -p -r 2 -b 2 -g 2 gppcrq
 
-for n in ${NUM_CORES[@]}; do
-    ./schedule -p -r 2 -b 2 -g 2 rr $n $(($n * 4))
-done 2>&1 > $D/tp-rr-prio-mask.out
-grep tp $D/tp-rr-prio-mask.out | awk '{print $2, $3}' > $D/tp-rr-prio-mask.dat
+rankprio "rr1 rank errror" "rr1" ./rankprioerror.sh rr1 4 log
 
-echo "rr1 w b=2 and preempt"
-
-for n in ${NUM_CORES[@]}; do
-    ./schedule -p -r 2 -b 2 -g 2 rr1 $n $(($n * 4))
-done 2>&1 > $D/tp-rr1-prio-mask.out
-grep tp $D/tp-rr1-prio-mask.out | awk '{print $2, $3}' > $D/tp-rr1-prio-mask.dat
-
-echo "gppcrq w b=2 and preempt"
-
-for n in ${NUM_CORES[@]}; do
-    ./schedule -p -r 2 -b 2 -g 2 gppcrq $n $(($n * 4))
-done 2>&1 > $D/tp-gppcrq-prio.out
-grep tp $D/tp-gppcrq-prio.out | awk '{print $2, $3}' > $D/tp-gppcrq-prio.dat
-
+rankprio "rr rank errror" "rr" ./rankprioerror.sh rr 4 log

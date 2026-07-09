@@ -71,7 +71,8 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		}
 		mycore()->scan_high = false;
 		mycore()->nscan_all++;
-		// we dequeued a high priority process; do our best to find it 
+		// we dequeued a high priority process and didn't find a core running a low proc; do our best to find the high
+		// XXX maybe we should set preempted instead of scan_high
 		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh)) != NULL) {
 			mycore()->nscan_all_ok++;
 			if (prev != NULL) {
@@ -108,6 +109,7 @@ ok:
 				}
 				if(p_locked != NULL) {
 					lock_release(&p_locked->lk);
+					p_locked = NULL;
 				}
 			} else {
 				if (prev != NULL) {
@@ -127,10 +129,16 @@ ok:
 			if(!low || preempted)
 				preemptable_set(ss_global->preemptable, mycore()->cid);
 		}
+	} else if (p_locked != NULL) {
+		assert(prev != NULL);
+		running_clear(ss_global->mh_r, prev);
+		lock_release(&p_locked->lk);
+		p_locked = NULL;
 	}
 	if(mycore()->fd > 0) {
 		c_log_append(p);
 	}
+	assert(p_locked == NULL);
 	return p;
 }
 

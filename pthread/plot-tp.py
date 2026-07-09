@@ -16,7 +16,7 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 directory = sys.argv[1]
-outfile = os.path.join(directory, "plot.gp")
+outfile = os.path.join(directory, "plot-tp.gp")
 dat_files = sorted(glob.glob(os.path.join(directory, "tp-*.dat")))
 
 if not dat_files:
@@ -25,7 +25,7 @@ if not dat_files:
 
 lines = []
 lines.append("set terminal png size 1200,800")
-lines.append(f"set output '{os.path.join(directory, 'plot.png')}'")
+lines.append(f"set output '{os.path.join(directory, 'plot-tp.png')}'")
 lines.append("set key top right")
 lines.append("set grid")
 lines.append("")
@@ -57,5 +57,3 @@ lines.append("plot " + ", \\\n     ".join(plot_parts))
 
 with open(outfile, "w") as fh:
     fh.write("\n".join(lines) + "\n")
-
-print(f"Wrote {outfile} — run: gnuplot {outfile}")

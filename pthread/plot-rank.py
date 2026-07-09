@@ -67,5 +67,3 @@ lines.append("plot " + ", \\\n     ".join(plot_parts))
 
 with open(outfile, "w") as fh:
     fh.write("\n".join(lines) + "\n")
-
-print(f"Wrote {outfile} — run: gnuplot {outfile}")

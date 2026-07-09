@@ -81,6 +81,7 @@ struct core *c_new(int i, int n, int seed) {
 	lock_init(&c->lk);
 	c->cid = i;
 	c->preempted = -1;
+	c->scan_high = -1;
 	c->seed = seed;
 	srand48_r(seed, &c->randBuffer);
 	c->hit = calloc(n, sizeof(int));

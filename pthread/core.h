@@ -38,7 +38,7 @@ struct core {
 	struct task_struct *process;   // currently running process or last process ran
 	struct task_struct *pool;      // pool of processes sleeping
 
-	bool scan_high;                // set to true when core should scan for high procs
+	int scan_high;                // set to true when core should scan for high procs
 
 	// fields for tatistics:
 	t_t work;
@@ -79,7 +79,9 @@ struct core {
 
 	long nskip_high;
 	long nscan_all;
+	long nscan_hint;
 	long nscan_all_ok;
+	long nscan_hint_ok;
 	long npreempted;
 	long nlocal;
 	long ndelay_yield;

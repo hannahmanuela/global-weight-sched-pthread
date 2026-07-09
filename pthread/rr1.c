@@ -65,16 +65,18 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		p_locked = prev;
 	}
 
-	if (mycore()->scan_high) { 
-		if (debug) {
-			printf("%d: scan high prev %p\n", mycore()->cid, prev);
+	if (mycore()->scan_high != -1) { 
+		int hint = mycore()->scan_high;
+		if (preempted != -1) {
+			printf("prempted %d scan high %d\n", preempted, mycore()->scan_high);
 		}
-		mycore()->scan_high = false;
-		mycore()->nscan_all++;
+		if (debug) {
+			printf("%d: scan high %d prev %p\n", mycore()->cid, mycore()->scan_high, prev);
+		}
+		mycore()->scan_high = -1;
 		// we dequeued a high priority process and didn't find a core running a low proc; do our best to find the high
 		// XXX maybe we should set preempted instead of scan_high
-		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh)) != NULL) {
-			mycore()->nscan_all_ok++;
+		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh, hint)) != NULL) {
 			if (prev != NULL) {
 				enqueue(prev);
 			}
@@ -159,7 +161,7 @@ void ss_enqueue_rr1(struct task_struct *p) {
 			assert(c->process->he.weight == W_LOW);
 		}
 		if (cid == -1) {
-			mycore()->scan_high = true;
+			mycore()->scan_high = h;
 		}
 	}
 	if (debug) {

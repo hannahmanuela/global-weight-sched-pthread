@@ -371,7 +371,7 @@ void main(int argc, char *argv[]) {
 
 	int pg = ((is_rr() || is_rr1() || is_gppcrq()) && (ratio == 0)) ? 0 : num_threads_p_group;
 	pg = ((is_rr() || is_rr1() || is_gppcrq()) && (ratio == 2)) ? ratio-1 : pg;
-	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d power2_insert %d benchmark %d runtime %ds weight ratio %d\n", argv[optind], num_cores, num_groups, num_threads, pg, gs->ss->mh->nheap, time_work, do_affinity, do_preempt, use_power2_insert, benchmark, time_to_run, ratio);
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d power2_insert %d benchmark %d runtime %ds weight ratio %d runningq %d\n", argv[optind], num_cores, num_groups, num_threads, pg, gs->ss->mh->nheap, time_work, do_affinity, do_preempt, use_power2_insert, benchmark, time_to_run, ratio, use_runningq);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;
@@ -400,8 +400,10 @@ void main(int argc, char *argv[]) {
 	long ndelay_yield = 0;
 	long nskip_high = 0;
 	long nscan_all = 0;
+	long nscan_hint = 0;
 	long nscan_all_ok = 0;
 	long npreempted = 0;
+	long nscan_hint_ok = 0;
 	long nsched_null = 0;
 	long max_retry_del = 0;
 	long nnrand = 0;
@@ -454,6 +456,8 @@ void main(int argc, char *argv[]) {
 		ndelay_yield += c->ndelay_yield;
 		nskip_high += c->nskip_high;
 		nscan_all += c->nscan_all;
+		nscan_hint += c->nscan_hint;
+		nscan_hint_ok += c->nscan_hint_ok;
 		nscan_all_ok += c->nscan_all_ok;
 		npreempted += c->npreempted;
 
@@ -471,7 +475,7 @@ void main(int argc, char *argv[]) {
 	float tp_p_c = tp/num_cores;
 	printf("%s: %d %0.2fM/s tp per-core %0.2fM  lat sched %0.2fus\n", argv[optind], num_cores, AVG(nsched+nyield, time_to_run)/1000000, tp_p_c, 1/tp_p_c);
 	if(p_l > 0) printf(" debug: %0.2f %0.2f)\n", p_l, p_h);
-	printf("  sched #%ld(null %ld/%0.2f, local %ld/%0.2f, global %ld/%0.2f, all %ld/%d, skiph %d delayy %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nsched_null, AVG(nsched_null, nsched), nlocal,AVG(nlocal, nsched),  nsched-nlocal, AVG(nsched-nlocal, nsched), nscan_all, nscan_all_ok, nskip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
+	printf("  sched #%ld(null %ld/%0.2f, local %ld/%0.2f, global %ld/%0.2f, all %ld/%d, all_hint %ld/%d skiph %d delayy %d) min %0.2f avg %0.2f max %0.2f\n", nsched, nsched_null, AVG(nsched_null, nsched), nlocal,AVG(nlocal, nsched),  nsched-nlocal, AVG(nsched-nlocal, nsched), nscan_all, nscan_all_ok, nscan_hint, nscan_hint_ok, nskip_high, ndelay_yield, s_l, AVG(s_c, nsched), s_h);
 	printf("  yield #%ld enq #%ld deq #%ld\n", nyield, nenq, ndeq);
 
 	if (1 || do_preempt) {

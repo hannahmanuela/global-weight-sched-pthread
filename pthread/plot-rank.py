@@ -16,18 +16,26 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 directory = sys.argv[1]
-outfile = os.path.join(directory, "plot.gp")
-dat_files = sorted(glob.glob(os.path.join(directory, "*.dat")))
+outfile = os.path.join(directory, "plot-rank.gp")
+dat_files = sorted(glob.glob(os.path.join(directory, "rankprio-*.dat")))
 
 if not dat_files:
-    print("No .dat files found.")
+    print("No rankprio-*.dat files found.")
     sys.exit(1)
+
+n = len(dat_files)
+width = 0.8 / n
 
 lines = []
 lines.append("set terminal png size 1200,800")
-lines.append(f"set output '{os.path.join(directory, 'plot.png')}'")
+lines.append(f"set output '{os.path.join(directory, 'plot-rank.png')}'")
 lines.append("set key top right")
 lines.append("set grid")
+lines.append("set xlabel 'rank error'")
+lines.append("set ylabel 'count'")
+lines.append("set logscale y")
+lines.append("set style fill solid 0.8 border -1")
+lines.append(f"set boxwidth {width}")
 lines.append("")
 
 # Embed cleaned data as gnuplot inline blocks
@@ -46,12 +54,14 @@ for f in dat_files:
     lines.append("EOD")
     lines.append("")
 
-# Build plot command
+# Build plot command: offset each dataset's bars so they cluster side by
+# side around each integer rank-error value instead of overlapping.
 plot_parts = []
-for f in dat_files:
+for i, f in enumerate(dat_files):
     stem = os.path.splitext(os.path.basename(f))[0]
     varname = "$" + re.sub(r'[^a-zA-Z0-9]', '_', stem).upper()
-    plot_parts.append(f'{varname} using 1:2 with linespoints title "{stem}"')
+    offset = (i - (n - 1) / 2.0) * width
+    plot_parts.append(f'{varname} using ($1+({offset})):2 with boxes title "{stem}"')
 
 lines.append("plot " + ", \\\n     ".join(plot_parts))
 

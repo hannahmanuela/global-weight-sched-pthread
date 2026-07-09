@@ -98,7 +98,7 @@ int priority(struct log_entry *ring, long idx) {
 		// high should have run before low.
 		if(IN(i) <= OUT(idx) && OUT(i) >= IN(idx)) {
 			p += 1; 
-			printf("priority: idx %d p %d vt %ld h %d c %d i %d p %d vt %ld gid %d h %d c %d diff %ld\n", idx, PID(idx), VT(idx), HEAP(idx), CID(idx), i, PID(i), VT(i), ring[IDX(i)].gid, HEAP(i), CID(i), VT(idx)-VT(i));
+			// printf("priority: idx %d p %d vt %ld h %d c %d i %d p %d vt %ld gid %d h %d c %d diff %ld\n", idx, PID(idx), VT(idx), HEAP(idx), CID(idx), i, PID(i), VT(i), ring[IDX(i)].gid, HEAP(i), CID(i), VT(idx)-VT(i));
 			if(p >= N-1) {
 				// print_back(ring, idx);
 			}
@@ -206,18 +206,18 @@ void process_log(int fd) {
 	printf("sum_re %d n %d %0.2f max %d (idx %ld ts %lld, vt %lld, diff %lld) weight %d\n", sum_re, nentry, AVG(sum_re, nentry), max_re, max_re_idx, max_re_ts_in, max_re_ts_out, max_re_ts_out-max_re_ts_in, weight);
 	printf("distribution of rank errors:\n");
 	for(int i = 0; i < NBIN; i++)
-		if (bin_rank_error[i] > 0) printf("  bin %d: %d\n", i, bin_rank_error[i]);
+		if (bin_rank_error[i] > 0) printf("  bin %d %d\n", i, bin_rank_error[i]);
 	printf("=\n");
 	printf("sum_d %d n %d %0.2f max %d (idx %ld ts %ld, vt %lld, diff %lld)\n", sum_d, nentry, AVG(sum_d, nentry), max_d, max_d_idx, max_d_ts_in, max_d_ts_out, max_d_ts_out - max_d_ts_in);
 	printf("distribution of delay errors\n");
 	for(int i = 0; i < NBIN_DELAY; i++)
-		if (bin_delay_error[i] > 0) printf("  bin %d: %d\n", i, bin_delay_error[i]);
+		if (bin_delay_error[i] > 0) printf("  bin %d %d\n", i, bin_delay_error[i]);
 	printf("=\n");
 	if(do_priority) {
 		printf("sum_p %d n %d %0.2f max %d (idx %ld ts_in %ld, ts_out %ld vt %lld, diff %lld)\n", sum_p, nentry, AVG(sum_p, nentry), max_p, max_p_idx, max_p_ts_in, max_p_ts_out, max_p_vt, max_p_ts_out - max_p_ts_in);
 		printf("distribution of priority errors\n");
 		for(int i = 0; i < NBIN_PRIORITY; i++)
-			if (bin_priority_error[i] > 0) printf("  bin %d: %d\n", i, bin_priority_error[i]);
+			if (bin_priority_error[i] > 0) printf("  bin %d %d\n", i, bin_priority_error[i]);
 		printf("=\n");
 	}
 	

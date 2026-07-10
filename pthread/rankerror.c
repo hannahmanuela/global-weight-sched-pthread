@@ -10,13 +10,13 @@
 
 // run: ./rankerror vtlog
 
-#define N 200
+#define N 1000
 
 char buf[32];
 
-#define NBIN 50
-#define NBIN_DELAY 100
-#define NBIN_PRIORITY 100
+#define NBIN 1000
+#define NBIN_DELAY 1000
+#define NBIN_PRIORITY 1000
 
 int bin_rank_error[NBIN];
 int bin_delay_error[NBIN_DELAY];

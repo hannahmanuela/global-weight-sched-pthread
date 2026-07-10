@@ -85,9 +85,9 @@ int delay(struct log_entry *ring, long idx) {
 
 
 int priority(struct log_entry *ring, long idx) {
-	int p = 1;
+	int p = 0;
 	if(ring[IDX(idx)].w == W_LOW) {  // skip low
-		return 0;
+		return -1;
 	}
 	for(long i = idx-1; i > idx-N; i--) {
 		if(ring[IDX(i)].w == W_HIGH) {

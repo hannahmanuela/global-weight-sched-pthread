@@ -155,6 +155,16 @@ void action(struct sched_state *ss, struct core *mycore, int choice) {
 	}
 }
 
+static int sleep_preempt(int t) {
+	for (int i = 0; i < t; i++) {
+		usleep(1);
+		if (mycore()->preempted != -1) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 void rr_groups() {
 	int ns[2];
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
@@ -201,7 +211,9 @@ void rr_groups() {
 
 void rr_sched_action(struct core *mycore) {
 	doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
-	if(time_work > 0) usleep(time_work);
+	if(time_work > 0) {
+		sleep_preempt(time_work);
+	}
 
 	if(benchmark == 1 && (mycore->process != NULL) && mycore->process->pid == 0) {
 		// this proc should run after all other runnable procs

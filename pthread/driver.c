@@ -509,4 +509,5 @@ void main(int argc, char *argv[]) {
 	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);
 	printf("    max retry del %ld avg rand %0.2f\n", max_retry_del, AVG(nnrand, nsched+nretry_del));
 	printf("    nhint %ld/%ld/%0.2f\n", nhint, nhint_ok,  AVG(nhint_ok, nhint));
+	printf("    nscan_hint %ld/%ld/%0.2f\n", nscan_hint, nscan_hint_ok,  AVG(nscan_hint_ok, nscan_hint));
 }

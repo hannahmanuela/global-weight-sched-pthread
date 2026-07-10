@@ -275,7 +275,7 @@ void *run_core(void* core) {
 }
 
 void usage(char *s) {
-	fprintf(stderr, "%s -a -d -p -q -y -b <number> -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time <sched: gwfs/rr/pcrq> <num_cores> <num_threads>\n", s);
+	fprintf(stderr, "%s -a -d -p -q -y -b <number> -g <ngrp> -w <time_to_work (us) -h nheap -r <ratio> -l logfile -t time (s) <sched: gwfs/rr/pcrq> <num_cores> <num_threads>\n", s);
 	exit(1);
 
 }

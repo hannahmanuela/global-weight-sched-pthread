@@ -73,8 +73,8 @@ sweep2 "rr1 w b=2 and runq" "rr1-prio-runq" ./schedule -p -q -r 2 -b 2 -g 2 rr1
 
 sweep2 "gppcrq w b=2 and preempt" "gppcrq-prio" ./schedule -p -r 2 -b 2 -g 2 gppcrq
 
-rankprio "rr1 rank errror" "rr1" ./rankprioerror.sh rr1 $1 log
+rankprio "rr1 rank errror" "rr1" ./rankprioerror.sh -t 20 -w 10 rr1 $1 log
 
-rankprio "rr1 rank errror runq" "rr1-q" ./rankprioerror.sh -q rr1 $1 log
+rankprio "rr1 rank errror runq" "rr1-q" ./rankprioerror.sh -t 20 -w 10 -q rr1 $1 log
 
-rankprio "rr rank errror" "rr" ./rankprioerror.sh rr $1 log
+rankprio "rr rank errror" "rr" ./rankprioerror.sh -t 20 -w 10 rr $1 log

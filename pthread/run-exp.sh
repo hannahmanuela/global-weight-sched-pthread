@@ -67,7 +67,7 @@ sweep2 "rr w b=2" "rr-prio" ./schedule -r 2 -b 2 -g 2 rr
 
 sweep2 "rr w b=2 and preempt" "rr-prio-mask" ./schedule -p -r 2 -b 2 -g 2 rr
 
-sweep2 "rr1 w b=2 and preempt" "rr1-prio" ./schedule -p -r 2 -b 2 -g 2 rr1
+sweep2 "rr1 w b=2 and mask" "rr1-prio" ./schedule -p -r 2 -b 2 -g 2 rr1
 
 sweep2 "rr1 w b=2 and runq" "rr1-prio-runq" ./schedule -p -q -r 2 -b 2 -g 2 rr1
 

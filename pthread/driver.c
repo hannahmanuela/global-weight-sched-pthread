@@ -155,7 +155,7 @@ void action(struct sched_state *ss, struct core *mycore, int choice) {
 	}
 }
 
-static int sleep_preempt(int t) {
+static int work_preempt(int t) {
 	for (int i = 0; i < t; i++) {
 		work_us(1);
 		if (mycore()->preempted != -1) {
@@ -212,7 +212,7 @@ void rr_groups() {
 void rr_sched_action(struct core *mycore) {
 	doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 	if(time_work > 0) {
-		sleep_preempt(time_work);
+		work_preempt(time_work);
 	}
 
 	if(benchmark == 1 && (mycore->process != NULL) && mycore->process->pid == 0) {

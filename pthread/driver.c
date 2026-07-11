@@ -157,7 +157,7 @@ void action(struct sched_state *ss, struct core *mycore, int choice) {
 
 static int sleep_preempt(int t) {
 	for (int i = 0; i < t; i++) {
-		usleep(1);
+		work_us(1);
 		if (mycore()->preempted != -1) {
 			return 1;
 		}

@@ -31,6 +31,9 @@ long safe_read_tsc();
 void tsc_init();
 long tsc_now();
 
+extern double tsc_per_us;  // calibrated in tsc_init()
+void work_us(long us);     // busy-wait ~us microseconds of computation
+
 uint64_t perf_read_l2(int fd);
 int perf_config(int cid);
 

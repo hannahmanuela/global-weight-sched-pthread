@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <strings.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <immintrin.h>
 
 #include "core.h"
@@ -24,18 +25,56 @@ struct core *mycore() {
 	return tl_mycore;
 }
 
-// Machine topology (Intel box with HT, 2 sockets x 14 cores x 2 threads):
-//   NUMA 0 = even CPUs 0,2,...,54; NUMA 1 = odd CPUs 1,3,...,55.
-//   HT siblings: CPU N and CPU N+28 share a physical core.
-#define CORES_PER_NUMA 14
-#define NUMA_NODES     2
-#define HT_PER_CORE    2
+// Build a pin order that puts one thread on every distinct physical core
+// before using any hyperthread sibling. Discovered from sysfs at runtime,
+// so it adapts to whatever machine we run on (no hardcoded topology).
+#define MAX_CPUS 4096
+
+static int pin_order[MAX_CPUS];
+static int n_pins;
+static pthread_once_t pin_once = PTHREAD_ONCE_INIT;
+
+static int topo_read_int(int cpu, const char *field, int dflt) {
+	char path[128];
+	snprintf(path, sizeof(path),
+	         "/sys/devices/system/cpu/cpu%d/topology/%s", cpu, field);
+	FILE *f = fopen(path, "r");
+	if (!f) return dflt;
+	int v;
+	if (fscanf(f, "%d", &v) != 1) v = dflt;
+	fclose(f);
+	return v;
+}
+
+static void build_pin_order(void) {
+	int ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+	if (ncpu <= 0 || ncpu > MAX_CPUS) ncpu = 1;
+
+	int pkg[MAX_CPUS], core[MAX_CPUS];
+	for (int c = 0; c < ncpu; c++) {
+		pkg[c]  = topo_read_int(c, "physical_package_id", 0);
+		core[c] = topo_read_int(c, "core_id", c);
+	}
+
+	// tier t = the t-th hyperthread of each physical core. Emit all of tier 0
+	// (one thread per core) before any of tier 1, so the first N_physical pins
+	// never share a core.
+	n_pins = 0;
+	for (int tier = 0; n_pins < ncpu; tier++) {
+		int added = 0;
+		for (int c = 0; c < ncpu; c++) {
+			int sib = 0;                 // siblings of c with a smaller cpu id
+			for (int c2 = 0; c2 < c; c2++)
+				if (pkg[c2] == pkg[c] && core[c2] == core[c]) sib++;
+			if (sib == tier) { pin_order[n_pins++] = c; added++; }
+		}
+		if (!added) break;
+	}
+}
 
 int calc_pin_cpu(int cid) {
-	int per_numa = CORES_PER_NUMA * HT_PER_CORE;
-	int node = cid / per_numa;
-	int slot = cid % per_numa;
-	return 2 * slot + node;
+	pthread_once(&pin_once, build_pin_order);
+	return pin_order[cid % n_pins];
 }
 
 void core_print(struct core *c) {

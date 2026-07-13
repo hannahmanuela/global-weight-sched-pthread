@@ -14,21 +14,10 @@ extern struct sched_state *ss_global;
 
 #define IND(mh, i) ((i) % mh->nheap)
 
+// XXX use mheap_all?
 static struct heap_elem *global_high(struct mheap *mh) {
-	int cid = mycore()->cid;
-	for (int i = 0; i < mh->nheap; i++) {
-		struct heap *h = ss_global->mh->h[IND(mh, cid+1+i)];
-		lock_acquire(&h->lk);
-		struct heap_elem *he0 = heap_min(h);
-		if((he0 != NULL) && (he0->weight == W_HIGH)) {
-			struct heap_elem *he = heap_remove_min(h);
-			assert(he == he0);
-			lock_release(&h->lk);
-			return he;
-		}
-		lock_release(&h->lk);
-	}
-	return NULL;
+	struct heap_elem *he = mh_deq_min_elem_all_heap(mh,  is_min_elem_high, -1);
+	return he;
 }
 
 struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
@@ -40,6 +29,7 @@ struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
 	if (prev != NULL) {
 		assert(prev->h == h);
 		heap_push(prev->h, &prev->he);
+		prev->he.tsc_in = safe_read_tsc();
 		if(debug) {
 			printf("%d(%d): yield_gppcrq %d\n", prev->pid, prev->group->gid, c->cid);
 		}
@@ -49,16 +39,19 @@ struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
 	bool look_for_high = ((he == NULL) || (he->weight == W_LOW));
 	if(!look_for_high) {
 		mycore()->nlocal += 1;
-		he = heap_remove_min(h);
+		if ((he = heap_remove_min(h)) != NULL) {
+			he->tsc_out = safe_read_tsc(); 
+		}
 	}
-
 	lock_release(&h->lk);
 
 	if(look_for_high) {
 		he = global_high(ss_global->mh);
 		if(he == NULL) {
 			lock_acquire(&h->lk);
-			he = heap_remove_min(h);
+			if ((he = heap_remove_min(h)) != NULL) {
+				he->tsc_out = safe_read_tsc(); 
+			}
 			lock_release(&h->lk);
 		}
 	}
@@ -97,6 +90,7 @@ void ss_enqueue_gppcrq(struct task_struct *p) {
 	struct heap *h = ss_global->mh->h[i];
 	lock_acquire(&h->lk);
 	p->h = h;
+	p->he.tsc_in = safe_read_tsc();
 	heap_push(h, &p->he);
 	if(debug) {
 		printf("%d(%d): enqueue_gppcrq at %d\n", p->pid, p->group->gid, i);

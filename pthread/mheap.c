@@ -350,7 +350,8 @@ struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh, is_min_elem_t is_mi
 	for (int i = 0; i < mh->nheap; i++) {
 		struct heap *h = mh->h[MH_IND(mh, s+i)];
 		struct heap_elem *he0 = mh_min(h);
-		if (is_min_elem(he0) && mh_try_del_min(h, he0)) {
+		// he0 == NULL test is for pgpcrq.c, which doesn't use a dummy
+		if ((he0 != NULL) && is_min_elem(he0) && mh_try_del_min(h, he0)) {
 			he = he0;
 			he->tsc_out = safe_read_tsc();
 			lock_release(&h->lk);

@@ -28,7 +28,7 @@ struct mheap *mh __calign__;
 pthread_barrier_t init_barrier;
 
 void *run_core(void* core) {
-	#define N 64
+	#define N 4
 
 	struct core *mycore = (struct core *) core;
 	set_mycore(mycore);
@@ -44,7 +44,7 @@ void *run_core(void* core) {
 
 
 	if (mycore->cid == 0) {
-		for (long i = 0; i < N; i++) {
+		for (long i = 0; i < N * num_cores; i++) {
 			struct heap_elem *he = malloc(sizeof(struct heap_elem));
 			heap_elem_init(he, safe_read_tsc(), 0);
 			mh_insert_elem(mh, he);

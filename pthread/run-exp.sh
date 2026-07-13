@@ -15,7 +15,7 @@ while [ $n -le $1 ]; do
         n=$((n + 8))
     fi
 done
-SCHEDULERS=("rr" "gwfs" "gq" "rr1")
+SCHEDULERS=("gwfs"  "rr1" "gq")
 # SCHEDULERS=("rr" "gwfs" "gq" "rr1" "gppcrq")
 D=exp-out-`date +%Y-%m-%d_%H-%M-%S`
 
@@ -63,18 +63,14 @@ done
 
 sweep1 "mheap" "mheap" ./test-mheap
 
-sweep2 "rr w b=2" "rr-prio" ./schedule -r 2 -b 2 -g 2 rr
-
-sweep2 "rr w b=2 and preempt" "rr-prio-mask" ./schedule -p -r 2 -b 2 -g 2 rr
-
-sweep2 "rr1 w b=2 and mask" "rr1-prio" ./schedule -p -r 2 -b 2 -g 2 rr1
+sweep2 "rr1 w b=2 and mask" "rr1-prio-mask" ./schedule -p -r 2 -b 2 -g 2 rr1
 
 sweep2 "rr1 w b=2 and runq" "rr1-prio-runq" ./schedule -p -q -r 2 -b 2 -g 2 rr1
 
-sweep2 "gppcrq w b=2 and preempt" "gppcrq-prio" ./schedule -p -r 2 -b 2 -g 2 gppcrq
+sweep2 "gppcrq w b=2 and scan" "gppcrq-prio" ./schedule -r 2 -b 2 -g 2 gppcrq
 
-rankprio "rr1 rank errror" "rr1" ./rankprioerror.sh -t 20 -w 10 rr1 $1 log
+rankprio "rr1 rank error mask" "rr1-prio-mask" ./rankprioerror.sh -t 20 -w 10 rr1 $1 log
 
-rankprio "rr1 rank errror runq" "rr1-q" ./rankprioerror.sh -t 20 -w 10 -q rr1 $1 log
+rankprio "rr1 rank error runq" "rr1-prio-runq" ./rankprioerror.sh -t 20 -w 10 -q rr1 $1 log
 
-rankprio "rr rank errror" "rr" ./rankprioerror.sh -t 20 -w 10 rr $1 log
+rankprio "gppcrq rank errror" "gppcrq-prio" ./rankprioerror.sh -t 20 -w 10 gppcrq $1 log

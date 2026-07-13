@@ -42,7 +42,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	bool low = false;
 	int preempted = atomic_load(&mycore()->preempted);
 
-	if (do_preempt && preempted != -1) {
+	if (preempted != -1) {
 		mycore()->npreempted += 1;
 		atomic_store(&mycore()->preempted, -1);
 	}

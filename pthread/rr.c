@@ -98,7 +98,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 		// so scan all heaps of mh first before looking in
 		// mh_l.
 		mycore()->nscan_all++;
-		if ((p = runnable_deq_proc_all_heap(ss_global->mh)) != NULL) {
+		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh)) != NULL) {
 			assert(p->he.weight == W_HIGH);
 			mycore()->nscan_all_ok++;
 			if (prev != NULL) {

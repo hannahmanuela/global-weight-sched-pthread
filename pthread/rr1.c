@@ -77,7 +77,7 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		// we dequeued a high priority process and didn't find
 		// a core running a low proc; do our best to find the
 		// high, but start with the hint
-		if ((p = runnable_deq_high_proc_all_heap(ss_global->mh, hint)) != NULL) {
+		if ((p = runnable_deq_high_proc_all_heap_hint(ss_global->mh, hint)) != NULL) {
 			if (prev != NULL) {
 				enqueue(prev);
 			}

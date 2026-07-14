@@ -8,7 +8,7 @@
 
 struct task_struct *runnable_deq_proc(struct mheap *mh, struct task_struct*);
 struct task_struct *runnable_deq_proc_hint(struct mheap *mh, struct task_struct*, int hint);
-struct task_struct *runnable_deq_proc_all_heap(struct mheap *mh);
-struct task_struct *runnable_deq_high_proc_all_heap(struct mheap *mh, int hint);
+struct task_struct *runnable_deq_high_proc_all_heap(struct mheap *mh);
+struct task_struct *runnable_deq_high_proc_all_heap_hint(struct mheap *mh, int hint);
 
 #endif

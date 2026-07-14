@@ -30,21 +30,26 @@ struct sched_state {
 	int tick_length;
 
 	struct mheap *mh;
-	struct mheap *mh_l;   // for low priority rr procs
 
+	// for rr1.c
+	struct mheap *mh_r __calign__;   // for running low priority procs w runq
+	bitarray_t preemptable __calign__;  // for running low priority procs w mask
+
+	// for gq.c
 	queue_t q_h __calign__;
-
 	queue_t q_l __calign__;
 
+	// for dllist
 	dllist_t preemptq __calign__;
 
+	// for gwfs; TODO: convert to rr1 plan
 	preempt_t preempt __calign__;
 
-	struct mheap *mh_r __calign__;   // for running low priority procs
-
-	bitarray_t preemptable __calign__;
-
+	// for gwfs.c
 	vt_t min_vt __calign__;
+
+	// for rr; TODO delete rr
+	struct mheap *mh_l;   // for low priority rr procs
 
 	is_lt_elem_t is_lt_elem;
 	is_min_elem_t is_min_elem;

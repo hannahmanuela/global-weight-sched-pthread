@@ -56,7 +56,6 @@ extern struct sched_state *ss_global;
 static int num_threads_p_group;
 
 struct global_state {
-	struct sched_state *ss;
 	struct group **grps;
 	struct core **cores;
 };
@@ -83,35 +82,35 @@ void ticks_getwork(t_t *ticks) {
 #define ENQ 2
 #define DEQ 3
 
-void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, long *n, struct task_struct *p) {
+void doop(int op, long *cycles, long *n, struct task_struct *p) {
 	long ts = 0;
 	if(do_ts_op) ts = safe_read_tsc();
-	int c = mycore->cid;
+	int c = mycore()->cid;
 	switch(op) {
 	case SCHEDULE:
 		long ts;
-		ss_schedule(ss, mycore);
+		ss_schedule(ss_global, mycore());
 		break;
 	case YIELD:
-		int tl = ss->tick_length;
-		if (mycore->preempted != -1) {
+		int tl = ss_global->tick_length;
+		if (mycore()->preempted != -1) {
 			tl = tl / 2;
 		}
-		mycore->total += tl;
+		mycore()->total += tl;
 		if(p) {
-			mycore->work += tl;
-			ss_yield(ss, mycore, p, tl);
+			mycore()->work += tl;
+			ss_yield(ss_global, mycore(), p, tl);
 		} else {
-			mycore->idle += ss->tick_length;
+			mycore()->idle += ss_global->tick_length;
 		}
 		break;
 	case ENQ:
-		ss_enqueue(ss, mycore, p);
+		ss_enqueue(ss_global, mycore(), p);
 		break;
 	case DEQ:
-		mycore->total += ss->tick_length;
-		mycore->work += ss->tick_length/2;
-		ss_dequeue(ss, mycore, p, ss->tick_length/2);
+		mycore()->total += ss_global->tick_length;
+		mycore()->work += ss_global->tick_length/2;
+		ss_dequeue(ss_global, mycore(), p, ss_global->tick_length/2);
 		break;
 	default:
 		assert(0);
@@ -126,29 +125,30 @@ void doop(struct sched_state *ss, struct core *mycore, int op, long *cycles, lon
 #define WAKEUP 1
 #define SLEEP 2
 
-void action(struct sched_state *ss, struct core *mycore, int choice) {
+void action(int choice) {
+	struct core *c = mycore();
 	switch(choice) {
 	case RUN: // Run for full tick
-		doop(ss, mycore, YIELD, &mycore->yield_cycles, &mycore->nyield, mycore->process); 
+		doop(YIELD, &c->yield_cycles, &c->nyield, c->process); 
 		break;
 	case WAKEUP: // Make a process runnable
 		// pick an existing process from the pool
-		struct task_struct *p = mycore->pool;
+		struct task_struct *p = c->pool;
 		if (!p) {
 			return; 
 		}
-		mycore->pool = p->next;
+		c->pool = p->next;
 		p->next = NULL;
-		doop(ss, mycore, ENQ, &mycore->enq_cycles, &mycore->nenq, p);
+		doop(ENQ, &c->enq_cycles, &c->nenq, p);
 		break;
 	case SLEEP: // Make current process not runnable (e.g., go to sleep)
-		p = mycore->process;
+		p = c->process;
 		if (!p) {
 			return;
 		}
-		doop(ss, mycore, DEQ, &mycore->deq_cycles, &mycore->ndeq, p);
-		p->next = mycore->pool;
-		mycore->pool = p;
+		doop(DEQ, &c->deq_cycles, &c->ndeq, p);
+		p->next = c->pool;
+		c->pool = p;
 		break;
 	default:
 		assert(0);
@@ -192,47 +192,50 @@ void rr_groups() {
 		if (i > 0) {
 			pid += ns[i-1];
 		}
-		struct mheap *mh = gs->ss->mh;
+		struct mheap *mh = ss_global->mh;
 		if(i == BE_GID && is_rr()) {
-			mh = gs->ss->mh_l;
+			mh = ss_global->mh_l;
 		}
 		struct group *g = grp_new(mh, i, i == LC_GID ? W_HIGH : W_LOW);
 		gs->grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
 			struct task_struct *p = grp_new_process(pid+j, g);
+			ss_enqueue(ss_global, mycore(), p);
+			/*
 			if(is_pcrq()) ss_enqueue_pcrq(p);
 			else if (is_gppcrq()) ss_enqueue_gppcrq(p);
 			else if (is_gq()) ss_enqueue_gq(p);
 			else if (is_rr1()) ss_enqueue_rr1(p);
 			else ss_enqueue_rr(p);
+			*/
 		}
 	}
 }	
 
 void rr_sched_action(struct core *mycore) {
-	doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+	doop(SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 	if(time_work > 0) {
 		work_preempt(time_work);
 	}
 
 	if(benchmark == 1 && (mycore->process != NULL) && mycore->process->pid == 0) {
 		// this proc should run after all other runnable procs
-		action(gs->ss, mycore, SLEEP);
-		action(gs->ss, mycore, WAKEUP);
+		action(SLEEP);
+		action(WAKEUP);
 	} else if (benchmark == 2) {
 		// note: run with preempt (-p)
 		bool high = (mycore->process != NULL) && (mycore->process->he.weight == W_HIGH);
 		if(high) {
-			action(gs->ss, mycore, SLEEP);
+			action(SLEEP);
 		} else if (mycore->pool != NULL) {  // sleeping proc?
-			action(gs->ss, mycore, WAKEUP);  // wakeup sleeping high
-			action(gs->ss, mycore, RUN);  // preempt/yield low
+			action(WAKEUP);  // wakeup sleeping high
+			action(RUN);  // preempt/yield low
 		} else if (mycore->process != NULL) {
 			assert(mycore->process->group->gid == BE_GID);
-			action(gs->ss, mycore, RUN);
+			action(RUN);
 		}
 	} else {
-		action(gs->ss, mycore, RUN);
+		action(RUN);
 	}
 }
 
@@ -240,22 +243,21 @@ void ss_groups() {
 	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
 	w_t w = base_weight;
 	for (int i = 0; i < num_groups; i++) {
-		struct group *g = grp_new(gs->ss->mh, i, w);
+		struct group *g = grp_new(ss_global->mh, i, w);
 		w  += base_weight * (ratio - 1);
 		gs->grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {
 			struct task_struct *p = grp_new_process(i*num_threads_p_group+j, g);
-			ss_enqueue(gs->ss, gs->cores[0], p);
+			ss_enqueue(ss_global, gs->cores[0], p);
 		}
 	}
 }
 
 void ss_sched_action(struct core *mycore) {
-	doop(gs->ss, mycore, SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
+	doop(SCHEDULE, &mycore->sched_cycles, &mycore->nsched, NULL); 
 	if(time_work > 0) 
 		usleep(time_work);
-	action(gs->ss, mycore, RUN);
-	// action(ss, mycore, rand() % 3);
+	action(RUN);
 }
 
 void *run_core(void* core) {
@@ -368,12 +370,12 @@ void main(int argc, char *argv[]) {
 	}
 
 	if(is_rr() || is_rr1() || is_gppcrq()) {
-		gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_priority, is_min_elem_high);
+		ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_priority, is_min_elem_high);
 	} else {
-		gs->ss = ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_vt_w, is_min_elem_vt);
+		ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_vt_w, is_min_elem_vt);
 	}
 
-	// printf("==="); mh_print(gs->ss->mh);
+	// printf("==="); mh_print(ss_global->mh);
 
 	pthread_barrier_init(&init_barrier, NULL, num_cores);
 
@@ -383,7 +385,7 @@ void main(int argc, char *argv[]) {
 
 	int pg = ((is_rr() || is_rr1() || is_gppcrq()) && (ratio == 0)) ? 0 : num_threads_p_group;
 	pg = ((is_rr() || is_rr1() || is_gppcrq()) && (ratio == 2)) ? ratio-1 : pg;
-	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d power2_insert %d benchmark %d runtime %ds weight ratio %d runningq %d\n", argv[optind], num_cores, num_groups, num_threads, pg, gs->ss->mh->nheap, time_work, do_affinity, do_preempt, use_power2_insert, benchmark, time_to_run, ratio, use_runningq);
+	printf("= %s num_cores %d num_groups %d nprocs %d (procs/group %d) nheap %d work %d affinity? %d preempt %d power2_insert %d benchmark %d runtime %ds weight ratio %d runningq %d\n", argv[optind], num_cores, num_groups, num_threads, pg, ss_global->mh->nheap, time_work, do_affinity, do_preempt, use_power2_insert, benchmark, time_to_run, ratio, use_runningq);
 
 	float s_h = 0.0;
 	float s_l = FLT_MAX;
@@ -502,20 +504,20 @@ void main(int argc, char *argv[]) {
 		c_print(c, num_groups);
 	}
 	     
-	ss_stats(gs->ss, gs->grps, num_groups);
+	ss_stats(ss_global, gs->grps, num_groups);
 
 	if(is_gwfs()) {
 		printf("  retry grp offset sub %ld\n", offset_sub_retry);
 	}
 
-	mh_stats(gs->ss->mh);
-	if(gs->ss->mh_l != NULL) {
+	mh_stats(ss_global->mh);
+	if(ss_global->mh_l != NULL) {
 		printf("mh_l: ");
-		mh_stats(gs->ss->mh_l);
+		mh_stats(ss_global->mh_l);
 	}
-	if(gs->ss->mh_r != NULL) {
+	if(ss_global->mh_r != NULL) {
 		printf("mh_r: ");
-		mh_stats(gs->ss->mh_r);
+		mh_stats(ss_global->mh_r);
 	}
 	printf("  retry ins %ld min %0.2f max %0.2f\n", nretry_ins, rins_l, rins_h);
 	printf("  retry del %ld min %0.2f max %0.2f\n", nretry_del, rdel_l, rdel_h);

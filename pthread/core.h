@@ -38,8 +38,6 @@ struct core {
 	struct task_struct *process;   // currently running process or last process ran
 	struct task_struct *pool;      // pool of processes sleeping
 
-	int scan_high;                // set to true when core should scan for high procs
-
 	// fields for tatistics:
 	t_t work;
 	t_t idle;

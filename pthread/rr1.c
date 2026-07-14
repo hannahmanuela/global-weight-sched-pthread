@@ -51,10 +51,10 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		atomic_store(&prev->he.vruntime, tsc_now());
 		low = (prev->he.weight == W_LOW);
 		if (debug)
-			printf("%d: ss_schedule_rr1: low %d preempted heap %d prev %d(%d) scan %d\n", mycore()->cid, low, preempted, prev->pid, prev->he.weight, mycore()->scan_high);
+			printf("%d: ss_schedule_rr1: low %d preempted heap %d prev %d(%d)\n", mycore()->cid, low, preempted, prev->pid, prev->he.weight);
 	} else {
 		if (debug)
-			printf("%d: ss_schedule_rr1: preempted heap %d idle scan %d\n", mycore()->cid, preempted, mycore()->scan_high);
+			printf("%d: ss_schedule_rr1: preempted heap %d idle\n", mycore()->cid, preempted);
 	}
 
 	if (use_runningq && (prev != NULL) && (prev->he.weight == W_LOW)) {
@@ -63,26 +63,6 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 		// while it is still on the running queue now.
 		lock_acquire(&prev->lk);
 		p_locked = prev;
-	}
-
-	if (mycore()->scan_high != -1) { 
-		int hint = mycore()->scan_high;
-		if (preempted != -1) {
-			printf("prempted %d scan high %d\n", preempted, mycore()->scan_high);
-		}
-		if (debug) {
-			printf("%d: scan high %d prev %p\n", mycore()->cid, mycore()->scan_high, prev);
-		}
-		mycore()->scan_high = -1;
-		// we dequeued a high priority process and didn't find
-		// a core running a low proc; do our best to find the
-		// high, but start with the hint
-		if ((p = runnable_deq_high_proc_all_heap_hint(ss_global->mh, hint)) != NULL) {
-			if (prev != NULL) {
-				enqueue(prev);
-			}
-			goto ok;
-		}
 	}
 
 	// find a proc to run
@@ -154,19 +134,21 @@ void ss_enqueue_rr1(struct task_struct *p) {
 	if (do_preempt && p->he.weight == W_HIGH) {
 		if (use_runningq) {
 			cid = running_find_and_clear(ss_global->mh_r);
+			if (cid == -1) {
+				// sampled find missed: scan the whole running set for any
+				// core running a low to preempt. Enqueuer-agnostic, so it
+				// works even when a high enqueues a high.
+				cid = running_find_and_clear_all(ss_global->mh_r);
+			}
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
 		}
-		// XXX see if this core is running a low, which should be true for -b 2
-		if(c->process != NULL) {
-			assert(c->process->he.weight == W_LOW);
-		}
-		if (cid == -1) {
-			mycore()->scan_high = h;
-		}
+		// If cid == -1 there is genuinely no core running a low to preempt; the
+		// high stays on the runnable heap for the next core's priority-ordered
+		// deq.
 	}
 	if (debug) {
-		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d scan %d\n", c->cid, p->pid, p->he.weight, p->he.vruntime, cid, h, mycore()->scan_high);
+		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d\n", c->cid, p->pid, p->he.weight, p->he.vruntime, cid, h);
 	}
 	if (cid != -1) {
 		atomic_store(&ss_global->cs[cid]->preempted, h);

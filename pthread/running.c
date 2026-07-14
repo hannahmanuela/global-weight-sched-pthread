@@ -66,3 +66,23 @@ int running_find_and_clear(struct mheap *mh) {
 	return -1;
 }
 
+// Exhaustive version of the find: scan every heap for a core running a low.
+// Used as the fallback when the sampled find misses, so a runnable high still
+// preempts a low-running core if one exists -- regardless of which core enqueued
+// it. (The old scan_high fallback only worked when the enqueuing core was itself
+// running a low; a high enqueuing a high would set scan_high uselessly.)
+int running_find_and_clear_all(struct mheap *mh) {
+	struct heap_elem *he = mh_deq_min_elem_all_heap(mh, is_min_elem_vt, mycore()->cid);
+	if(he != NULL) {
+		mycore()->npreempt_find_ok++;
+		struct task_struct *p = container_of(he, struct task_struct, he_r);
+		int cid = atomic_load(&p->cid);
+		if (cid == -1) {
+			mycore()->npreempt_retry++;
+		}
+		return cid;
+	}
+	mycore()->npreempt_find_fail++;
+	return -1;
+}
+

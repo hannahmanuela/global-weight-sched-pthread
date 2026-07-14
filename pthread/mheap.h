@@ -24,6 +24,7 @@ vt_t mh_last_vt(struct heap *h);
 struct heap_elem *mh_deq_min_elem(struct mheap *mh, int hint);
 struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *p, int hint);
 struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh, is_min_elem_t minf, int hint);
+struct heap_elem *mh_deq_min_elem_sample(struct mheap *mh, int nsample);
 struct heap *mh_choose_heap(struct mheap *mh);
 float mh_load(struct mheap *mh, int *maxl);
 void mh_rand_heaps(struct mheap *mh, int *i, int *j);

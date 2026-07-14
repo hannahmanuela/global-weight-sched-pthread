@@ -28,8 +28,31 @@ bool running_clear(struct mheap *mh, struct task_struct *p) {
 	mycore()->npreempt_clear++;
 }
 
+// Number of heaps to sample in the find. The running queue holds ~ncore low
+// procs spread by power-of-two over nheap == 2*ncore heaps, so the empty
+// fraction is p = (nheap - ncore + 1)/nheap ~= 1/2, roughly independent of core
+// count. A sample of s heaps misses (finds nothing though a low is running) with
+// prob ~= p^s, so pick the smallest s with p^s <= MH_R_MISS_EPS, capped at nheap.
+#define MH_R_MISS_EPS 0.01
+
+static int running_nsample(struct mheap *mh) {
+	int nheap = mh->nheap;
+	int ncore = nheap / 2;              // running queue is sized 2*ncore
+	if (ncore < 1) ncore = 1;
+	int nempty = nheap - ncore + 1;    // ~ncore+1 empty heaps
+	double p = (double) nempty / (double) nheap;
+	double miss = 1.0;
+	int s = 0;
+	while (miss > MH_R_MISS_EPS && s < nheap) {
+		miss *= p;
+		s++;
+	}
+	if (s < 2) s = 2;
+	return s;
+}
+
 int running_find_and_clear(struct mheap *mh) {
-	struct heap_elem *he = mh_deq_min_elem(mh, -1);
+	struct heap_elem *he = mh_deq_min_elem_sample(mh, running_nsample(mh));
 	if(he != NULL) {
 		mycore()->npreempt_find_ok++;
 		struct task_struct *p = container_of(he, struct task_struct, he_r);

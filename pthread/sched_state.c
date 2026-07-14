@@ -59,12 +59,8 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 		queue_init(&ss->q_l);
 	}
 	if(use_runningq) {
-		// the running queue is ordered purely by vruntime (see running.c).
-		// It holds at most ncore entries (one per core running a low proc),
-		// so use ncore heaps rather than nheap (== 2*ncore): with 2*ncore
-		// heaps most would hold only the dummy, making the power-of-two-choices
-		// dequeue miss available preemption targets.
-		ss->mh_r = mh_new(ncore, is_lt_elem_vt_w);
+		// the running queue is ordered purely by vruntime (see running.c)
+		ss->mh_r = mh_new(nheap, is_lt_elem_vt_w);
 	}
 
 	switch (scheduler) {

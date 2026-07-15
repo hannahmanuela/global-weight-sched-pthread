@@ -32,9 +32,6 @@ static vt_t elem_get_vt(struct heap_elem *he) {
 	return vt;
 }
 
-// is_lt_elem returns:
-// 1 if e0 < e1 (e0 should run before e1)
-// 0 if e0 >= e1
 // returns 1 if e0 should sort before e1, else 0
 typedef int (*is_lt_elem_t)(struct heap_elem *e0, struct heap_elem *e1);
 
@@ -89,6 +86,5 @@ typedef void (*print_elem_t)(struct heap_elem *he);
 static void print_elem_vt(struct heap_elem *he) {
 	printf("[vt %lld w %d]", he->vruntime, he->weight);
 }
-
 
 #endif

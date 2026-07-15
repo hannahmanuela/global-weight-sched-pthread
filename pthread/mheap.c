@@ -31,7 +31,6 @@ struct mheap *mh_new(int n, is_lt_elem_t lt) {
 		mh->h[i] = heap_new(lt);
 		mh->h[i]->id = i;
 		lock_init(&(mh->h[i]->lk));
-		// no dummy: an empty heap is signalled by heap_min() == NULL
 	}
 	mh->nheap = n;
 	mh->lt = lt;
@@ -187,7 +186,7 @@ static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int 
 	struct heap_elem *he_j = heap_min(h_j);
 	if (he_i == NULL && he_j == NULL) {
 		*he = NULL;
-		return NULL;              // both heaps empty
+		return NULL; 
 	}
 	if (he_i == NULL) {
 		*he = he_j;

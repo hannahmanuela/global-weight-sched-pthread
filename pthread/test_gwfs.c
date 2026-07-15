@@ -462,7 +462,7 @@ void test_mheap_sleep(int nheap, int sleep_id, int ngrp) {
 }
 
 
-void main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
         // debug = true;
 	// delay_yield = true;
 
@@ -486,5 +486,7 @@ void main(int argc, char *argv[]) {
 	test_mheap_sleep(1, 0, GRP2);
 	test_mheap_sleep(1, 1, GRP2);
 	test_mheap_sleep(1, 2, 3);
+	printf("test-gwfs: all tests passed\n");
+	return 0;
 }
 

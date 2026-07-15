@@ -120,12 +120,14 @@ void test_rr_two_grp() {
 	printf("== test_rr_two_grp done OK\n");
 }
 
-void main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
 
 	srandom(getpid());
 
 	debug = true;
 	test_rr_one_grp();
 	test_rr_two_grp();
+	printf("test-rr: all tests passed\n");
+	return 0;
 }
 

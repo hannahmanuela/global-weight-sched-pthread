@@ -10,6 +10,8 @@
 #include "lock.h"
 #include "dllist.h"
 
+#define NOCID -1
+
 struct log_entry {
 	long ts_in;
 	long ts_out;

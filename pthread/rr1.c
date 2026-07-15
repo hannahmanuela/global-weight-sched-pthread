@@ -42,9 +42,9 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	bool low = false;
 	int preempted = atomic_load(&mycore()->preempted);
 
-	if (preempted != -1) {
+	if (preempted != NOHEAP) {
 		mycore()->npreempted += 1;
-		atomic_store(&mycore()->preempted, -1);
+		atomic_store(&mycore()->preempted, NOHEAP);
 	}
 
 	if(prev != NULL) {
@@ -129,12 +129,12 @@ ok:
 // XXX use atomic AOR to find low core
 void ss_enqueue_rr1(struct task_struct *p) {
 	struct core *c = mycore();
-	int cid = -1;
+	int cid = NOCID;
 	int h = enqueue(p);
 	if (do_preempt && p->he.weight == W_HIGH) {
 		if (use_runningq) {
 			cid = running_find_cid_deq(ss_global->mh_r);
-			if (cid == -1) {
+			if (cid == NOCID) {
 				// sampled find missed: scan all heaps
 				cid = running_find_cid_deq_all(ss_global->mh_r);
 			}
@@ -145,7 +145,7 @@ void ss_enqueue_rr1(struct task_struct *p) {
 	if (debug) {
 		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d\n", c->cid, p->pid, p->he.weight, p->he.vruntime, cid, h);
 	}
-	if (cid != -1) {
+	if (cid != NOCID) {
 		atomic_store(&ss_global->cs[cid]->preempted, h);
 	}
 }

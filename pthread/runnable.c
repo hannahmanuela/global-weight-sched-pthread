@@ -29,7 +29,7 @@ struct task_struct *runnable_deq_proc_hint(struct mheap *mh, struct task_struct 
 }
 
 struct task_struct *runnable_deq_proc(struct mheap *mh, struct task_struct *prev) {
-	return runnable_deq_proc_hint(mh, prev, -1);
+	return runnable_deq_proc_hint(mh, prev, NOHEAP);
 }
 
 struct task_struct *runnable_deq_high_proc_all_heap_hint(struct mheap *mh, int hint) {
@@ -39,6 +39,6 @@ struct task_struct *runnable_deq_high_proc_all_heap_hint(struct mheap *mh, int h
 }
 
 struct task_struct *runnable_deq_high_proc_all_heap(struct mheap *mh) {
-	return runnable_deq_high_proc_all_heap_hint(mh, -1);
+	return runnable_deq_high_proc_all_heap_hint(mh, NOHEAP);
 }
 

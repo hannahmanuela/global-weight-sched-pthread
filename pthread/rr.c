@@ -71,9 +71,9 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 	bool low = false;
 	int preempted = atomic_load(&mycore()->preempted);
 
-	if (do_preempt && preempted != -1) {
+	if (do_preempt && preempted != NOHEAP) {
 		mycore()->npreempted += 1;
-		atomic_store(&mycore()->preempted, -1);
+		atomic_store(&mycore()->preempted, NOHEAP);
 	}
 
 	if(prev != NULL) {
@@ -115,7 +115,7 @@ struct task_struct *ss_schedule_rr(struct task_struct *prev) {
 			lock_acquire(&prev->lk);
 			p_locked = prev;
 		}
-		if ((p = ss_schedule_mh_enq(ss_global->mh_l, prev, -1)) != NULL) {
+		if ((p = ss_schedule_mh_enq(ss_global->mh_l, prev, NOHEAP)) != NULL) {
 			assert(p->he.weight == W_LOW);
 			goto ok;
 		}
@@ -176,7 +176,7 @@ ok:
 // XXX use atomic AOR to find low core
 void ss_enqueue_rr(struct task_struct *p) {
 	struct core *c = mycore();
-	int cid = -1;
+	int cid = NOCID;
 	int h = enqueue(p);
 	if (do_preempt && p->he.weight == W_HIGH) {
 		// XXX see if this core is running a low
@@ -191,7 +191,7 @@ void ss_enqueue_rr(struct task_struct *p) {
 	if (debug) {
 		printf("%d: ss_enqueue_rr %d(%d) dopreempt? cid %d heap %p/%d\n", c->cid, p->pid, p->he.weight, cid, p->group->mh, h);
 	}
-	if (cid != -1) {
+	if (cid != NOCID) {
 		atomic_store(&ss_global->cs[cid]->preempted, h);
 	}
 }

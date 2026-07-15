@@ -16,7 +16,7 @@ extern struct sched_state *ss_global;
 
 // XXX use mheap_all?
 static struct heap_elem *global_high(struct mheap *mh) {
-	struct heap_elem *he = mh_deq_min_elem_all_heap(mh,  is_min_elem_high, -1);
+	struct heap_elem *he = mh_deq_min_elem_all_heap(mh,  is_min_elem_high, NOHEAP);
 	return he;
 }
 

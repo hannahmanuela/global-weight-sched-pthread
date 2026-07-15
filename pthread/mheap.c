@@ -274,7 +274,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 	// if hint, set heap i to be the hint
 	i = hint;
 	while(true) {
-		if (i == -1) {
+		if (i == NOHEAP) {
 			mh_rand_heaps(mh, &i, &j);
 		} else {
 			mycore()->nhint++;
@@ -292,7 +292,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_deq_min_enq(struct mheap
 		}
 		// the try failed, which happens only when another core locks too; that other core will deq
 		// from the hint heap. no need to retry the hint heap again.
-		i = -1;
+		i = NOHEAP; 
 		r++;
 	}
 
@@ -373,7 +373,7 @@ struct heap_elem *mh_deq_min_elem_sample(struct mheap *mh, int nsample) {
 struct heap_elem *mh_deq_min_elem_all_heap(struct mheap *mh, is_min_elem_t is_min_elem, int hint) {
         struct heap_elem *he = NULL;
 	int s = mycore()->cid;
-	if(hint != -1) {
+	if(hint != NOHEAP) {
 		mycore()->nscan_hint++;
 		s = hint;
 	} else {
@@ -405,7 +405,7 @@ int mh_insert_elem(struct mheap *mh, struct heap_elem *e) {
 	e->tsc_in = safe_read_tsc();
 	int hi = h->id;
 	lock_release(&h->lk);
-	assert((hi == -1) || (hi >= 0 && hi < mh->nheap));
+	assert((hi >= 0 && hi < mh->nheap));
 	return hi;
 }
 

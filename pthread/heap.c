@@ -124,7 +124,7 @@ struct heap_elem *heap_remove_min(struct heap *h) {
 	}
 	struct heap_elem *he = h->heap[last];
 	h->last_vt = he->vruntime;
-	he->idx = -1;
+	he->idx = NOHEAP;
 	return he;
 }
 
@@ -141,6 +141,6 @@ bool heap_erase(struct heap *h, struct heap_elem *e) {
                 heap_sift_up(h, i);
                 heap_sift_down(h, i);
         }
-	e->idx = -1;
+	e->idx = NOHEAP;
 	return true;
 }

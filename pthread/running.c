@@ -11,9 +11,9 @@
 //
 
 void running_enq(struct mheap *mh, struct task_struct *p, int cid) {
-	if (p->cid != -1) {
+	if (p->cid != NOCID) {
 		printf("%d: running_set pid %d cid %d\n", mycore()->cid, p->pid, p->cid);
-		assert(p->cid == -1);
+		assert(p->cid == NOCID);
 	}
 	atomic_store(&p->cid, cid);
 	atomic_store(&p->he_r.vruntime, safe_read_tsc());
@@ -24,7 +24,7 @@ void running_enq(struct mheap *mh, struct task_struct *p, int cid) {
 void running_rm(struct mheap *mh, struct task_struct *p) {
 	assert(p->cid >= 0);
 	mh_remove_elem(mh, p->h_r, &p->he_r);
-	atomic_store(&p->cid, -1);
+	atomic_store(&p->cid, NOCID);
 	mycore()->npreempt_clear++;
 }
 
@@ -36,13 +36,13 @@ int running_find_cid_deq(struct mheap *mh) {
 		mycore()->npreempt_find_ok++;
 		struct task_struct *p = container_of(he, struct task_struct, he_r);
 		int cid = atomic_load(&p->cid);
-		if (cid == -1) {
+		if (cid == NOCID) {
 			mycore()->npreempt_retry++;
 		}
 		return cid;
 	}
 	mycore()->npreempt_find_fail++;
-	return -1;
+	return NOCID;
 }
 
 // Exhaustive version of the find_find_cid_deq: scan every heap for a core running a low.
@@ -54,12 +54,12 @@ int running_find_cid_deq_all(struct mheap *mh) {
 		mycore()->npreempt_find_ok++;
 		struct task_struct *p = container_of(he, struct task_struct, he_r);
 		int cid = atomic_load(&p->cid);
-		if (cid == -1) {
+		if (cid == NOCID) {
 			mycore()->npreempt_retry++;
 		}
 		return cid;
 	}
 	mycore()->npreempt_find_fail++;
-	return -1;
+	return NOCID;
 }
 

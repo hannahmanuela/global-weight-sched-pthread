@@ -7,6 +7,8 @@
 #include <stdatomic.h>
 #include "vt.h"
 
+#define NOHEAP -1
+
 #define W_HIGH 1
 #define W_LOW 0
 

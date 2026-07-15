@@ -93,7 +93,7 @@ void doop(int op, long *cycles, long *n, struct task_struct *p) {
 		break;
 	case YIELD:
 		int tl = ss_global->tick_length;
-		if (mycore()->preempted != -1) {
+		if (mycore()->preempted != NOHEAP) {
 			tl = tl / 2;
 		}
 		mycore()->total += tl;
@@ -158,7 +158,7 @@ void action(int choice) {
 static int work_preempt(int t) {
 	for (int i = 0; i < t; i++) {
 		work_us(1);
-		if (mycore()->preempted != -1) {
+		if (mycore()->preempted != NOHEAP) {
 			return 1;
 		}
 	}

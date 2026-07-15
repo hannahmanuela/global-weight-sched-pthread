@@ -35,7 +35,7 @@ static vt_t elem_get_vt(struct heap_elem *he) {
 // is_lt_elem returns:
 // 1 if e0 < e1 (e0 should run before e1)
 // 0 if e0 >= e1
-// -1 if e0 and e1 are dummies
+// returns 1 if e0 should sort before e1, else 0
 typedef int (*is_lt_elem_t)(struct heap_elem *e0, struct heap_elem *e1);
 
 // is_min_elemn returns:
@@ -46,12 +46,6 @@ typedef int (*is_min_elem_t)(struct heap_elem *e0);
 static int is_lt_elem_vt_w(struct heap_elem *he_i, struct heap_elem *he_j) {
 	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
 	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
-	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
-		return -1;
-	}
-	if (vt_i == DUMMY) {
-		return 0;
-	} 
 	if (vt_i > vt_j) {
 		return 0;
 	} else if (vt_i == vt_j) {
@@ -69,9 +63,6 @@ static int is_lt_elem_priority(struct  heap_elem *he_i, struct heap_elem *he_j) 
 	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
 	int w_i = atomic_load_explicit(&he_i->weight, __ATOMIC_RELAXED);
 	int w_j = atomic_load_explicit(&he_j->weight, __ATOMIC_RELAXED);
-	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {
-		return -1;
-	}
 	if (w_i > w_j) {
 		return 1;
 	}
@@ -85,23 +76,17 @@ static int is_lt_elem_priority(struct  heap_elem *he_i, struct heap_elem *he_j) 
 }
 
 static int is_min_elem_vt(struct heap_elem *he) {
-	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
-	return vt != DUMMY;
+	return 1;   // no dummy: any element present is a real min
 }
 
 static int is_min_elem_high(struct heap_elem *he) {
-	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
 	int w = atomic_load_explicit(&he->weight, __ATOMIC_RELAXED);
-	return (vt != DUMMY && w == W_HIGH);
+	return w == W_HIGH;
 }
 
 typedef void (*print_elem_t)(struct heap_elem *he);
 
 static void print_elem_vt(struct heap_elem *he) {
-	if(he->vruntime == DUMMY) {
-		printf("[dummy vt %lld w %d]", he->vruntime, he->weight);
-		return;
-	}
 	printf("[vt %lld w %d]", he->vruntime, he->weight);
 }
 

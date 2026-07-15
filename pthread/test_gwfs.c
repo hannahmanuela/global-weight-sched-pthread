@@ -96,13 +96,13 @@ void test_grp_sleep_wakeup() {
 	ss_dequeue_gwfs(p0, tl);
 
 	assert(!ss_account_schedule_gwfs(NULL));
-	assert(ss->mh->h[0]->heap_size == 1);
+	assert(ss->mh->h[0]->heap_size == 0);   // no dummy: empty heap
 
 	ss_enqueue_gwfs(p0);
 
 	assert(gs[0]->vruntime == 4*tl);
 
-	assert(ss->mh->h[0]->heap_size == 2);
+	assert(ss->mh->h[0]->heap_size == 1);   // no dummy: one real proc
 	p0 = schedule_retry();
 	ss_enqueue_gwfs(p1);
 

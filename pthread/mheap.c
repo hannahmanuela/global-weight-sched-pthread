@@ -18,8 +18,6 @@
 // concurrent multiheap inspired by https://dl.acm.org/doi/10.1145/2755573.2755616
 //
 
-#define W_DUMMY 0
-
 #define MH_IND(mh, i) ((i) % mh->nheap)
 
 extern bool do_affinity;
@@ -33,10 +31,7 @@ struct mheap *mh_new(int n, is_lt_elem_t lt) {
 		mh->h[i] = heap_new(lt);
 		mh->h[i]->id = i;
 		lock_init(&(mh->h[i]->lk));
-		// insert a dummy element so that the heap always has one elemement
-		struct heap_elem* he = malloc(sizeof(struct heap_elem));
-		heap_elem_init(he, DUMMY, W_DUMMY);
-		heap_push(mh->h[i], he);
+		// no dummy: an empty heap is signalled by heap_min() == NULL
 	}
 	mh->nheap = n;
 	mh->lt = lt;
@@ -53,16 +48,16 @@ struct heap *mh_heap(struct mheap *mh, int i) {
 	return mh->h[i];
 }
 
+// returns the heap's min element, or NULL if the heap is empty
 static struct heap_elem *mh_min(struct heap *h) {
-	struct heap_elem *he = heap_min(h);
-	assert(he != NULL);
-	return he;
+	return heap_min(h);
 }
 
 
 vt_t mh_min_vt(struct heap *h) {
 	struct heap_elem *min = mh_min(h);
-	return elem_get_vt(min);
+	// empty heap: fall back to the last dequeued vruntime (the group's floor)
+	return min ? elem_get_vt(min) : mh_last_vt(h);
 }
 
 vt_t mh_last_vt(struct heap *h) {
@@ -93,7 +88,10 @@ void mh_print_min(struct mheap *mh, void (*print_heap_elem)(struct heap_elem *))
 		struct heap *h = mh->h[i];
 		lock_acquire(&h->lk);
 		printf("%d(%d): ", i, h->heap_size);
-		print_heap_elem(h->heap[0]);
+		if (h->heap_size > 0)
+			print_heap_elem(h->heap[0]);
+		else
+			printf("empty");
 		printf("\n");
 		lock_release(&h->lk);
 	}
@@ -176,24 +174,30 @@ retry:
 
 // caller must hold heap lock
 static struct heap_elem *mh_remove_min(struct heap *h) {
-	struct heap_elem *he = heap_remove_min(h);
-	assert(h->heap_size > 0);  // dummy should stay on heap
-	return he;
+	return heap_remove_min(h);
 }
 
 
 static struct heap  __attribute__ ((noinline)) *mh_select(struct mheap *mh, int i, int j, struct heap_elem **he) {
-	vt_t ovt;
 	struct heap *h_i = mh->h[i];
 	struct heap *h_j = mh->h[j];
-	struct heap_elem *he_i = atomic_load_explicit(&h_i->heap[0],  __ATOMIC_RELAXED);
-	struct heap_elem *he_j = atomic_load_explicit(&h_j->heap[0],  __ATOMIC_RELAXED);
-	int c = mh->lt(he_i, he_j);
-	if(c == -1) {
+	// lockless peek; heap_min() returns NULL for an empty heap. This is only a
+	// hint -- mh_try_deq_min_enq re-checks under the lock.
+	struct heap_elem *he_i = heap_min(h_i);
+	struct heap_elem *he_j = heap_min(h_j);
+	if (he_i == NULL && he_j == NULL) {
 		*he = NULL;
-		return NULL;
+		return NULL;              // both heaps empty
 	}
-	if (c == 1) {
+	if (he_i == NULL) {
+		*he = he_j;
+		return h_j;
+	}
+	if (he_j == NULL) {
+		*he = he_i;
+		return h_i;
+	}
+	if (mh->lt(he_i, he_j) == 1) {
 		*he = he_i;
 		return h_i;
 	}
@@ -219,22 +223,24 @@ static int mh_try_del_min(struct heap *h, struct heap_elem *he0) {
 // caller must have h locked
 static struct heap_elem *mh_deq_min_or_use_to_add(struct heap *h, struct heap_elem *he0, struct heap_elem *to_add) {
 	struct heap_elem *he = NULL;
-	int c = 1;
-	
-	if(is_min_elem_vt(he0)) {
-		he = he0;
-	}
+	int c = 1;                       // default: prefer the heap min (he0)
 
-	if (to_add != NULL) {
-		c = h->lt(he0, to_add);
+	if (he0 != NULL) {
+		he = he0;
+		if (to_add != NULL)
+			c = h->lt(he0, to_add);  // 1 if he0 sorts before to_add, else 0
+	} else {
+		c = 0;                       // empty heap: to_add (if any) is the min
 	}
 
 	if (c == 0) {
-		// pretend we added and removed to_add from the heap
-		h->last_vt = to_add->vruntime;
-		to_add->tsc_in = safe_read_tsc();
-		he = to_add;
-	} else if (he && c == 1) {
+		if (to_add != NULL) {
+			// pretend we added and removed to_add from the heap
+			h->last_vt = to_add->vruntime;
+			to_add->tsc_in = safe_read_tsc();
+			he = to_add;
+		}
+	} else if (he != NULL) {         // c == 1, he0 is a real min
 		he = mh_remove_min(h);
 		assert(he != NULL);
 		if (to_add != NULL)  {
@@ -255,7 +261,7 @@ static struct heap_elem  __attribute__ ((noinline)) *mh_try_deq_min_enq(struct h
 	if (l != 0) {
 		return NULL;
 	}
-	struct heap_elem *he = h->heap[0]; 
+	struct heap_elem *he = heap_min(h);   // NULL if the heap emptied since the peek
 	if (he != he0) {
 		lock_release(&h->lk);
 		return NULL;
@@ -349,7 +355,7 @@ struct heap_elem *mh_deq_min_elem_sample(struct mheap *mh, int nsample) {
 		for (int k = 0; k < nsample; k++) {
 			struct heap *h = mh_heap(mh, c_rand(mh->nheap));
 			struct heap_elem *he = mh_min(h);
-			if (elem_get_vt(he) == DUMMY) {
+			if (he == NULL) {   // empty heap
 				continue;
 			}
 			if ((best_he == NULL) || mh->lt(he, best_he) == 1) {

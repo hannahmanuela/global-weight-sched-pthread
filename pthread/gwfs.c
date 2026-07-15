@@ -193,17 +193,8 @@ static bool ss_preempt_slow(struct task_struct *p) {
 
 // XXX kernel API: no min?
 static vt_t min_vt(struct heap *h) {
-	vt_t h_min = mh_min_vt(h);
-	if (h_min == DUMMY) {
-		h_min = mh_last_vt(h);
-		// XXX fix me
-		/*
-		if (c->process && c->process->he.vruntime > h_min) {
-			h_min = c->process->he.vruntime;
-		}
-		*/
-	}
-	return h_min;
+	// mh_min_vt() already returns mh_last_vt(h) when the heap is empty
+	return mh_min_vt(h);
 }
 
 static void account_wakeup_gwfs(struct task_struct *p) {

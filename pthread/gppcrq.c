@@ -59,8 +59,6 @@ struct task_struct *ss_schedule_gppcrq(struct task_struct *prev) {
 	if(he == NULL) {
 		return NULL;
 	}
-
-        assert(he->vruntime != DUMMY);
 	struct task_struct *p = container_of(he, struct task_struct, he);
 	if(debug) {
 		printf("%d: schedule_gppcrq %d(%d)\n", c->cid, p->pid, p->group->gid);

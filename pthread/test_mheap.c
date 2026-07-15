@@ -56,9 +56,9 @@ void *run_core(void* core) {
 	double start = now();
 
 	for (int i = 0; now() - start < time_to_run; i++) {
-		struct heap_elem *he = mh_deq_min_elem_enq(mh, NULL, false);
+		struct heap_elem *he = mh_deq_min_elem_enq(mh, NULL, NOHEAP);
 		while (he == NULL) {
-			he = mh_deq_min_elem_enq(mh, NULL, false);
+			he = mh_deq_min_elem_enq(mh, NULL, NOHEAP);
 		}
 		mycore->ndeq++;
 

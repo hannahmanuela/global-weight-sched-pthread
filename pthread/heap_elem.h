@@ -25,6 +25,11 @@ struct heap_elem {
 	short id;
 };
 
+static vt_t elem_get_vt(struct heap_elem *he) {
+	vt_t vt = atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED);
+	return vt;
+}
+
 // is_lt_elem returns:
 // 1 if e0 < e1 (e0 should run before e1)
 // 0 if e0 >= e1
@@ -37,7 +42,6 @@ typedef int (*is_lt_elem_t)(struct heap_elem *e0, struct heap_elem *e1);
 typedef int (*is_min_elem_t)(struct heap_elem *e0);
 
 static int is_lt_elem_vt_w(struct heap_elem *he_i, struct heap_elem *he_j) {
-
 	vt_t vt_i = atomic_load_explicit(&he_i->vruntime, __ATOMIC_RELAXED);
 	vt_t vt_j = atomic_load_explicit(&he_j->vruntime, __ATOMIC_RELAXED);
 	if ((vt_i == DUMMY) && (vt_j == DUMMY)) {

@@ -59,10 +59,10 @@ static struct heap_elem *mh_min(struct heap *h) {
 	return he;
 }
 
+
 vt_t mh_min_vt(struct heap *h) {
 	struct heap_elem *min = mh_min(h);
-	vt_t vt = atomic_load(&min->vruntime);
-	return vt;
+	return elem_get_vt(min);
 }
 
 vt_t mh_last_vt(struct heap *h) {
@@ -337,13 +337,7 @@ struct heap_elem *mh_deq_min_elem_enq(struct mheap *mh, struct heap_elem *to_add
 	return mh_deq_min_enq(mh, to_add, hint);
 }
 
-// Sample nsample random heaps (with replacement), pick the one whose min
-// (heap[0]) has the smallest real vruntime, and dequeue it. Returns NULL only
-// if every sampled heap holds just the dummy (a miss). This is the
-// membership-style find used by the running queue: unlike mh_deq_min_enq (which
-// samples exactly two and gives up on a both-dummy sample), sampling more heaps
-// cuts the miss rate ~geometrically. It stays cheap because the scan is lockless
-// (atomic reads of heap[0]); only the chosen heap is locked, in mh_try_deq_min_enq.
+// Sample nsample random heaps to decrease miss ratio
 struct heap_elem *mh_deq_min_elem_sample(struct mheap *mh, int nsample) {
 	if (mh->nheap == 1) {
 		return mh_deq_min_one_heap(mh, NULL);
@@ -353,25 +347,25 @@ struct heap_elem *mh_deq_min_elem_sample(struct mheap *mh, int nsample) {
 		struct heap *best_h = NULL;
 		struct heap_elem *best_he = NULL;
 		for (int k = 0; k < nsample; k++) {
-			struct heap *h = mh->h[c_rand(mh->nheap)];
-			struct heap_elem *he = atomic_load_explicit(&h->heap[0], __ATOMIC_RELAXED);
-			if (atomic_load_explicit(&he->vruntime, __ATOMIC_RELAXED) == DUMMY) {
-				continue;  // only the dummy here: no running proc
+			struct heap *h = mh_heap(mh, c_rand(mh->nheap));
+			struct heap_elem *he = mh_min(h);
+			if (elem_get_vt(he) == DUMMY) {
+				continue;
 			}
-			if (best_he == NULL || mh->lt(he, best_he) == 1) {
+			if ((best_he == NULL) || mh->lt(he, best_he) == 1) {
 				best_he = he;
 				best_h = h;
 			}
 		}
 		if (best_h == NULL) {
-			return NULL;  // all sampled heaps were empty: miss
+			return NULL;
 		}
 		struct heap_elem *he = mh_try_deq_min_enq(best_h, best_he, NULL);
 		if (he != NULL) {
 			mycore()->nretry_del += r;
 			return he;
 		}
-		r++;  // lost the lock race or the min moved; resample
+		r++;
 	}
 }
 

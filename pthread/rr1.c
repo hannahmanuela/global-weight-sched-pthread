@@ -135,17 +135,12 @@ void ss_enqueue_rr1(struct task_struct *p) {
 		if (use_runningq) {
 			cid = running_find_cid_deq(ss_global->mh_r);
 			if (cid == -1) {
-				// sampled find missed: scan the whole running set for any
-				// core running a low to preempt. Enqueuer-agnostic, so it
-				// works even when a high enqueues a high.
+				// sampled find missed: scan all heaps
 				cid = running_find_cid_deq_all(ss_global->mh_r);
 			}
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
 		}
-		// If cid == -1 there is genuinely no core running a low to preempt; the
-		// high stays on the runnable heap for the next core's priority-ordered
-		// deq.
 	}
 	if (debug) {
 		printf("%d: ss_enqueue_rr1 %d(%d) vt %lld dopreempt? cid %d heap %d\n", c->cid, p->pid, p->he.weight, p->he.vruntime, cid, h);

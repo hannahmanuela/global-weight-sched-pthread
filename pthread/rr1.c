@@ -97,13 +97,13 @@ ok:
 			} else {
 				if (prev != NULL) {
 					assert(p_locked != NULL);
-					running_clear(ss_global->mh_r, prev);
+					running_rm(ss_global->mh_r, prev);
 					lock_release(&p_locked->lk);
 					p_locked = NULL;
 				}
 				assert(p_locked == NULL);
 				lock_acquire(&p->lk);
-				running_set(ss_global->mh_r, p, mycore()->cid);
+				running_enq(ss_global->mh_r, p, mycore()->cid);
 				lock_release(&p->lk);
 			}
 		} else {
@@ -114,7 +114,7 @@ ok:
 		}
 	} else if (p_locked != NULL) {
 		assert(prev != NULL);
-		running_clear(ss_global->mh_r, prev);
+		running_rm(ss_global->mh_r, prev);
 		lock_release(&p_locked->lk);
 		p_locked = NULL;
 	}
@@ -133,12 +133,12 @@ void ss_enqueue_rr1(struct task_struct *p) {
 	int h = enqueue(p);
 	if (do_preempt && p->he.weight == W_HIGH) {
 		if (use_runningq) {
-			cid = running_find_and_clear(ss_global->mh_r);
+			cid = running_find_cid_deq(ss_global->mh_r);
 			if (cid == -1) {
 				// sampled find missed: scan the whole running set for any
 				// core running a low to preempt. Enqueuer-agnostic, so it
 				// works even when a high enqueues a high.
-				cid = running_find_and_clear_all(ss_global->mh_r);
+				cid = running_find_cid_deq_all(ss_global->mh_r);
 			}
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);

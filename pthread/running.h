@@ -6,9 +6,9 @@
 #include "process.h"
 #include "mheap.h"
 
-void running_set(struct mheap *, struct task_struct *, int cid);
-bool running_clear(struct mheap *, struct task_struct *);
-int running_find_and_clear(struct mheap *);
-int running_find_and_clear_all(struct mheap *);
+void running_enq(struct mheap *, struct task_struct *, int cid);
+void running_rm(struct mheap *, struct task_struct *);
+int running_find_cid_deq(struct mheap *);
+int running_find_cid_deq_all(struct mheap *);
 
 #endif

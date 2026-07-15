@@ -41,7 +41,7 @@ static void ss_enqueue_low(struct task_struct *p_l) {
 		if (debug) {
 			printf("%d: %d(%d) remove from runq %d\n", mycore()->cid, p_l->pid, p_l->he.weight, p_l->cid);
 		}
-		running_clear(ss_global->mh_r, p_l);
+		running_rm(ss_global->mh_r, p_l);
 	}
 	enqueue(p_l);
 }
@@ -150,13 +150,13 @@ ok:
 			} else {
 				if (prev != NULL) {
 					assert(p_locked != NULL);
-					running_clear(ss_global->mh_r, prev);
+					running_rm(ss_global->mh_r, prev);
 					lock_release(&p_locked->lk);
 					p_locked = NULL;
 				}
 				assert(p_locked == NULL);
 				lock_acquire(&p->lk);
-				running_set(ss_global->mh_r, p, mycore()->cid);
+				running_enq(ss_global->mh_r, p, mycore()->cid);
 				lock_release(&p->lk);
 			}
 		} else {
@@ -183,7 +183,7 @@ void ss_enqueue_rr(struct task_struct *p) {
 		if(c->process != NULL)
 			assert(c->process->he.weight == W_LOW);
 		if (use_runningq) {
-			cid = running_find_and_clear(ss_global->mh_r);
+			cid = running_find_cid_deq(ss_global->mh_r);
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
 		}

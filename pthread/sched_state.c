@@ -58,11 +58,6 @@ struct sched_state *ss_new(int tick_length, int nheap, struct core *cs[], int nc
 		queue_init(&ss->q_h);
 		queue_init(&ss->q_l);
 	}
-	if(use_runningq) {
-		// the running queue is ordered purely by vruntime (see running.c)
-		ss->mh_r = mh_new(nheap, is_lt_elem_vt_w);
-	}
-
 	switch (scheduler) {
 	case GWFS:
 		ss->sched = (struct scheduler) {

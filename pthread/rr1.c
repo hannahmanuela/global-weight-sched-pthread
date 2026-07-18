@@ -38,13 +38,17 @@ static int enqueue(struct task_struct *p) {
 // Yield prev, if any, and select new one, if there is a runnable one
 struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	struct task_struct *p = NULL;
-	struct task_struct *p_locked = NULL;
 	bool low = false;
 	int preempted = atomic_load(&mycore()->preempted);
+	struct task_struct *preempt_proc = atomic_load(&mycore()->preempt_proc);
 
 	if (preempted != NOHEAP) {
 		mycore()->npreempted += 1;
 		atomic_store(&mycore()->preempted, NOHEAP);
+	}
+
+	if (preempt_proc != NULL) {
+		atomic_store(&mycore()->preempt_proc, NULL);
 	}
 
 	if(prev != NULL) {
@@ -55,14 +59,6 @@ struct task_struct *ss_schedule_rr1(struct task_struct *prev) {
 	} else {
 		if (debug)
 			printf("%d: ss_schedule_rr1: preempted heap %d idle\n", mycore()->cid, preempted);
-	}
-
-	if (use_runningq && (prev != NULL) && (prev->he.weight == W_LOW)) {
-		// lock prev because it might end up on runnable queue
-		// and some core may grab it and add it to the running queue
-		// while it is still on the running queue now.
-		lock_acquire(&prev->lk);
-		p_locked = prev;
 	}
 
 	// find a proc to run
@@ -84,40 +80,13 @@ ok:
 		printf("%d: running1 %d(%d) vt %lld\n", mycore()->cid, p->pid, p->he.weight, p->he.vruntime);
 	}
 	if (do_preempt && (p->he.weight == W_LOW)) {
-		if (use_runningq) {
-			if (p == prev) {
-				if (debug)  {
-					printf("%d: %d(%d) continue running cid %d\n", mycore()->cid,
-				       p->pid, p->he.weight, p->cid);
-				}
-				if(p_locked != NULL) {
-					lock_release(&p_locked->lk);
-					p_locked = NULL;
-				}
-			} else {
-				if (prev != NULL) {
-					assert(p_locked != NULL);
-					running_rm(ss_global->mh_r, prev);
-					lock_release(&p_locked->lk);
-					p_locked = NULL;
-				}
-				assert(p_locked == NULL);
-				lock_acquire(&p->lk);
-				running_enq(ss_global->mh_r, p, mycore()->cid);
-				lock_release(&p->lk);
-			}
-		} else {
+		if (!use_runningq) {
 			// reset preemtable if switching from high or prev=NULL to
 			// a low proc, or if preempted
 			if(!low || preempted)
 				preemptable_set(ss_global->preemptable, mycore()->cid);
 		}
-	} else if (p_locked != NULL) {
-		assert(prev != NULL);
-		running_rm(ss_global->mh_r, prev);
-		lock_release(&p_locked->lk);
-		p_locked = NULL;
-	}
+	} 
 	if(mycore()->fd > 0) {
 		c_log_append(p);
 	}
@@ -133,11 +102,11 @@ void ss_enqueue_rr1(struct task_struct *p) {
 	int h = enqueue(p);
 	if (do_preempt && p->he.weight == W_HIGH) {
 		if (use_runningq) {
-			cid = running_find_cid_deq(ss_global->mh_r);
-			if (cid == NOCID) {
+			cid = c_find_low_and_clear(running_nsample(mh), is_min_elem_vt);
+			//if (cid == NOCID) {
 				// sampled find missed: scan all heaps
-				cid = running_find_cid_deq_all(ss_global->mh_r);
-			}
+				//cid = running_find_cid_deq_all(ss_global->mh_r);
+			//}
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
 		}

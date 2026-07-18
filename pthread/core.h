@@ -117,6 +117,7 @@ void c_log_done(struct core *c);
 void c_lat(struct task_struct *p);
 
 int c_find_low_and_clear(int nsample, is_min_elem_t is_min);
+int c_find_low_all_and_clear(is_min_elem_t is_min);
 int c_find_min_and_clear(int nsample, is_lt_elem_t is_lt);
 
 #endif

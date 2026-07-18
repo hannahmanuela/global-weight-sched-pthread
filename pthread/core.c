@@ -204,6 +204,24 @@ int c_find_low_and_clear(int nsample, is_min_elem_t is_min) {
 			continue;
 		}
 		if (__atomic_compare_exchange_n(&c->preempt_proc, &p, NULL, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+			mycore()->npreempt_find_ok++;
+			return c->cid;
+		}
+	}
+	mycore()->npreempt_find_fail++;
+        return NOCID;
+}
+
+int c_find_low_all_and_clear(is_min_elem_t is_min) {
+	mycore()->nscan_all++;
+	for (int i = 0; i < num_cores; i++) {
+		struct core *c = cores[(i + mycore()->cid) % num_cores];
+		struct task_struct *p = atomic_load(&c->preempt_proc);
+		if (p == NULL || !is_min(&p->he)) {
+			continue;
+		}
+		if (__atomic_compare_exchange_n(&c->preempt_proc, &p, NULL, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+			mycore()->nscan_all_ok++;
 			return c->cid;
 		}
 	}

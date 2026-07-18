@@ -105,10 +105,10 @@ void ss_enqueue_rr1(struct task_struct *p) {
 	if (do_preempt && p->he.weight == W_HIGH) {
 		if (use_runningq) {
 			cid = c_find_low_and_clear(nsamples_cores(num_cores), is_min_elem_vt);
-			//if (cid == NOCID) {
+			if (cid == NOCID) {
 				// sampled find missed: scan all heaps
-				//cid = running_find_cid_deq_all(ss_global->mh_r);
-			//}
+				cid = c_find_low_all_and_clear(is_min_elem_vt);
+			}
 		} else {
 			cid = preemptable_find_and_clear(ss_global->preemptable);
 		}

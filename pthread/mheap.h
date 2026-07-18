@@ -46,7 +46,7 @@ static int running_nsample(struct mheap *mh) {
 // ncore cores, not 2*ncore heaps, so the cap is ncore. At the preemption boundary
 // roughly half the cores are not valid targets (idle, or running a task >= the
 // waker's priority), so model p ~ 1/2 as above: smallest s with p^s <= EPS.
-static int running_nsample_cores(int ncore) {
+static int nsamples_cores(int ncore) {
 	if (ncore < 1) ncore = 1;
 	double p = 0.5;
 	double miss = 1.0;

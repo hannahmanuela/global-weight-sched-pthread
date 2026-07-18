@@ -2,6 +2,7 @@
 
 #define _HEAP_ELEM_H_
 
+#include <stdio.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdatomic.h>

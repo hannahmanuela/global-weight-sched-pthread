@@ -176,23 +176,38 @@ void c_log_done(struct core *c) {
 	}
 }
 
-
-int c_find_preemptable_and_clear(int nsample, is_lt_elem_t is_lt) {
-	int best_cid = NOCID;
-	struct heap_elem *best_he = NULL;
-	for (int k = 0; k < nsample; k++) {
+int c_find_min_and_clear(int nsample, is_lt_elem_t is_lt) {
+        int best_cid = NOCID;
+        struct heap_elem *best_he = NULL;
+        for (int k = 0; k < nsample; k++) {
 		struct core *c = cores[c_rand(num_cores)];
 		if (c->process == NULL) {
 			continue;
 		}
-		struct heap_elem *he = NULL;
+                struct heap_elem *he = NULL;
 		if ((best_cid == NOCID) || is_lt(best_he, &c->process->he) == 1) {
 			best_cid = c->cid;
 			best_he = &c->process->he;
-		}
-	}
+                }
+        }
 	if(best_he == NULL) {
 		return NOCID;
 	}
-        return best_cid;
+	return best_cid;
+}
+
+int c_find_low_and_clear(int nsample, is_min_elem_t is_min) {
+	for (int k = 0; k < nsample; k++) {
+		struct core *c = cores[c_rand(num_cores)];
+		if (c->preempt_process == NULL) {
+			continue;
+		}
+		struct heap_elem *he = NULL;
+		if (is_min(&c->preempt_process->he)) {
+			if (__atomic_compare_exchange_n(&c->preempt_process, &c->preempt_process, NULL, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+				return c->cid;
+			}		
+		}
+	}
+        return NOCID;
 }

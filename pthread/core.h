@@ -9,6 +9,7 @@
 #include "util.h"
 #include "lock.h"
 #include "dllist.h"
+#include "heap_elem.h"
 
 #define NOCID -1
 
@@ -39,6 +40,8 @@ struct core {
 
 	struct task_struct *process;   // currently running process or last process ran
 	struct task_struct *pool;      // pool of processes sleeping
+
+	struct task_struct *preempt_process __calign__;   // same as process, if not preempted
 
 	// fields for tatistics:
 	t_t work;
@@ -112,5 +115,8 @@ void c_log_init(struct core *c, char *name);
 void c_log_append(struct task_struct *p);
 void c_log_done(struct core *c);
 void c_lat(struct task_struct *p);
+
+int c_find_low_and_clear(int nsample, is_min_elem_t is_min);
+int c_find_min_and_clear(int nsample, is_lt_elem_t is_lt);
 
 #endif

@@ -22,7 +22,7 @@
 #define PROC5 5
 #define NCORE1 1
 
-int num_cores;
+extern int num_cores;
 extern bool debug;
 extern bool delay_yield;
 extern int scheduler;
@@ -48,7 +48,7 @@ static struct task_struct *schedule_retry() {
 }
 
 static struct sched_state *mk_mheap(int nheap, int ngrp, int nproc, int tl, struct group **gs, int ws[]) {
-	struct core *cs[NCORE1] = {c_new(0, GRP1, getpid())};
+	struct core *cs[NCORE1] = {c_new(0, getpid())};
 	scheduler = GWFS;  // must be set before invoking ss_new()
 	set_mycore(cs[0]);
 	struct sched_state *ss = ss_new(tl, nheap, cs, NCORE1, is_lt_elem_vt_w, is_min_elem_vt);
@@ -266,7 +266,7 @@ void test_running_offset() {
 	int ngrp = GRP2;
 
 	int nheap = 1;
-	struct core *c[NCORE1] = {c_new(0, GRP2, 0)};
+	struct core *c[NCORE1] = {c_new(0, 0)};
 	struct sched_state *ss = ss_new(tl, nheap, c, num_cores, is_lt_elem_vt_w, is_min_elem_vt);
 	for (int i = 0; i < ngrp; i++) {
 		gs[i] = grp_new(ss->mh, i, ws[i]);

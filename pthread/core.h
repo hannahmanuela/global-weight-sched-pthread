@@ -90,9 +90,6 @@ struct core {
 	long nmc_dec;
 	long nmc_inc;
 
-	int *hit;
-	int *miss;
-
 	struct log_entry *log;
 	int log_nentry;
 	int fd;
@@ -100,13 +97,17 @@ struct core {
 
 #define LOG_NENTRY  1000000
 
+void cores_init(char *);
+
 void set_mycore(struct core *);
 struct core *mycore();
+
 int calc_pin_cpu(int cid);
+
 void core_print(struct core *c);
 void c_print(struct core *c, int ngrp);
 int c_rand(int n);
-struct core *c_new(int i, int n, int seed);
+struct core *c_new(int i, int seed);
 void c_log_init(struct core *c, char *name);
 void c_log_append(struct task_struct *p);
 void c_log_done(struct core *c);

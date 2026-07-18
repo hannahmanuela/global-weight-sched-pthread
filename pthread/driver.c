@@ -32,7 +32,6 @@
 #include "util.h"
 
 int time_to_run = 2;  // sec
-int num_cores;
 int time_work; // in usec
 char *logfile = NULL;
 int base_weight = 10;
@@ -51,30 +50,33 @@ extern bool use_power2_insert;
 extern int scheduler;
 extern int ratio;
 extern bool delay_yield;
+
 extern struct sched_state *ss_global;
+
+extern int num_cores; 
+extern struct core **cores;
 
 static int num_threads_p_group;
 
 struct global_state {
 	struct group **grps;
-	struct core **cores;
 };
 
 struct global_state* gs;
 
 void ticks_gettime(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i]->total));
+		ticks[i] = atomic_load(&(cores[i]->total));
 }
 
 void ticks_getidle(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i]->idle));
+		ticks[i] = atomic_load(&(cores[i]->idle));
 }
 
 void ticks_getwork(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
-		ticks[i] = atomic_load(&(gs->cores[i]->work));
+		ticks[i] = atomic_load(&(cores[i]->work));
 }
 
 #define SCHEDULE 0
@@ -248,7 +250,7 @@ void ss_groups() {
 		gs->grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {
 			struct task_struct *p = grp_new_process(i*num_threads_p_group+j, g);
-			ss_enqueue(ss_global, gs->cores[0], p);
+			ss_enqueue(ss_global, cores[0], p);
 		}
 	}
 }
@@ -361,18 +363,14 @@ void main(int argc, char *argv[]) {
 	num_threads_p_group = num_threads/num_groups;
 
 	tsc_init();
+
+	cores_init(logfile);
 	
 	gs = malloc(sizeof(struct global_state));
-	gs->cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
-	for (int i = 0; i < num_cores; i++) {
-		gs->cores[i] = c_new(i, num_groups, i);
-		if (logfile != NULL) c_log_init(gs->cores[i], logfile);
-	}
-
 	if(is_rr() || is_rr1() || is_gppcrq()) {
-		ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_priority, is_min_elem_high);
+		ss_new(tick_length, nheap, cores, num_cores, is_lt_elem_priority, is_min_elem_high);
 	} else {
-		ss_new(tick_length, nheap, gs->cores, num_cores, is_lt_elem_vt_w, is_min_elem_vt);
+		ss_new(tick_length, nheap, cores, num_cores, is_lt_elem_vt_w, is_min_elem_vt);
 	}
 
 	// printf("==="); mh_print(ss_global->mh);
@@ -380,7 +378,7 @@ void main(int argc, char *argv[]) {
 	pthread_barrier_init(&init_barrier, NULL, num_cores);
 
 	for (int i = 0; i < num_cores; i ++) {
-		pthread_create(&gs->cores[i]->tid, NULL, run_core, (void*)(gs->cores[i]));
+		pthread_create(&cores[i]->tid, NULL, run_core, (void*)(cores[i]));
 	}
 
 	int pg = ((is_rr() || is_rr1() || is_gppcrq()) && (ratio == 0)) ? 0 : num_threads_p_group;
@@ -429,7 +427,7 @@ void main(int argc, char *argv[]) {
 	long npreempt_find_fail = 0;
 
 	for (int i = 0; i < num_cores; i++) {
-		struct core *c = gs->cores[i];
+		struct core *c = cores[i];
 		pthread_join(c->tid, NULL);
 
 		c_log_done(c);
@@ -475,11 +473,6 @@ void main(int argc, char *argv[]) {
 		nscan_all_ok += c->nscan_all_ok;
 		npreempted += c->npreempted;
 
-		for (int j = 0; j < num_groups; j++) {
-			hit += c->hit[j];
-			miss += c->miss[j];
-		}
-
 		nsched_null += c->nsched_null;
 		if(c->max_retry_del > max_retry_del)
 			max_retry_del = c->max_retry_del;
@@ -500,7 +493,7 @@ void main(int argc, char *argv[]) {
 		printf("  hit %ld miss %ld hit ratio %0.2f\n", hit, miss, AVG(hit, (hit+miss)));
 
 	for (int i = 0; i < num_cores; i++) {
-		struct core *c = gs->cores[i];
+		struct core *c = cores[i];
 		c_print(c, num_groups);
 	}
 	     

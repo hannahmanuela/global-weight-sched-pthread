@@ -12,11 +12,12 @@
 #include "core.h"
 #include "preempt.h"
 
-int num_cores = 2;
+extern int num_cores;
+extern struct core **cores;
+
 bool do_affinity = false;
 bool do_latency = false;
 bool use_rao_int = false;
-struct core **cores;
 int time_to_run = 2;
 
 bitarray_t ba __calign__;
@@ -133,6 +134,7 @@ void usage(char *s) {
 int main(int argc, char *argv[]) {
 	int opt;
 	
+	num_cores = 2;
 	while ((opt = getopt(argc, argv, "r")) != -1) {
 		switch(opt) {
 		case 'r':
@@ -147,10 +149,7 @@ int main(int argc, char *argv[]) {
 	num_cores = atoi(argv[optind]);
 	if (num_cores < 2)
 		usage(argv[0]);
-	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
-	for (int i = 0; i < num_cores; i++) {
-		cores[i] = c_new(i, 1, i);
-	}
+	cores_init(NULL);
 	if (use_rao_int) test_atomics();
 	test_ba();
 	test_parallel("set_find", run_set_find);

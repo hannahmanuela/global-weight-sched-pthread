@@ -12,8 +12,12 @@
 #include "group.h"
 #include "mheap.h"
 #include "dllist.h"
+#include "heap_elem.h"
 
 extern bool do_affinity;
+
+int num_cores;
+struct core **cores;
 
 __thread struct core *tl_mycore;
 
@@ -77,6 +81,26 @@ int calc_pin_cpu(int cid) {
 	return pin_order[cid % n_pins];
 }
 
+struct core *c_new(int i, int seed) {
+	struct core *c = (struct core *) malloc(sizeof(struct core));
+	bzero(c, sizeof(struct core));
+	lock_init(&c->lk);
+	c->cid = i;
+	c->preempted = NOHEAP;
+	c->seed = seed;
+	srand48_r(seed, &c->randBuffer);
+	return c;
+}
+
+
+void cores_init(char *logfile) {
+	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
+	for (int i = 0; i < num_cores; i++) {
+		cores[i] = c_new(i, i);
+		if (logfile != NULL) c_log_init(cores[i], logfile);
+	}
+}
+
 void core_print(struct core *c) {
 	struct task_struct *p = c->process;
 	if (p == NULL) {
@@ -96,13 +120,6 @@ void c_print(struct core *c, int num_groups) {
 	       c->ndeq, AVG(c->deq_cycles, c->ndeq),
 	       c->nyield, AVG(c->yield_cycles, c->nyield));
 #endif
-	if(do_affinity) {
-		for (int j = 0; j < num_groups; j++) {
-			printf("[gid %d: h %d m %d %0.2f] ", j, c->hit[j], c->miss[j],
-			       AVG(c->hit[j], (c->hit[j]+c->miss[j])));
-		}
-		printf("\n");
-	}
 }
 
 int c_rand(int n) {
@@ -112,19 +129,6 @@ int c_rand(int n) {
        int r = (int) (dr * n);
        // int r = rand_r(&c->seed) % n;
        return r;
-}
-
-struct core *c_new(int i, int n, int seed) {
-	struct core *c = (struct core *) malloc(sizeof(struct core));
-	bzero(c, sizeof(struct core));
-	lock_init(&c->lk);
-	c->cid = i;
-	c->preempted = NOHEAP;
-	c->seed = seed;
-	srand48_r(seed, &c->randBuffer);
-	c->hit = calloc(n, sizeof(int));
-	c->miss = calloc(n, sizeof(int));
-	return c;
 }
 
 void c_log_init(struct core *c, char *name) {
@@ -172,3 +176,23 @@ void c_log_done(struct core *c) {
 	}
 }
 
+
+int c_find_preemptable_and_clear(int nsample, is_lt_elem_t is_lt) {
+	int best_cid = NOCID;
+	struct heap_elem *best_he = NULL;
+	for (int k = 0; k < nsample; k++) {
+		struct core *c = cores[c_rand(num_cores)];
+		if (c->process == NULL) {
+			continue;
+		}
+		struct heap_elem *he = NULL;
+		if ((best_cid == NOCID) || is_lt(best_he, &c->process->he) == 1) {
+			best_cid = c->cid;
+			best_he = &c->process->he;
+		}
+	}
+	if(best_he == NULL) {
+		return NOCID;
+	}
+        return best_cid;
+}

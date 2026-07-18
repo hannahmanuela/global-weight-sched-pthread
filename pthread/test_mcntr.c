@@ -11,12 +11,12 @@
 #include "core.h"
 #include "mcounter.h"
 
-int num_cores = 2;
+extern int num_cores;
 bool do_affinity = false;
 bool do_latency = false;
-struct core **cores;
 int time_to_run = 1;
 struct mcntr *mc;
+extern struct core **cores;
 
 void test_mc() {
 	mc_dec(mc, cores[0]);
@@ -78,10 +78,7 @@ int main(int argc, char *argv[]) {
 	num_cores = atoi(argv[1]);
 	if (num_cores < 2)
 		usage(argv[0]);
-	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*num_cores, CACHE_LINE_SZ));
-	for (int i = 0; i < num_cores; i++) {
-		cores[i] = c_new(i, 1, i);
-	}
+	cores_init(NULL);
 	mc = mc_new();
 	assert(mc_is_zero(mc, cores[0]));
 

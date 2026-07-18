@@ -13,10 +13,11 @@
 
 #define NCORES 100
 
-int num_cores;
+extern int num_cores;
+extern struct core **cores;
+
 bool do_affinity = false;
 bool do_latency = false;
-struct core **cores;
 int time_to_run = 2;
 
 queue_t q __calign__;
@@ -125,11 +126,7 @@ int main(int argc, char *argv[]) {
 	}
 	num_cores = atoi(argv[1]);
 	assert(num_cores <= NCORES);
-
-	cores = (struct core **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct core *)*NCORES, CACHE_LINE_SZ));
-	for (int i = 0; i < NCORES; i++) {
-		cores[i] = c_new(i, 1, i);
-	}
+	cores_init(NULL);
 	test_queue();
 	test_parallel();
 }

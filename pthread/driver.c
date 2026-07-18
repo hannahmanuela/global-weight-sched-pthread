@@ -58,11 +58,7 @@ extern struct core **cores;
 
 static int num_threads_p_group;
 
-struct global_state {
-	struct group **grps;
-};
-
-struct global_state* gs;
+static  struct group **grps;
 
 void ticks_gettime(t_t *ticks) {
 	for (int i = 0; i < num_cores; i++)
@@ -169,7 +165,7 @@ static int work_preempt(int t) {
 
 void rr_groups() {
 	int ns[2];
-	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
+	grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
 	assert(num_groups <= 2);
 
 	if(ratio == 0)  {
@@ -199,7 +195,7 @@ void rr_groups() {
 			mh = ss_global->mh_l;
 		}
 		struct group *g = grp_new(mh, i, i == LC_GID ? W_HIGH : W_LOW);
-		gs->grps[i] = g;
+		grps[i] = g;
 		for (int j = 0; j < ns[i]; j++) {
 			struct task_struct *p = grp_new_process(pid+j, g);
 			ss_enqueue(ss_global, mycore(), p);
@@ -242,12 +238,12 @@ void rr_sched_action(struct core *mycore) {
 }
 
 void ss_groups() {
-	gs->grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
+	grps = (struct group **) aligned_alloc(CACHE_LINE_SZ, ALIGN_UP(sizeof(struct group *)*num_groups, CACHE_LINE_SZ));
 	w_t w = base_weight;
 	for (int i = 0; i < num_groups; i++) {
 		struct group *g = grp_new(ss_global->mh, i, w);
 		w  += base_weight * (ratio - 1);
-		gs->grps[i] = g;
+		grps[i] = g;
 		for (int j = 0; j < num_threads_p_group; j++) {
 			struct task_struct *p = grp_new_process(i*num_threads_p_group+j, g);
 			ss_enqueue(ss_global, cores[0], p);
@@ -366,7 +362,6 @@ void main(int argc, char *argv[]) {
 
 	cores_init(logfile);
 	
-	gs = malloc(sizeof(struct global_state));
 	if(is_rr() || is_rr1() || is_gppcrq()) {
 		ss_new(tick_length, nheap, cores, num_cores, is_lt_elem_priority, is_min_elem_high);
 	} else {
@@ -497,7 +492,7 @@ void main(int argc, char *argv[]) {
 		c_print(c, num_groups);
 	}
 	     
-	ss_stats(ss_global, gs->grps, num_groups);
+	ss_stats(ss_global, grps, num_groups);
 
 	if(is_gwfs()) {
 		printf("  retry grp offset sub %ld\n", offset_sub_retry);

@@ -14,6 +14,7 @@
 #include "running.h"
 #include "mheap.h"
 #include "rr.h"
+#include "mheap.h"
 
 //
 // approximate round robin with one or two priority levels using one mheap
@@ -22,6 +23,7 @@
 extern bool debug;
 extern bool do_preempt;
 extern int num_groups;
+extern int num_cores;
 extern bool use_runningq;
 extern struct sched_state *ss_global;
 
@@ -90,7 +92,7 @@ ok:
 	if(mycore()->fd > 0) {
 		c_log_append(p);
 	}
-	assert(p_locked == NULL);
+	atomic_store(&mycore()->preempt_proc, p);
 	return p;
 }
 
@@ -102,7 +104,7 @@ void ss_enqueue_rr1(struct task_struct *p) {
 	int h = enqueue(p);
 	if (do_preempt && p->he.weight == W_HIGH) {
 		if (use_runningq) {
-			cid = c_find_low_and_clear(running_nsample(mh), is_min_elem_vt);
+			cid = c_find_low_and_clear(nsamples_cores(num_cores), is_min_elem_vt);
 			//if (cid == NOCID) {
 				// sampled find missed: scan all heaps
 				//cid = running_find_cid_deq_all(ss_global->mh_r);

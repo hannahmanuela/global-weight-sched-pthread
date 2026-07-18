@@ -199,14 +199,12 @@ int c_find_min_and_clear(int nsample, is_lt_elem_t is_lt) {
 int c_find_low_and_clear(int nsample, is_min_elem_t is_min) {
 	for (int k = 0; k < nsample; k++) {
 		struct core *c = cores[c_rand(num_cores)];
-		if (c->preempt_process == NULL) {
+		struct task_struct *p = atomic_load(&c->preempt_proc);
+		if (p == NULL || !is_min(&p->he)) {
 			continue;
 		}
-		struct heap_elem *he = NULL;
-		if (is_min(&c->preempt_process->he)) {
-			if (__atomic_compare_exchange_n(&c->preempt_process, &c->preempt_process, NULL, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-				return c->cid;
-			}		
+		if (__atomic_compare_exchange_n(&c->preempt_proc, &p, NULL, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+			return c->cid;
 		}
 	}
         return NOCID;

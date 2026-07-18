@@ -41,7 +41,7 @@ struct core {
 	struct task_struct *process;   // currently running process or last process ran
 	struct task_struct *pool;      // pool of processes sleeping
 
-	struct task_struct *preempt_process __calign__;   // same as process, if not preempted
+	struct task_struct *preempt_proc __calign__;   // same as process, if not preempted
 
 	// fields for tatistics:
 	t_t work;

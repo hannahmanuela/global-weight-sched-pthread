@@ -40,6 +40,26 @@ static int running_nsample(struct mheap *mh) {
 	return s;
 }
 
+// Like running_nsample() but for sampling CPUS (cores) directly rather than the
+// 2*ncore dispatch heaps -- e.g. the preemption-target search, which samples cores
+// to find a running lower-priority (over-served) task to kick. The population is
+// ncore cores, not 2*ncore heaps, so the cap is ncore. At the preemption boundary
+// roughly half the cores are not valid targets (idle, or running a task >= the
+// waker's priority), so model p ~ 1/2 as above: smallest s with p^s <= EPS.
+static int running_nsample_cores(int ncore) {
+	if (ncore < 1) ncore = 1;
+	double p = 0.5;
+	double miss = 1.0;
+	int s = 0;
+	while (miss > MH_R_MISS_EPS && s < ncore) {
+		miss *= p;
+		s++;
+	}
+	if (s < 2) s = 2;
+	if (s > ncore) s = ncore;
+	return s;
+}
+
 struct mheap *mh_new(int n, is_lt_elem_t lt);
 void mh_stats(struct mheap *mh);
 void mh_free(struct mheap *mh);
